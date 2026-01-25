@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../co
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { toast } from "sonner";
-import { Wallet, TrendingUp, Shield, Users } from "@phosphor-icons/react";
+import { Wallet, ChartLineUp, Shield, Users } from "@phosphor-icons/react";
 
 export default function Login() {
   const { login, register } = useAuth();
