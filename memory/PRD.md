@@ -15,52 +15,53 @@ App de gestión financiera personal para uso familiar (usuario, esposa, contador
 3. **Contadora**: Vista tributaria enfocada en deducciones SRI
 
 ## Requisitos Core
-- Categorías SRI Ecuador: Alimentación, Salud, Educación, Vivienda, Vestimenta
-- Subcategorías personalizadas: Servicios básicos, Empleados, Colegio y actividades, Seguros, Comida, Restaurantes, Carros, Viajes y Entretenimiento
+- Categorías SRI Ecuador: Alimentación, Salud, Educación, Vivienda, Vestimenta (deducibles)
+- Categorías NO deducibles: Transporte, Viajes Internacionales, Otros
+- Subcategorías: Servicios básicos, Empleados, Colegio y actividades, Seguros, Comida, Restaurantes, Carros, Viajes
 - Fuentes de ingreso: Personal, APX, USA
 - Moneda: USD
 
-## Lo Implementado (25 Enero 2026)
-### Backend
+## Lo Implementado
+
+### Iteración 1 (25 Enero 2026)
 - ✅ API FastAPI con MongoDB
 - ✅ Auth JWT con 3 roles (admin, spouse, accountant)
 - ✅ CRUD transacciones con categorías SRI
 - ✅ Dashboard stats: balance, ingresos, gastos diarios/semanales/mensuales
-- ✅ Procesamiento de emails de tarjeta
+- ✅ Procesamiento de emails de tarjeta PacifiCard
 - ✅ OCR de recibos con Gemini Vision
 - ✅ Importación de Excel de planificación
 - ✅ Predicciones AI con OpenAI GPT-5.2
 - ✅ Vista contadora con resumen tributario
 
-### Frontend
-- ✅ Login/Registro con roles
-- ✅ Dashboard con gráficos (Area, Pie, Bar)
-- ✅ Gestión de transacciones (CRUD)
-- ✅ Cargar datos (Email, Recibo, Excel)
-- ✅ Vista Presupuesto vs Real
-- ✅ Predicciones AI
-- ✅ Vista Contadora
+### Iteración 2 (25 Enero 2026)
+- ✅ **Subida múltiple de archivos/imágenes** (drag & drop)
+- ✅ **Popup de confirmación para gastos internacionales** (detecta USA, Miami, Amazon.com, etc.)
+- ✅ **Página de Gastos Internacionales** separada
+- ✅ **Filtro por tipo de tarjeta** (local vs extranjera)
+- ✅ **Sugerencias de ajuste de budget** basadas en historial (últimos 6 meses)
+- ✅ **Categoría Viajes Internacionales** marcada como NO deducible
+- ✅ Campo payment_source en transacciones (local/internacional)
 
 ## Backlog Priorizado
 ### P0 (Crítico)
-- N/A (MVP funcional)
+- N/A
 
 ### P1 (Alta prioridad)
-- [ ] Integración real con email forwarding
+- [ ] Mejorar dropdown de categorías en modal (UX)
 - [ ] Exportación a PDF para contadora
-- [ ] Notificaciones de exceso de presupuesto
+- [ ] Límites de deducciones SRI por rubro (% canasta básica)
 
 ### P2 (Media prioridad)
+- [ ] Notificaciones de exceso de presupuesto
 - [ ] Sincronización con bancos ecuatorianos
-- [ ] Multi-moneda (convertir a USD)
-- [ ] Historial de cambios de transacciones
+- [ ] Multi-moneda
 
 ### P3 (Baja prioridad)
 - [ ] App móvil
 - [ ] Modo offline
-- [ ] Temas personalizados
 
 ## Próximas Tareas
-1. Mejorar OCR para facturas ecuatorianas (Aleph)
-2. Agregar límites de deducciones SRI por rubro
-3. Dashboard comparativo año anterior
+1. Implementar límites específicos SRI según RUC del usuario
+2. Mejorar detección de países en OCR
+3. Dashboard comparativo con año anterior
