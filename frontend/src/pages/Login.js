@@ -52,7 +52,7 @@ export default function Login() {
 
   const features = [
     { icon: Wallet, title: "Control Total", desc: "Gestiona todos tus gastos e ingresos" },
-    { icon: TrendingUp, title: "Predicciones AI", desc: "Proyecciones inteligentes de gastos" },
+    { icon: ChartLineUp, title: "Predicciones AI", desc: "Proyecciones inteligentes de gastos" },
     { icon: Shield, title: "Cumplimiento SRI", desc: "Categorías tributarias de Ecuador" },
     { icon: Users, title: "Multi-usuario", desc: "Acceso para familia y contadora" },
   ];
