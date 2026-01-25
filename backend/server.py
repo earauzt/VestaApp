@@ -378,8 +378,118 @@ async def get_categories():
         "income_sources": INCOME_SOURCES,
         "payment_sources": PAYMENT_SOURCES,
         "international_countries": INTERNATIONAL_COUNTRIES,
-        "canasta_basica": CANASTA_BASICA
+        "canasta_basica": CANASTA_BASICA,
+        "fraccion_basica_exenta": FRACCION_BASICA_EXENTA,
+        "contribuyente": CONTRIBUYENTE_INFO
     }
+
+@api_router.get("/sri/deduction-limits")
+async def get_sri_deduction_limits(
+    cargas_familiares: int = 0,
+    user: dict = Depends(get_current_user)
+):
+    """Get SRI deduction limits based on family dependents"""
+    # Get current year transactions
+    now = datetime.now(timezone.utc)
+    start_of_year = f"{now.year}-01-01"
+    
+    transactions = await db.transactions.find(
+        {"user_id": user["id"], "date": {"$gte": start_of_year}, "transaction_type": "expense"},
+        {"_id": 0}
+    ).to_list(10000)
+    
+    # Calculate spent by category
+    spent_by_category = {}
+    total_deductible = 0
+    total_non_deductible = 0
+    
+    for t in transactions:
+        cat = t.get("category", "otros")
+        amount = t.get("amount", 0)
+        
+        if cat not in spent_by_category:
+            spent_by_category[cat] = 0
+        spent_by_category[cat] += amount
+        
+        if SRI_CATEGORIES.get(cat, {}).get("deductible", False):
+            total_deductible += amount
+        else:
+            total_non_deductible += amount
+    
+    # Calculate limits
+    cargas = min(cargas_familiares, 5)
+    num_cbf = CARGAS_FAMILIARES_CBF.get(cargas, 7)
+    limite_global = num_cbf * CANASTA_BASICA
+    
+    # Calculate progress for each category
+    category_progress = []
+    for cat_key, cat_info in SRI_CATEGORIES.items():
+        if cat_info.get("deductible", False):
+            spent = spent_by_category.get(cat_key, 0)
+            limit = cat_info.get("limit_usd", 0)
+            percentage = (spent / limit * 100) if limit > 0 else 0
+            
+            category_progress.append({
+                "category": cat_key,
+                "name": cat_info["name"],
+                "spent": round(spent, 2),
+                "limit": limit,
+                "percentage": round(min(percentage, 100), 1),
+                "remaining": round(max(0, limit - spent), 2),
+                "over_limit": spent > limit,
+                "description": cat_info.get("description", "")
+            })
+    
+    # Sort by percentage (highest first)
+    category_progress.sort(key=lambda x: x["percentage"], reverse=True)
+    
+    # Calculate potential tax rebate
+    gastos_aplicables = min(total_deductible, limite_global)
+    rebaja_ir = gastos_aplicables * PORCENTAJE_REBAJA_IR
+    
+    return {
+        "year": now.year,
+        "contribuyente": CONTRIBUYENTE_INFO,
+        "cargas_familiares": cargas_familiares,
+        "canasta_basica": CANASTA_BASICA,
+        "fraccion_basica_exenta": FRACCION_BASICA_EXENTA,
+        "limite_global": round(limite_global, 2),
+        "total_deductible_spent": round(total_deductible, 2),
+        "total_non_deductible_spent": round(total_non_deductible, 2),
+        "gastos_aplicables": round(gastos_aplicables, 2),
+        "rebaja_ir_estimada": round(rebaja_ir, 2),
+        "porcentaje_rebaja": PORCENTAJE_REBAJA_IR * 100,
+        "percentage_used": round((total_deductible / limite_global * 100) if limite_global > 0 else 0, 1),
+        "remaining_global": round(max(0, limite_global - total_deductible), 2),
+        "category_progress": category_progress,
+        "alerts": _generate_sri_alerts(category_progress, total_deductible, limite_global)
+    }
+
+def _generate_sri_alerts(category_progress, total_deductible, limite_global):
+    """Generate alerts for SRI deductions"""
+    alerts = []
+    
+    # Check global limit
+    if total_deductible >= limite_global * 0.9:
+        alerts.append({
+            "type": "warning",
+            "message": f"Has usado el 90% de tu límite global de deducciones (${limite_global:,.2f})"
+        })
+    
+    # Check individual categories
+    for cat in category_progress:
+        if cat["percentage"] >= 100:
+            alerts.append({
+                "type": "error",
+                "message": f"LÍMITE EXCEDIDO en {cat['name']}: ${cat['spent']:,.2f} de ${cat['limit']:,.2f}"
+            })
+        elif cat["percentage"] >= 80:
+            alerts.append({
+                "type": "warning", 
+                "message": f"{cat['name']}: {cat['percentage']}% del límite usado. Quedan ${cat['remaining']:,.2f}"
+            })
+    
+    return alerts
 
 # ================= TRANSACTIONS ENDPOINTS =================
 
