@@ -66,6 +66,10 @@ export default function Transactions() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  
+  // International transaction popup
+  const [showInternationalPopup, setShowInternationalPopup] = useState(false);
+  const [pendingFormData, setPendingFormData] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -76,7 +80,10 @@ export default function Transactions() {
     date: new Date(),
     transaction_type: "expense",
     source: "",
-    establishment: ""
+    establishment: "",
+    country: "",
+    payment_source: "local",
+    is_international: false
   });
 
   useEffect(() => {
