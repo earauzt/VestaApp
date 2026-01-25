@@ -174,8 +174,31 @@ CONTRIBUYENTE_INFO = {
     "regimen": "GENERAL",
     "obligado_contabilidad": False,
     "actividad_principal": "SERVICIOS DE MARKETING Y PUBLICIDAD",
-    "jurisdiccion": "ZONA 8 / GUAYAS / SAMBORONDON"
+    "jurisdiccion": "ZONA 8 / GUAYAS / SAMBORONDON",
+    "cargas_familiares": 3,  # 2 hijos menores + esposa
+    "cargas_detalle": [
+        {"tipo": "conyuge", "nombre": "Esposa"},
+        {"tipo": "hijo", "nombre": "Hijo 1"},
+        {"tipo": "hijo", "nombre": "Hijo 2"}
+    ]
 }
+
+# Transaction Status (inspirado en QuickBooks)
+class TransactionStatus:
+    PENDING_REVIEW = "pending_review"  # Pendiente de revisión por contadora
+    APPROVED = "approved"  # Aprobado/conciliado
+    REJECTED = "rejected"  # Rechazado (error o inválido)
+    DUPLICATE_SUSPECT = "duplicate_suspect"  # Sospecha de duplicado
+    DUPLICATE_CONFIRMED = "duplicate_confirmed"  # Confirmado como duplicado (no contar)
+
+# Source Type (de dónde viene la transacción)
+class SourceType:
+    MANUAL = "manual"  # Ingresado manualmente
+    EMAIL = "email"  # Desde email de tarjeta
+    RECEIPT = "receipt"  # Desde foto de recibo
+    INVOICE = "invoice"  # Desde factura
+    EXCEL = "excel"  # Desde Excel
+    BANK_STATEMENT = "bank_statement"  # Desde estado de cuenta
 
 # Pydantic Models
 class UserBase(BaseModel):
