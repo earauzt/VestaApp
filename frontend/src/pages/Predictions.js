@@ -200,7 +200,7 @@ export default function Predictions() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {data?.sri_tips && data.sri_tips.length > 0 ? (
+            {Array.isArray(data?.sri_tips) && data.sri_tips.length > 0 ? (
               <div className="grid md:grid-cols-2 gap-4">
                 {data.sri_tips.map((tip, index) => (
                   <motion.div
