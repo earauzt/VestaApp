@@ -1702,6 +1702,457 @@ async def get_reconciliation_stats(
     
     return stats
 
+# ================= SPLIT TRANSACTIONS =================
+
+@api_router.post("/transactions/split")
+async def split_transaction(
+    split_request: TransactionSplitRequest,
+    user: dict = Depends(get_current_user)
+):
+    """Split a transaction into multiple categories (estilo QuickBooks)"""
+    # Get original transaction
+    original = await db.transactions.find_one(
+        {"id": split_request.transaction_id, "user_id": user["id"]},
+        {"_id": 0}
+    )
+    
+    if not original:
+        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    
+    # Validate split amounts
+    total_split = sum(s.amount for s in split_request.splits)
+    if abs(total_split - original["amount"]) > 0.01:
+        raise HTTPException(
+            status_code=400, 
+            detail=f"La suma de los splits (${total_split:.2f}) debe ser igual al monto original (${original['amount']:.2f})"
+        )
+    
+    # Create split transactions
+    created_splits = []
+    for i, split in enumerate(split_request.splits):
+        split_id = str(uuid.uuid4())
+        split_doc = {
+            **original,
+            "id": split_id,
+            "amount": split.amount,
+            "category": split.category,
+            "subcategory": split.subcategory,
+            "description": split.description or f"{original['description']} (Split {i+1})",
+            "is_split": True,
+            "parent_transaction_id": split_request.transaction_id,
+            "is_deductible": SRI_CATEGORIES.get(split.category, {}).get("deductible", False),
+            "status": TransactionStatus.PENDING_REVIEW,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.transactions.insert_one(split_doc)
+        created_splits.append({k: v for k, v in split_doc.items() if k != "_id"})
+    
+    # Mark original as split (rejected/replaced)
+    await db.transactions.update_one(
+        {"id": split_request.transaction_id},
+        {"$set": {
+            "status": TransactionStatus.REJECTED,
+            "notes": f"Dividido en {len(split_request.splits)} transacciones"
+        }}
+    )
+    
+    return {
+        "message": f"Transacción dividida en {len(created_splits)} partes",
+        "splits": created_splits
+    }
+
+# ================= ATTACHMENTS =================
+
+@api_router.post("/transactions/{transaction_id}/attachments")
+async def upload_attachment(
+    transaction_id: str,
+    file: UploadFile = File(...),
+    attachment_type: str = Form("receipt"),  # receipt, invoice, other
+    user: dict = Depends(get_current_user)
+):
+    """Upload attachment (receipt, invoice) to a transaction"""
+    # Verify transaction exists
+    transaction = await db.transactions.find_one(
+        {"id": transaction_id, "user_id": user["id"]},
+        {"_id": 0}
+    )
+    
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    
+    # Save file
+    file_ext = file.filename.split(".")[-1] if "." in file.filename else "jpg"
+    filename = f"{transaction_id}_{attachment_type}_{uuid.uuid4().hex[:8]}.{file_ext}"
+    file_path = UPLOADS_DIR / filename
+    
+    async with aiofiles.open(file_path, 'wb') as f:
+        content = await file.read()
+        await f.write(content)
+    
+    # Update transaction
+    attachments = transaction.get("attachments", [])
+    attachments.append(str(filename))
+    
+    update_data = {"attachments": attachments}
+    if attachment_type == "receipt":
+        update_data["has_receipt"] = True
+    elif attachment_type == "invoice":
+        update_data["has_invoice"] = True
+    
+    await db.transactions.update_one(
+        {"id": transaction_id},
+        {"$set": update_data}
+    )
+    
+    return {
+        "message": "Archivo adjuntado",
+        "filename": filename,
+        "type": attachment_type
+    }
+
+@api_router.get("/attachments/{filename}")
+async def get_attachment(filename: str):
+    """Download an attachment"""
+    file_path = UPLOADS_DIR / filename
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+    
+    return StreamingResponse(
+        open(file_path, "rb"),
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+# ================= EXPORT ENDPOINTS =================
+
+@api_router.get("/export/transactions/excel")
+async def export_transactions_excel(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Export transactions to Excel"""
+    query = {"user_id": user["id"], "status": {"$ne": TransactionStatus.DUPLICATE_CONFIRMED}}
+    if start_date:
+        query["date"] = {"$gte": start_date}
+    if end_date:
+        query.setdefault("date", {})["$lte"] = end_date
+    
+    transactions = await db.transactions.find(query, {"_id": 0}).sort("date", -1).to_list(10000)
+    
+    # Create Excel file
+    output = BytesIO()
+    workbook = xlsxwriter.Workbook(output)
+    
+    # Formats
+    header_format = workbook.add_format({'bold': True, 'bg_color': '#2f9e44', 'font_color': 'white'})
+    money_format = workbook.add_format({'num_format': '$#,##0.00'})
+    date_format = workbook.add_format({'num_format': 'yyyy-mm-dd'})
+    deductible_format = workbook.add_format({'bg_color': '#d3f9d8'})
+    non_deductible_format = workbook.add_format({'bg_color': '#ffe3e3'})
+    
+    # Sheet 1: All transactions
+    ws1 = workbook.add_worksheet("Transacciones")
+    headers = ["Fecha", "Descripción", "Establecimiento", "Categoría", "Subcategoría", 
+               "Monto", "Tipo", "Deducible SRI", "Estado", "Fuente"]
+    
+    for col, header in enumerate(headers):
+        ws1.write(0, col, header, header_format)
+    
+    for row, t in enumerate(transactions, 1):
+        ws1.write(row, 0, t.get("date", ""))
+        ws1.write(row, 1, t.get("description", ""))
+        ws1.write(row, 2, t.get("establishment", ""))
+        ws1.write(row, 3, SRI_CATEGORIES.get(t.get("category", ""), {}).get("name", t.get("category", "")))
+        ws1.write(row, 4, t.get("subcategory", ""))
+        ws1.write(row, 5, t.get("amount", 0), money_format)
+        ws1.write(row, 6, "Ingreso" if t.get("transaction_type") == "income" else "Gasto")
+        ws1.write(row, 7, "Sí" if t.get("is_deductible") else "No")
+        ws1.write(row, 8, STATUS_LABELS.get(t.get("status", ""), t.get("status", "")))
+        ws1.write(row, 9, t.get("source_type", "manual"))
+    
+    ws1.autofilter(0, 0, len(transactions), len(headers) - 1)
+    ws1.set_column(0, 0, 12)
+    ws1.set_column(1, 1, 30)
+    ws1.set_column(2, 4, 20)
+    ws1.set_column(5, 5, 12)
+    
+    # Sheet 2: Summary by category
+    ws2 = workbook.add_worksheet("Resumen SRI")
+    ws2.write(0, 0, "Categoría", header_format)
+    ws2.write(0, 1, "Total", header_format)
+    ws2.write(0, 2, "Deducible", header_format)
+    ws2.write(0, 3, "Límite SRI", header_format)
+    ws2.write(0, 4, "% Usado", header_format)
+    
+    summary = {}
+    for t in transactions:
+        if t.get("transaction_type") == "expense":
+            cat = t.get("category", "otros")
+            summary[cat] = summary.get(cat, 0) + t.get("amount", 0)
+    
+    row = 1
+    for cat, total in summary.items():
+        cat_info = SRI_CATEGORIES.get(cat, {})
+        limit = cat_info.get("limit_usd", 0)
+        ws2.write(row, 0, cat_info.get("name", cat))
+        ws2.write(row, 1, total, money_format)
+        ws2.write(row, 2, "Sí" if cat_info.get("deductible") else "No")
+        ws2.write(row, 3, limit, money_format)
+        ws2.write(row, 4, f"{(total/limit*100):.1f}%" if limit > 0 else "N/A")
+        row += 1
+    
+    workbook.close()
+    output.seek(0)
+    
+    filename = f"transacciones_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    
+    return StreamingResponse(
+        output,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+# Labels for status
+STATUS_LABELS = {
+    TransactionStatus.PENDING_REVIEW: "Pendiente",
+    TransactionStatus.APPROVED: "Aprobado",
+    TransactionStatus.REJECTED: "Rechazado",
+    TransactionStatus.DUPLICATE_SUSPECT: "Posible Duplicado",
+    TransactionStatus.DUPLICATE_CONFIRMED: "Duplicado"
+}
+
+@api_router.get("/export/sri/pdf")
+async def export_sri_pdf(
+    year: Optional[int] = None,
+    cargas_familiares: int = 3,
+    user: dict = Depends(get_current_user)
+):
+    """Export SRI Gastos Personales report as PDF (Anexo)"""
+    if not year:
+        year = datetime.now().year
+    
+    start_date = f"{year}-01-01"
+    end_date = f"{year}-12-31"
+    
+    # Get deductible transactions
+    transactions = await db.transactions.find(
+        {
+            "user_id": user["id"],
+            "date": {"$gte": start_date, "$lte": end_date},
+            "transaction_type": "expense",
+            "is_deductible": True,
+            "status": {"$ne": TransactionStatus.DUPLICATE_CONFIRMED}
+        },
+        {"_id": 0}
+    ).to_list(10000)
+    
+    # Calculate totals by category
+    category_totals = {}
+    for t in transactions:
+        cat = t.get("category", "otros")
+        category_totals[cat] = category_totals.get(cat, 0) + t.get("amount", 0)
+    
+    # Calculate limits
+    cargas = min(cargas_familiares, 5)
+    num_cbf = CARGAS_FAMILIARES_CBF.get(cargas, 7)
+    limite_global = num_cbf * CANASTA_BASICA
+    
+    total_deductible = sum(category_totals.values())
+    gastos_aplicables = min(total_deductible, limite_global)
+    rebaja_ir = gastos_aplicables * PORCENTAJE_REBAJA_IR
+    
+    # Create PDF
+    output = BytesIO()
+    doc = SimpleDocTemplate(output, pagesize=A4, topMargin=0.5*inch, bottomMargin=0.5*inch)
+    
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('Title', parent=styles['Title'], fontSize=16, spaceAfter=20)
+    heading_style = ParagraphStyle('Heading', parent=styles['Heading2'], fontSize=12, spaceAfter=10)
+    normal_style = styles['Normal']
+    
+    elements = []
+    
+    # Header
+    elements.append(Paragraph("ANEXO DE GASTOS PERSONALES", title_style))
+    elements.append(Paragraph(f"Año Fiscal: {year}", heading_style))
+    elements.append(Spacer(1, 10))
+    
+    # Contribuyente info
+    elements.append(Paragraph("DATOS DEL CONTRIBUYENTE", heading_style))
+    info_data = [
+        ["RUC:", CONTRIBUYENTE_INFO["ruc"]],
+        ["Nombre:", CONTRIBUYENTE_INFO["nombre"]],
+        ["Tipo:", CONTRIBUYENTE_INFO["tipo"]],
+        ["Cargas Familiares:", str(cargas_familiares)],
+    ]
+    info_table = Table(info_data, colWidths=[2*inch, 4*inch])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+    ]))
+    elements.append(info_table)
+    elements.append(Spacer(1, 20))
+    
+    # Deductible expenses table
+    elements.append(Paragraph("GASTOS DEDUCIBLES POR CATEGORÍA", heading_style))
+    
+    table_data = [["Categoría", "Monto Gastado", "Límite", "% Usado"]]
+    
+    deductible_cats = ["alimentacion", "salud", "educacion", "vivienda", "vestimenta", "turismo"]
+    for cat in deductible_cats:
+        cat_info = SRI_CATEGORIES.get(cat, {})
+        spent = category_totals.get(cat, 0)
+        limit = cat_info.get("limit_usd", 0)
+        pct = (spent / limit * 100) if limit > 0 else 0
+        table_data.append([
+            cat_info.get("name", cat),
+            f"${spent:,.2f}",
+            f"${limit:,.2f}",
+            f"{pct:.1f}%"
+        ])
+    
+    # Total row
+    table_data.append(["TOTAL DEDUCIBLE", f"${total_deductible:,.2f}", f"${limite_global:,.2f}", 
+                       f"{(total_deductible/limite_global*100):.1f}%" if limite_global > 0 else "0%"])
+    
+    expenses_table = Table(table_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 1*inch])
+    expenses_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2f9e44')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#d3f9d8')),
+        ('ALIGN', (1, 0), (-1, -1), 'RIGHT'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWHEIGHT', (0, 0), (-1, -1), 25),
+    ]))
+    elements.append(expenses_table)
+    elements.append(Spacer(1, 20))
+    
+    # Rebaja calculation
+    elements.append(Paragraph("CÁLCULO DE REBAJA", heading_style))
+    rebaja_data = [
+        ["Gastos Aplicables (menor entre total y límite):", f"${gastos_aplicables:,.2f}"],
+        ["Porcentaje de Rebaja:", f"{PORCENTAJE_REBAJA_IR*100:.0f}%"],
+        ["REBAJA ESTIMADA DE IMPUESTO A LA RENTA:", f"${rebaja_ir:,.2f}"],
+    ]
+    rebaja_table = Table(rebaja_data, colWidths=[4*inch, 2*inch])
+    rebaja_table.setStyle(TableStyle([
+        ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.HexColor('#2f9e44')),
+        ('TEXTCOLOR', (0, -1), (-1, -1), colors.white),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+    ]))
+    elements.append(rebaja_table)
+    elements.append(Spacer(1, 30))
+    
+    # Footer
+    elements.append(Paragraph(
+        f"Generado el {datetime.now().strftime('%d/%m/%Y %H:%M')} - FamilyFinance Ecuador",
+        normal_style
+    ))
+    elements.append(Paragraph(
+        "Este documento es un resumen para uso personal. Para la declaración oficial, use el formulario del SRI.",
+        normal_style
+    ))
+    
+    doc.build(elements)
+    output.seek(0)
+    
+    filename = f"anexo_gastos_personales_{year}.pdf"
+    
+    return StreamingResponse(
+        output,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
+# ================= CATEGORIZATION RULES =================
+
+@api_router.get("/categorization-rules")
+async def get_categorization_rules(user: dict = Depends(get_current_user)):
+    """Get all categorization rules"""
+    # Get user custom rules
+    custom_rules = await db.categorization_rules.find(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    ).to_list(100)
+    
+    return {
+        "default_rules": DEFAULT_CATEGORIZATION_RULES,
+        "custom_rules": custom_rules
+    }
+
+@api_router.post("/categorization-rules")
+async def create_categorization_rule(
+    rule: CategorizationRule,
+    user: dict = Depends(get_current_user)
+):
+    """Create a custom categorization rule"""
+    rule_id = str(uuid.uuid4())
+    rule_doc = {
+        "id": rule_id,
+        "user_id": user["id"],
+        **rule.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.categorization_rules.insert_one(rule_doc)
+    
+    return {"message": "Regla creada", "rule": {k: v for k, v in rule_doc.items() if k != "_id"}}
+
+@api_router.delete("/categorization-rules/{rule_id}")
+async def delete_categorization_rule(
+    rule_id: str,
+    user: dict = Depends(get_current_user)
+):
+    """Delete a custom categorization rule"""
+    result = await db.categorization_rules.delete_one({"id": rule_id, "user_id": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Regla no encontrada")
+    return {"message": "Regla eliminada"}
+
+@api_router.post("/transactions/auto-categorize")
+async def auto_categorize_transaction(
+    description: str,
+    establishment: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Test auto-categorization for a description"""
+    # First check custom rules
+    custom_rules = await db.categorization_rules.find(
+        {"user_id": user["id"], "is_active": True},
+        {"_id": 0}
+    ).to_list(100)
+    
+    text = f"{description} {establishment or ''}".lower()
+    
+    for rule in custom_rules:
+        for keyword in rule.get("keywords", []):
+            if keyword.lower() in text:
+                return {
+                    "category": rule["category"],
+                    "subcategory": rule["subcategory"],
+                    "auto_categorized": True,
+                    "matched_keyword": keyword,
+                    "rule_type": "custom"
+                }
+    
+    # Then check default rules
+    result = apply_categorization_rules(description, establishment or "")
+    if result["auto_categorized"]:
+        result["rule_type"] = "default"
+        return result
+    
+    return {
+        "category": None,
+        "subcategory": None,
+        "auto_categorized": False,
+        "message": "No se encontró regla de categorización"
+    }
+
 # ================= USERS MANAGEMENT (ADMIN ONLY) =================
 
 @api_router.get("/users", response_model=List[UserResponse])
