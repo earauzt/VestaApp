@@ -57,21 +57,105 @@ class UserRole:
     ACCOUNTANT = "accountant"
     SPOUSE = "spouse"
 
-# SRI Ecuador Categories - Límites de deducción 2024
-# Según Ley de Régimen Tributario Interno
-SRI_CATEGORIES = {
-    "alimentacion": {"name": "Alimentación", "subcategories": ["Comida", "Restaurantes", "Supermercado"], "deductible": True, "limit_percentage": 0.325},
-    "salud": {"name": "Salud", "subcategories": ["Seguros", "Medicina", "Consultas"], "deductible": True, "limit_percentage": 1.3},
-    "educacion": {"name": "Educación", "subcategories": ["Colegio y actividades", "Cursos", "Materiales"], "deductible": True, "limit_percentage": 0.325},
-    "vivienda": {"name": "Vivienda", "subcategories": ["Servicios básicos", "Arriendo", "Mantenimiento"], "deductible": True, "limit_percentage": 0.325},
-    "vestimenta": {"name": "Vestimenta", "subcategories": ["Ropa", "Calzado", "Accesorios"], "deductible": True, "limit_percentage": 0.325},
-    "transporte": {"name": "Transporte", "subcategories": ["Carros", "Combustible", "Mantenimiento vehicular"], "deductible": False, "limit_percentage": 0},
-    "viajes_internacionales": {"name": "Viajes Internacionales", "subcategories": ["USA", "Europa", "Otros países"], "deductible": False, "limit_percentage": 0},
-    "otros": {"name": "Otros", "subcategories": ["Empleados", "Entretenimiento", "Varios"], "deductible": False, "limit_percentage": 0}
+# SRI Ecuador 2025 - Límites de deducción de Gastos Personales
+# Según Ley de Régimen Tributario Interno Art. 10 numeral 16
+# Resolución NAC-DGERCGC23-00000024
+
+# Canasta Básica Familiar 2025 (referencia para límites SRI)
+CANASTA_BASICA = 798.31  # USD Enero 2025
+
+# Fracción Básica Exenta 2025
+FRACCION_BASICA_EXENTA = 11902.00  # USD anual
+
+# Tabla de límites por cargas familiares (número de CBF)
+CARGAS_FAMILIARES_CBF = {
+    0: 7,    # 0 cargas = 7 CBF = $5,588.17
+    1: 9,    # 1 carga = 9 CBF = $7,184.79
+    2: 11,   # 2 cargas = 11 CBF = $8,781.41
+    3: 13,   # 3 cargas = 13 CBF = $10,378.03
+    4: 15,   # 4 cargas = 15 CBF = $11,974.65
+    5: 17,   # 5+ cargas = 17 CBF = $13,571.27
 }
 
-# Canasta Básica Familiar (referencia para límites SRI)
-CANASTA_BASICA = 798.89  # USD 2024
+# Rebaja de Impuesto a la Renta: 18% de gastos deducibles
+PORCENTAJE_REBAJA_IR = 0.18
+
+# SRI Ecuador Categories - Límites de deducción 2025
+# limit_percentage: Fracción de la Fracción Básica Exenta
+SRI_CATEGORIES = {
+    "alimentacion": {
+        "name": "Alimentación", 
+        "subcategories": ["Comida", "Restaurantes", "Supermercado", "Mercado"],
+        "deductible": True, 
+        "limit_percentage": 0.325,  # 0.325 * $11,902 = $3,868.15 máximo
+        "limit_usd": 3868.15,
+        "description": "Compras de alimentos, restaurantes, supermercados"
+    },
+    "salud": {
+        "name": "Salud", 
+        "subcategories": ["Seguros", "Medicina", "Consultas", "Hospitalización", "Laboratorio"],
+        "deductible": True, 
+        "limit_percentage": 1.3,  # 1.3 * $11,902 = $15,472.60 máximo (enfermedades catastróficas)
+        "limit_usd": 15472.60,
+        "description": "Consultas médicas, medicinas, seguros de salud, hospitalización"
+    },
+    "educacion": {
+        "name": "Educación", 
+        "subcategories": ["Colegio y actividades", "Cursos", "Materiales", "Universidad", "Maestría"],
+        "deductible": True, 
+        "limit_percentage": 0.325,
+        "limit_usd": 3868.15,
+        "description": "Matrículas, pensiones, útiles escolares, cursos, seminarios"
+    },
+    "vivienda": {
+        "name": "Vivienda", 
+        "subcategories": ["Servicios básicos", "Arriendo", "Intereses hipoteca", "Mantenimiento"],
+        "deductible": True, 
+        "limit_percentage": 0.325,
+        "limit_usd": 3868.15,
+        "description": "Arriendo, servicios básicos (agua, luz, teléfono), intereses hipotecarios"
+    },
+    "vestimenta": {
+        "name": "Vestimenta", 
+        "subcategories": ["Ropa", "Calzado", "Accesorios"],
+        "deductible": True, 
+        "limit_percentage": 0.325,
+        "limit_usd": 3868.15,
+        "description": "Ropa y calzado adquiridos en Ecuador"
+    },
+    "turismo": {
+        "name": "Turismo Nacional",
+        "subcategories": ["Hoteles Ecuador", "Tours locales", "Transporte turístico"],
+        "deductible": True,
+        "limit_percentage": 0.325,
+        "limit_usd": 3868.15,
+        "description": "Turismo dentro de Ecuador (hoteles, tours)"
+    },
+    "transporte": {
+        "name": "Transporte", 
+        "subcategories": ["Carros", "Combustible", "Mantenimiento vehicular", "Taxi", "Bus"],
+        "deductible": False, 
+        "limit_percentage": 0,
+        "limit_usd": 0,
+        "description": "NO DEDUCIBLE - Transporte personal"
+    },
+    "viajes_internacionales": {
+        "name": "Viajes Internacionales", 
+        "subcategories": ["USA", "Europa", "Otros países"],
+        "deductible": False, 
+        "limit_percentage": 0,
+        "limit_usd": 0,
+        "description": "NO DEDUCIBLE - Gastos en el exterior"
+    },
+    "otros": {
+        "name": "Otros", 
+        "subcategories": ["Empleados", "Entretenimiento", "Varios"],
+        "deductible": False, 
+        "limit_percentage": 0,
+        "limit_usd": 0,
+        "description": "NO DEDUCIBLE - Gastos varios"
+    }
+}
 
 # Payment sources
 PAYMENT_SOURCES = ["local", "internacional"]  # tarjeta local vs tarjeta extranjera
@@ -80,7 +164,18 @@ PAYMENT_SOURCES = ["local", "internacional"]  # tarjeta local vs tarjeta extranj
 INCOME_SOURCES = ["Personal", "APX", "USA"]
 
 # Countries considered international
-INTERNATIONAL_COUNTRIES = ["USA", "United States", "Estados Unidos", "US", "EU", "Europa", "Spain", "España", "Colombia", "Peru", "Perú", "México", "Mexico"]
+INTERNATIONAL_COUNTRIES = ["USA", "United States", "Estados Unidos", "US", "EU", "Europa", "Spain", "España", "Colombia", "Peru", "Perú", "México", "Mexico", "Miami", "New York", "Los Angeles", "Houston", "Texas", "California", "Florida"]
+
+# Datos del contribuyente (extraídos del RUC)
+CONTRIBUYENTE_INFO = {
+    "ruc": "0912514890001",
+    "nombre": "ARAUZ TRIVIÑO EMILIO JOSE",
+    "tipo": "PERSONA NATURAL",
+    "regimen": "GENERAL",
+    "obligado_contabilidad": False,
+    "actividad_principal": "SERVICIOS DE MARKETING Y PUBLICIDAD",
+    "jurisdiccion": "ZONA 8 / GUAYAS / SAMBORONDON"
+}
 
 # Pydantic Models
 class UserBase(BaseModel):
