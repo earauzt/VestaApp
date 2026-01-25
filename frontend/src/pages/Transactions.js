@@ -188,7 +188,10 @@ export default function Transactions() {
       date: new Date(transaction.date),
       transaction_type: transaction.transaction_type,
       source: transaction.source || "",
-      establishment: transaction.establishment || ""
+      establishment: transaction.establishment || "",
+      country: transaction.country || "",
+      payment_source: transaction.payment_source || "local",
+      is_international: transaction.is_international || false
     });
     setDialogOpen(true);
   };
@@ -203,6 +206,12 @@ export default function Transactions() {
       date: new Date(),
       transaction_type: "expense",
       source: "",
+      establishment: "",
+      country: "",
+      payment_source: "local",
+      is_international: false
+    });
+  };
       establishment: ""
     });
   };
