@@ -525,6 +525,53 @@ def _generate_sri_alerts(category_progress, total_deductible, limite_global):
     
     return alerts
 
+# ================= DUPLICATE DETECTION =================
+
+async def find_potential_duplicates(user_id: str, amount: float, date: str, establishment: str = None, description: str = None):
+    """Find potential duplicate transactions (estilo QuickBooks)"""
+    # Search for transactions with same amount within 7 days
+    date_obj = datetime.strptime(date, "%Y-%m-%d")
+    date_start = (date_obj - timedelta(days=7)).strftime("%Y-%m-%d")
+    date_end = (date_obj + timedelta(days=7)).strftime("%Y-%m-%d")
+    
+    query = {
+        "user_id": user_id,
+        "amount": {"$gte": amount * 0.95, "$lte": amount * 1.05},  # 5% tolerance
+        "date": {"$gte": date_start, "$lte": date_end},
+        "status": {"$nin": [TransactionStatus.DUPLICATE_CONFIRMED, TransactionStatus.REJECTED]}
+    }
+    
+    potential_duplicates = await db.transactions.find(query, {"_id": 0}).to_list(10)
+    
+    duplicates = []
+    for t in potential_duplicates:
+        confidence = 50  # Base confidence for same amount + date range
+        
+        # Increase confidence based on matching fields
+        if establishment and t.get("establishment"):
+            if establishment.lower() in t["establishment"].lower() or t["establishment"].lower() in establishment.lower():
+                confidence += 30
+        
+        if description and t.get("description"):
+            # Simple word matching
+            words1 = set(description.lower().split())
+            words2 = set(t["description"].lower().split())
+            common_words = words1.intersection(words2)
+            if len(common_words) >= 2:
+                confidence += 20
+        
+        # Exact amount match
+        if t.get("amount") == amount:
+            confidence += 10
+        
+        if confidence >= 60:  # Threshold for flagging
+            duplicates.append({
+                "transaction": t,
+                "confidence": min(confidence, 100)
+            })
+    
+    return duplicates
+
 # ================= TRANSACTIONS ENDPOINTS =================
 
 @api_router.post("/transactions", response_model=TransactionResponse)
@@ -533,6 +580,26 @@ async def create_transaction(
     user: dict = Depends(get_current_user)
 ):
     transaction_id = str(uuid.uuid4())
+    
+    # Check for potential duplicates
+    duplicates = await find_potential_duplicates(
+        user["id"], 
+        transaction.amount, 
+        transaction.date,
+        transaction.establishment,
+        transaction.description
+    )
+    
+    # Determine initial status
+    initial_status = transaction.status
+    duplicate_of = None
+    match_confidence = None
+    
+    if duplicates:
+        # Mark as duplicate suspect
+        initial_status = TransactionStatus.DUPLICATE_SUSPECT
+        duplicate_of = duplicates[0]["transaction"]["id"]
+        match_confidence = duplicates[0]["confidence"]
     
     # Check if international based on country
     is_international = transaction.is_international
