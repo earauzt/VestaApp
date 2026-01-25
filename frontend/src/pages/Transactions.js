@@ -7,7 +7,7 @@ import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "../components/ui/dialog";
 import { Badge } from "../components/ui/badge";
 import { Calendar } from "../components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
@@ -22,7 +22,9 @@ import {
   MagnifyingGlass,
   ArrowUp,
   ArrowDown,
-  Funnel
+  Funnel,
+  Airplane,
+  Warning
 } from "@phosphor-icons/react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -34,20 +36,26 @@ const CATEGORY_COLORS = {
   vivienda: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   vestimenta: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   transporte: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  viajes_internacionales: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   otros: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
 };
 
 const CATEGORIES = {
-  alimentacion: { name: "Alimentación", subcategories: ["Comida", "Restaurantes", "Supermercado"] },
-  salud: { name: "Salud", subcategories: ["Seguros", "Medicina", "Consultas"] },
-  educacion: { name: "Educación", subcategories: ["Colegio y actividades", "Cursos", "Materiales"] },
-  vivienda: { name: "Vivienda", subcategories: ["Servicios básicos", "Arriendo", "Mantenimiento"] },
-  vestimenta: { name: "Vestimenta", subcategories: ["Ropa", "Calzado", "Accesorios"] },
-  transporte: { name: "Transporte", subcategories: ["Carros", "Combustible", "Mantenimiento vehicular"] },
-  otros: { name: "Otros", subcategories: ["Empleados", "Viajes y Entretenimiento", "Varios"] }
+  alimentacion: { name: "Alimentación", subcategories: ["Comida", "Restaurantes", "Supermercado"], deductible: true },
+  salud: { name: "Salud", subcategories: ["Seguros", "Medicina", "Consultas"], deductible: true },
+  educacion: { name: "Educación", subcategories: ["Colegio y actividades", "Cursos", "Materiales"], deductible: true },
+  vivienda: { name: "Vivienda", subcategories: ["Servicios básicos", "Arriendo", "Mantenimiento"], deductible: true },
+  vestimenta: { name: "Vestimenta", subcategories: ["Ropa", "Calzado", "Accesorios"], deductible: true },
+  transporte: { name: "Transporte", subcategories: ["Carros", "Combustible", "Mantenimiento vehicular"], deductible: false },
+  viajes_internacionales: { name: "Viajes Internacionales", subcategories: ["USA", "Europa", "Otros países"], deductible: false },
+  otros: { name: "Otros", subcategories: ["Empleados", "Entretenimiento", "Varios"], deductible: false }
 };
 
 const INCOME_SOURCES = ["Personal", "APX", "USA"];
+const PAYMENT_SOURCES = [
+  { value: "local", label: "Tarjeta Local (Ecuador)" },
+  { value: "internacional", label: "Tarjeta Extranjera (USA/Otro)" }
+];
 
 export default function Transactions() {
   const { getAuthHeaders, user } = useAuth();
