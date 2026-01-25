@@ -240,6 +240,17 @@ class TransactionBase(BaseModel):
     is_international: bool = False  # Si es gasto internacional
     payment_source: str = "local"  # local o internacional (tarjeta extranjera)
     is_deductible: bool = True  # Si es deducible para SRI
+    # Nuevos campos para conciliación (estilo QuickBooks)
+    status: str = TransactionStatus.PENDING_REVIEW  # Estado de revisión
+    source_type: str = SourceType.MANUAL  # De dónde viene la transacción
+    has_receipt: bool = False  # Tiene recibo/foto
+    has_invoice: bool = False  # Tiene factura electrónica
+    invoice_number: Optional[str] = None  # Número de factura
+    notes: Optional[str] = None  # Notas adicionales
+    reviewed_by: Optional[str] = None  # ID del usuario que revisó
+    reviewed_at: Optional[str] = None  # Fecha de revisión
+    duplicate_of: Optional[str] = None  # ID de la transacción original si es duplicado
+    match_confidence: Optional[float] = None  # Confianza de match (0-100)
 
 class TransactionCreate(TransactionBase):
     pass
