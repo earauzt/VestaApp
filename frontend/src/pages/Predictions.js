@@ -99,7 +99,7 @@ export default function Predictions() {
               <CardDescription>Estimaciones basadas en tu historial</CardDescription>
             </CardHeader>
             <CardContent>
-              {data?.predictions && data.predictions.length > 0 ? (
+              {Array.isArray(data?.predictions) && data.predictions.length > 0 ? (
                 <div className="space-y-4">
                   {data.predictions.map((pred, index) => (
                     <motion.div
@@ -157,7 +157,7 @@ export default function Predictions() {
               <CardDescription>Recomendaciones personalizadas</CardDescription>
             </CardHeader>
             <CardContent>
-              {data?.advice && data.advice.length > 0 ? (
+              {Array.isArray(data?.advice) && data.advice.length > 0 ? (
                 <div className="space-y-3">
                   {data.advice.map((tip, index) => (
                     <motion.div
