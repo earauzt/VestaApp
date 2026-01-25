@@ -554,10 +554,13 @@ class FamilyFinanceAPITester:
             self.test_auth_me_endpoint()
             self.test_categories_endpoint()
             self.test_transactions_crud()
+            self.test_international_features()
             self.test_dashboard_endpoints()
             self.test_budget_endpoints()
+            self.test_budget_suggestions()
             self.test_predictions_endpoint()
             self.test_role_based_access()
+            self.test_multiple_file_upload_endpoints()
             self.test_ai_processing_endpoints()
             
         except Exception as e:
