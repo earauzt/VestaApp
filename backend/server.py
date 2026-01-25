@@ -700,7 +700,7 @@ async def get_budget_vs_actual(user: dict = Depends(get_current_user)):
 async def get_predictions(user: dict = Depends(get_current_user)):
     """Get AI-powered spending predictions and advice"""
     if not EMERGENT_LLM_KEY:
-        return {"predictions": [], "advice": "Configure API key para predicciones AI"}
+        return {"predictions": [], "advice": ["Configure API key para predicciones AI"], "sri_tips": []}
     
     # Get last 3 months of transactions
     now = datetime.now(timezone.utc)
@@ -712,7 +712,7 @@ async def get_predictions(user: dict = Depends(get_current_user)):
     ).to_list(1000)
     
     if not transactions:
-        return {"predictions": [], "advice": "Agrega transacciones para obtener predicciones"}
+        return {"predictions": [], "advice": ["Agrega transacciones para obtener predicciones"], "sri_tips": []}
     
     # Prepare data for AI
     summary = {}
