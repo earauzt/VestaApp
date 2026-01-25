@@ -308,6 +308,94 @@ export default function Budget() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Budget Suggestions */}
+      {suggestions.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+        >
+          <Card className="bento-card border-amber-200 dark:border-amber-800">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Lightbulb size={20} className="text-amber-500" />
+                  <CardTitle className="text-lg">Sugerencias de Ajuste de Presupuesto</CardTitle>
+                </div>
+                <Badge variant="secondary">
+                  Basado en {monthsAnalyzed} meses de datos
+                </Badge>
+              </div>
+              <CardDescription>
+                Recomendaciones basadas en tu historial de gastos
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {suggestions.map((suggestion, index) => (
+                  <motion.div
+                    key={suggestion.category}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                    className={`p-4 rounded-xl border ${
+                      suggestion.type === "increase" 
+                        ? "bg-red-50 border-red-200 dark:bg-red-900/10 dark:border-red-800"
+                        : suggestion.type === "decrease"
+                        ? "bg-emerald-50 border-emerald-200 dark:bg-emerald-900/10 dark:border-emerald-800"
+                        : "bg-amber-50 border-amber-200 dark:bg-amber-900/10 dark:border-amber-800"
+                    }`}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex items-start gap-3">
+                        <div className={`p-2 rounded-lg ${
+                          suggestion.type === "increase" 
+                            ? "bg-red-100 text-red-600 dark:bg-red-900/30"
+                            : suggestion.type === "decrease"
+                            ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30"
+                            : "bg-amber-100 text-amber-600 dark:bg-amber-900/30"
+                        }`}>
+                          {suggestion.type === "increase" ? (
+                            <ArrowUp size={20} />
+                          ) : suggestion.type === "decrease" ? (
+                            <ArrowDown size={20} />
+                          ) : (
+                            <Target size={20} />
+                          )}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium">{suggestion.category_name}</p>
+                            {suggestion.is_deductible && (
+                              <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                                <Scales size={12} className="mr-1" />
+                                Deducible SRI
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            {suggestion.reason}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Sugerido</p>
+                        <p className="font-mono font-semibold text-lg">
+                          {formatCurrency(suggestion.suggested_budget)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Actual: {formatCurrency(suggestion.current_budget)}
+                        </p>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
     </div>
   );
 }
