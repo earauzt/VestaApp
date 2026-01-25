@@ -620,13 +620,26 @@ async def create_transaction(
         "category": category,
         "is_international": is_international,
         "is_deductible": is_deductible,
+        "status": initial_status,
+        "duplicate_of": duplicate_of,
+        "match_confidence": match_confidence,
         "ai_classified": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     
     await db.transactions.insert_one(doc)
     
-    return TransactionResponse(**{k: v for k, v in doc.items() if k != "_id"})
+    response_doc = {k: v for k, v in doc.items() if k != "_id"}
+    
+    # Add duplicate warning to response
+    if duplicates:
+        response_doc["_duplicate_warning"] = {
+            "message": "Posible duplicado detectado",
+            "potential_match": duplicates[0]["transaction"]["id"],
+            "confidence": match_confidence
+        }
+    
+    return TransactionResponse(**response_doc)
 
 @api_router.get("/transactions", response_model=List[TransactionResponse])
 async def get_transactions(
