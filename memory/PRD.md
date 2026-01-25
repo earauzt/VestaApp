@@ -1,67 +1,61 @@
 # FamilyFinance Ecuador - PRD
 
 ## Problema Original
-App de gestión financiera personal para uso familiar (usuario, esposa, contadora) basada en leyes tributarias de Ecuador. Permite:
-- Reenviar emails de consumo de tarjeta de crédito y clasificarlos
-- Subir fotos de recibos y clasificarlos con OCR AI
-- Subir estados de cuenta y clasificarlos
-- Subir Excel de planificación financiera para estructurar budget
-- Dashboard con gastos diarios, semanales, proyección
-- Predicciones AI y consejos de optimización
+App de gestión financiera personal para uso familiar (usuario, esposa, contadora) basada en leyes tributarias de Ecuador.
 
 ## User Personas
-1. **Admin (Usuario principal)**: Acceso completo a todos los módulos
+1. **Admin (Usuario principal)**: ARAUZ TRIVIÑO EMILIO JOSE - RUC: 0912514890001
 2. **Esposa**: Visión general, puede ingresar datos y ver gastos
 3. **Contadora**: Vista tributaria enfocada en deducciones SRI
 
-## Requisitos Core
-- Categorías SRI Ecuador: Alimentación, Salud, Educación, Vivienda, Vestimenta (deducibles)
-- Categorías NO deducibles: Transporte, Viajes Internacionales, Otros
-- Subcategorías: Servicios básicos, Empleados, Colegio y actividades, Seguros, Comida, Restaurantes, Carros, Viajes
-- Fuentes de ingreso: Personal, APX, USA
-- Moneda: USD
-
 ## Lo Implementado
 
-### Iteración 1 (25 Enero 2026)
-- ✅ API FastAPI con MongoDB
-- ✅ Auth JWT con 3 roles (admin, spouse, accountant)
-- ✅ CRUD transacciones con categorías SRI
-- ✅ Dashboard stats: balance, ingresos, gastos diarios/semanales/mensuales
-- ✅ Procesamiento de emails de tarjeta PacifiCard
-- ✅ OCR de recibos con Gemini Vision
-- ✅ Importación de Excel de planificación
-- ✅ Predicciones AI con OpenAI GPT-5.2
-- ✅ Vista contadora con resumen tributario
+### Iteración 1 - MVP Base
+- Auth JWT con 3 roles
+- Dashboard con gráficos
+- Transacciones CRUD
+- Procesamiento de emails/OCR/Excel
+- Predicciones AI
 
-### Iteración 2 (25 Enero 2026)
-- ✅ **Subida múltiple de archivos/imágenes** (drag & drop)
-- ✅ **Popup de confirmación para gastos internacionales** (detecta USA, Miami, Amazon.com, etc.)
-- ✅ **Página de Gastos Internacionales** separada
-- ✅ **Filtro por tipo de tarjeta** (local vs extranjera)
-- ✅ **Sugerencias de ajuste de budget** basadas en historial (últimos 6 meses)
-- ✅ **Categoría Viajes Internacionales** marcada como NO deducible
-- ✅ Campo payment_source en transacciones (local/internacional)
+### Iteración 2 - Gastos Internacionales
+- Subida múltiple de archivos
+- Detección de gastos internacionales con popup
+- Página de Gastos Exterior separada
+- Sugerencias de ajuste de budget
 
-## Backlog Priorizado
-### P0 (Crítico)
-- N/A
+### Iteración 3 - Límites SRI Ecuador (ACTUAL)
+- ✅ **Nueva página Límites SRI** con info del RUC del usuario
+- ✅ **Límites 2025 actualizados**:
+  - Canasta Básica Familiar: $798.31
+  - Fracción Básica Exenta: $11,902.00
+  - Límite global por cargas familiares (7-17 CBF)
+  - Rebaja IR: 18% de gastos deducibles
+- ✅ **Categorías con límites específicos**:
+  - Alimentación: $3,868.15 (0.325 × FBE)
+  - Salud: $15,472.60 (1.3 × FBE) - enfermedades catastróficas
+  - Educación: $3,868.15
+  - Vivienda: $3,868.15
+  - Vestimenta: $3,868.15
+  - Turismo Nacional: $3,868.15
+- ✅ **NO Deducibles identificados**:
+  - Viajes internacionales
+  - Pagos con tarjeta extranjera
+  - Transporte
+  - Entretenimiento
+- ✅ **Alertas automáticas** cuando se acerca al límite (80%) o lo excede
+- ✅ **Selector de cargas familiares** para calcular límite correcto
 
-### P1 (Alta prioridad)
-- [ ] Mejorar dropdown de categorías en modal (UX)
-- [ ] Exportación a PDF para contadora
-- [ ] Límites de deducciones SRI por rubro (% canasta básica)
-
-### P2 (Media prioridad)
-- [ ] Notificaciones de exceso de presupuesto
-- [ ] Sincronización con bancos ecuatorianos
-- [ ] Multi-moneda
-
-### P3 (Baja prioridad)
-- [ ] App móvil
-- [ ] Modo offline
+## Datos del Contribuyente (desde RUC)
+- RUC: 0912514890001
+- Nombre: ARAUZ TRIVIÑO EMILIO JOSE
+- Tipo: PERSONA NATURAL
+- Régimen: GENERAL
+- Obligado a contabilidad: NO
+- Actividad: SERVICIOS DE MARKETING Y PUBLICIDAD
+- Jurisdicción: ZONA 8 / GUAYAS / SAMBORONDON
 
 ## Próximas Tareas
-1. Implementar límites específicos SRI según RUC del usuario
-2. Mejorar detección de países en OCR
-3. Dashboard comparativo con año anterior
+1. Agregar más cargas familiares específicas (hijos, dependientes)
+2. Exportar resumen tributario a PDF para Anexo Gastos Personales
+3. Notificaciones cuando se acerque al límite de un rubro
+4. Integración con facturas electrónicas del SRI
