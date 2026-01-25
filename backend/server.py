@@ -1356,6 +1356,254 @@ async def get_tax_summary(
     
     return summary
 
+# ================= RECONCILIATION ENDPOINTS (CONTADORA) =================
+
+@api_router.get("/reconciliation/pending")
+async def get_pending_reconciliation(
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))
+):
+    """Get all transactions pending review - Vista Contadora"""
+    # Get transactions that need review
+    transactions = await db.transactions.find(
+        {"status": {"$in": [TransactionStatus.PENDING_REVIEW, TransactionStatus.DUPLICATE_SUSPECT]}},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
+    
+    # Group by status
+    pending_review = [t for t in transactions if t.get("status") == TransactionStatus.PENDING_REVIEW]
+    duplicate_suspects = [t for t in transactions if t.get("status") == TransactionStatus.DUPLICATE_SUSPECT]
+    
+    # Get stats
+    total_pending_amount = sum(t.get("amount", 0) for t in pending_review)
+    total_duplicate_amount = sum(t.get("amount", 0) for t in duplicate_suspects)
+    
+    return {
+        "pending_review": pending_review,
+        "duplicate_suspects": duplicate_suspects,
+        "stats": {
+            "total_pending": len(pending_review),
+            "total_duplicates": len(duplicate_suspects),
+            "pending_amount": total_pending_amount,
+            "duplicate_amount": total_duplicate_amount
+        }
+    }
+
+@api_router.get("/reconciliation/duplicates")
+async def get_duplicate_pairs(
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))
+):
+    """Get duplicate transaction pairs for review"""
+    duplicates = await db.transactions.find(
+        {"status": TransactionStatus.DUPLICATE_SUSPECT, "duplicate_of": {"$ne": None}},
+        {"_id": 0}
+    ).to_list(100)
+    
+    pairs = []
+    for dup in duplicates:
+        original = await db.transactions.find_one(
+            {"id": dup.get("duplicate_of")},
+            {"_id": 0}
+        )
+        if original:
+            pairs.append({
+                "duplicate": dup,
+                "original": original,
+                "confidence": dup.get("match_confidence", 0),
+                "amount_match": dup.get("amount") == original.get("amount"),
+                "date_diff_days": abs((datetime.strptime(dup.get("date", "2000-01-01"), "%Y-%m-%d") - 
+                                      datetime.strptime(original.get("date", "2000-01-01"), "%Y-%m-%d")).days)
+            })
+    
+    return {"pairs": pairs}
+
+@api_router.put("/reconciliation/approve/{transaction_id}")
+async def approve_transaction(
+    transaction_id: str,
+    category: Optional[str] = None,
+    subcategory: Optional[str] = None,
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))
+):
+    """Approve a transaction (mark as reconciled)"""
+    update_data = {
+        "status": TransactionStatus.APPROVED,
+        "reviewed_by": user["id"],
+        "reviewed_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    # Allow category correction
+    if category:
+        update_data["category"] = category
+        update_data["is_deductible"] = SRI_CATEGORIES.get(category, {}).get("deductible", False)
+    if subcategory:
+        update_data["subcategory"] = subcategory
+    
+    result = await db.transactions.update_one(
+        {"id": transaction_id},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    
+    return {"message": "Transacción aprobada", "status": TransactionStatus.APPROVED}
+
+@api_router.put("/reconciliation/reject/{transaction_id}")
+async def reject_transaction(
+    transaction_id: str,
+    reason: Optional[str] = None,
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))
+):
+    """Reject a transaction (mark as invalid)"""
+    result = await db.transactions.update_one(
+        {"id": transaction_id},
+        {"$set": {
+            "status": TransactionStatus.REJECTED,
+            "reviewed_by": user["id"],
+            "reviewed_at": datetime.now(timezone.utc).isoformat(),
+            "notes": reason or "Rechazado por contadora"
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    
+    return {"message": "Transacción rechazada", "status": TransactionStatus.REJECTED}
+
+@api_router.put("/reconciliation/confirm-duplicate/{transaction_id}")
+async def confirm_duplicate(
+    transaction_id: str,
+    keep_original: bool = True,
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))
+):
+    """Confirm a transaction as duplicate"""
+    # Get the duplicate transaction
+    dup_tx = await db.transactions.find_one({"id": transaction_id}, {"_id": 0})
+    if not dup_tx:
+        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    
+    if keep_original:
+        # Mark this one as confirmed duplicate (won't count in totals)
+        await db.transactions.update_one(
+            {"id": transaction_id},
+            {"$set": {
+                "status": TransactionStatus.DUPLICATE_CONFIRMED,
+                "reviewed_by": user["id"],
+                "reviewed_at": datetime.now(timezone.utc).isoformat(),
+                "notes": "Confirmado como duplicado - no se cuenta en totales"
+            }}
+        )
+        # Update original to have receipt/invoice
+        if dup_tx.get("duplicate_of"):
+            await db.transactions.update_one(
+                {"id": dup_tx["duplicate_of"]},
+                {"$set": {
+                    "has_receipt": dup_tx.get("has_receipt", False) or True,
+                    "has_invoice": dup_tx.get("has_invoice", False) or True
+                }}
+            )
+    else:
+        # Keep the duplicate, reject the original
+        if dup_tx.get("duplicate_of"):
+            await db.transactions.update_one(
+                {"id": dup_tx["duplicate_of"]},
+                {"$set": {
+                    "status": TransactionStatus.DUPLICATE_CONFIRMED,
+                    "reviewed_by": user["id"],
+                    "reviewed_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+        # Approve this one
+        await db.transactions.update_one(
+            {"id": transaction_id},
+            {"$set": {
+                "status": TransactionStatus.APPROVED,
+                "duplicate_of": None,
+                "reviewed_by": user["id"],
+                "reviewed_at": datetime.now(timezone.utc).isoformat()
+            }}
+        )
+    
+    return {"message": "Duplicado procesado", "kept_original": keep_original}
+
+@api_router.put("/reconciliation/not-duplicate/{transaction_id}")
+async def mark_not_duplicate(
+    transaction_id: str,
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))
+):
+    """Mark a transaction as NOT a duplicate (false positive)"""
+    result = await db.transactions.update_one(
+        {"id": transaction_id},
+        {"$set": {
+            "status": TransactionStatus.APPROVED,
+            "duplicate_of": None,
+            "match_confidence": None,
+            "reviewed_by": user["id"],
+            "reviewed_at": datetime.now(timezone.utc).isoformat(),
+            "notes": "Revisado - no es duplicado"
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    
+    return {"message": "Marcado como no duplicado", "status": TransactionStatus.APPROVED}
+
+@api_router.put("/reconciliation/bulk-approve")
+async def bulk_approve_transactions(
+    transaction_ids: List[str],
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))
+):
+    """Bulk approve multiple transactions"""
+    result = await db.transactions.update_many(
+        {"id": {"$in": transaction_ids}},
+        {"$set": {
+            "status": TransactionStatus.APPROVED,
+            "reviewed_by": user["id"],
+            "reviewed_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"message": f"{result.modified_count} transacciones aprobadas"}
+
+@api_router.get("/reconciliation/stats")
+async def get_reconciliation_stats(
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))
+):
+    """Get reconciliation statistics"""
+    # Count by status
+    pipeline = [
+        {"$group": {"_id": "$status", "count": {"$sum": 1}, "total_amount": {"$sum": "$amount"}}}
+    ]
+    
+    results = await db.transactions.aggregate(pipeline).to_list(10)
+    
+    stats = {
+        "pending_review": 0,
+        "approved": 0,
+        "rejected": 0,
+        "duplicate_suspect": 0,
+        "duplicate_confirmed": 0,
+        "total_pending_amount": 0,
+        "total_approved_amount": 0
+    }
+    
+    for r in results:
+        status = r["_id"] or "pending_review"
+        if status == TransactionStatus.PENDING_REVIEW:
+            stats["pending_review"] = r["count"]
+            stats["total_pending_amount"] = r["total_amount"]
+        elif status == TransactionStatus.APPROVED:
+            stats["approved"] = r["count"]
+            stats["total_approved_amount"] = r["total_amount"]
+        elif status == TransactionStatus.REJECTED:
+            stats["rejected"] = r["count"]
+        elif status == TransactionStatus.DUPLICATE_SUSPECT:
+            stats["duplicate_suspect"] = r["count"]
+        elif status == TransactionStatus.DUPLICATE_CONFIRMED:
+            stats["duplicate_confirmed"] = r["count"]
+    
+    return stats
+
 # ================= USERS MANAGEMENT (ADMIN ONLY) =================
 
 @api_router.get("/users", response_model=List[UserResponse])
