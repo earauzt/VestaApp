@@ -278,7 +278,13 @@ async def get_me(user: dict = Depends(get_current_user)):
 
 @api_router.get("/categories")
 async def get_categories():
-    return {"categories": SRI_CATEGORIES, "income_sources": INCOME_SOURCES}
+    return {
+        "categories": SRI_CATEGORIES, 
+        "income_sources": INCOME_SOURCES,
+        "payment_sources": PAYMENT_SOURCES,
+        "international_countries": INTERNATIONAL_COUNTRIES,
+        "canasta_basica": CANASTA_BASICA
+    }
 
 # ================= TRANSACTIONS ENDPOINTS =================
 
@@ -289,10 +295,25 @@ async def create_transaction(
 ):
     transaction_id = str(uuid.uuid4())
     
+    # Check if international based on country
+    is_international = transaction.is_international
+    if transaction.country:
+        is_international = any(c.lower() in transaction.country.lower() for c in INTERNATIONAL_COUNTRIES)
+    
+    # Determine deductibility
+    category = transaction.category
+    if is_international and transaction.transaction_type == "expense":
+        category = "viajes_internacionales"
+    
+    is_deductible = SRI_CATEGORIES.get(category, {}).get("deductible", False) and not is_international
+    
     doc = {
         "id": transaction_id,
         "user_id": user["id"],
         **transaction.model_dump(),
+        "category": category,
+        "is_international": is_international,
+        "is_deductible": is_deductible,
         "ai_classified": False,
         "created_at": datetime.now(timezone.utc).isoformat()
     }
