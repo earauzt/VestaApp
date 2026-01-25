@@ -57,19 +57,30 @@ class UserRole:
     ACCOUNTANT = "accountant"
     SPOUSE = "spouse"
 
-# SRI Ecuador Categories
+# SRI Ecuador Categories - Límites de deducción 2024
+# Según Ley de Régimen Tributario Interno
 SRI_CATEGORIES = {
-    "alimentacion": {"name": "Alimentación", "subcategories": ["Comida", "Restaurantes", "Supermercado"]},
-    "salud": {"name": "Salud", "subcategories": ["Seguros", "Medicina", "Consultas"]},
-    "educacion": {"name": "Educación", "subcategories": ["Colegio y actividades", "Cursos", "Materiales"]},
-    "vivienda": {"name": "Vivienda", "subcategories": ["Servicios básicos", "Arriendo", "Mantenimiento"]},
-    "vestimenta": {"name": "Vestimenta", "subcategories": ["Ropa", "Calzado", "Accesorios"]},
-    "transporte": {"name": "Transporte", "subcategories": ["Carros", "Combustible", "Mantenimiento vehicular"]},
-    "otros": {"name": "Otros", "subcategories": ["Empleados", "Viajes y Entretenimiento", "Varios"]}
+    "alimentacion": {"name": "Alimentación", "subcategories": ["Comida", "Restaurantes", "Supermercado"], "deductible": True, "limit_percentage": 0.325},
+    "salud": {"name": "Salud", "subcategories": ["Seguros", "Medicina", "Consultas"], "deductible": True, "limit_percentage": 1.3},
+    "educacion": {"name": "Educación", "subcategories": ["Colegio y actividades", "Cursos", "Materiales"], "deductible": True, "limit_percentage": 0.325},
+    "vivienda": {"name": "Vivienda", "subcategories": ["Servicios básicos", "Arriendo", "Mantenimiento"], "deductible": True, "limit_percentage": 0.325},
+    "vestimenta": {"name": "Vestimenta", "subcategories": ["Ropa", "Calzado", "Accesorios"], "deductible": True, "limit_percentage": 0.325},
+    "transporte": {"name": "Transporte", "subcategories": ["Carros", "Combustible", "Mantenimiento vehicular"], "deductible": False, "limit_percentage": 0},
+    "viajes_internacionales": {"name": "Viajes Internacionales", "subcategories": ["USA", "Europa", "Otros países"], "deductible": False, "limit_percentage": 0},
+    "otros": {"name": "Otros", "subcategories": ["Empleados", "Entretenimiento", "Varios"], "deductible": False, "limit_percentage": 0}
 }
+
+# Canasta Básica Familiar (referencia para límites SRI)
+CANASTA_BASICA = 798.89  # USD 2024
+
+# Payment sources
+PAYMENT_SOURCES = ["local", "internacional"]  # tarjeta local vs tarjeta extranjera
 
 # Income Sources
 INCOME_SOURCES = ["Personal", "APX", "USA"]
+
+# Countries considered international
+INTERNATIONAL_COUNTRIES = ["USA", "United States", "Estados Unidos", "US", "EU", "Europa", "Spain", "España", "Colombia", "Peru", "Perú", "México", "Mexico"]
 
 # Pydantic Models
 class UserBase(BaseModel):
