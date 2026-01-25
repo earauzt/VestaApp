@@ -232,6 +232,55 @@ export default function Transactions() {
 
   return (
     <div className="space-y-6" data-testid="transactions-page">
+      {/* International Transaction Popup */}
+      <Dialog open={showInternationalPopup} onOpenChange={setShowInternationalPopup}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Airplane size={24} className="text-amber-500" />
+              ¿Es un gasto internacional?
+            </DialogTitle>
+            <DialogDescription>
+              Este gasto parece ser de Estados Unidos u otro país.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <div className="flex items-start gap-3 p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
+              <Warning size={24} className="text-amber-500 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-800 dark:text-amber-200">
+                  Los gastos de viajes internacionales NO son deducibles
+                </p>
+                <p className="text-amber-700 dark:text-amber-300 mt-1">
+                  Según la ley tributaria ecuatoriana, estos gastos no aplican para deducciones del SRI.
+                </p>
+              </div>
+            </div>
+            {pendingFormData && (
+              <div className="mt-4 p-3 rounded-lg bg-muted">
+                <p className="text-sm text-muted-foreground">Transacción:</p>
+                <p className="font-medium">{pendingFormData.description}</p>
+                <p className="text-lg font-mono">{formatCurrency(parseFloat(pendingFormData.amount) || 0)}</p>
+              </div>
+            )}
+          </div>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => handleConfirmInternational(false)}
+            >
+              No, es local
+            </Button>
+            <Button 
+              onClick={() => handleConfirmInternational(true)}
+              className="bg-amber-500 hover:bg-amber-600"
+            >
+              Sí, es internacional
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
