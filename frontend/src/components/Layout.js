@@ -25,13 +25,15 @@ import {
   CaretLeft,
   CaretRight,
   Airplane,
-  Scales
+  Scales,
+  CheckSquare
 } from "@phosphor-icons/react";
 
 const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: House, roles: ["admin", "spouse", "accountant"] },
   { path: "/transactions", label: "Transacciones", icon: CreditCard, roles: ["admin", "spouse", "accountant"] },
   { path: "/upload", label: "Cargar Datos", icon: Upload, roles: ["admin", "spouse"] },
+  { path: "/reconciliation", label: "Conciliación", icon: CheckSquare, roles: ["admin", "accountant"] },
   { path: "/budget", label: "Presupuesto", icon: ChartLine, roles: ["admin", "spouse", "accountant"] },
   { path: "/sri-limits", label: "Límites SRI", icon: Scales, roles: ["admin", "spouse", "accountant"] },
   { path: "/international", label: "Gastos Exterior", icon: Airplane, roles: ["admin", "spouse", "accountant"] },
