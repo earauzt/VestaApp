@@ -8,6 +8,7 @@ import Upload from "./pages/Upload";
 import Budget from "./pages/Budget";
 import Predictions from "./pages/Predictions";
 import AccountantView from "./pages/AccountantView";
+import InternationalExpenses from "./pages/InternationalExpenses";
 import Layout from "./components/Layout";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
