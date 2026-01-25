@@ -572,6 +572,182 @@ async def process_receipt(
             os.remove(file_path)
         os.rmdir(temp_dir)
 
+@api_router.post("/process/receipts-multiple")
+async def process_multiple_receipts(
+    files: List[UploadFile] = File(...),
+    user: dict = Depends(get_current_user)
+):
+    """Process multiple receipt images with OCR"""
+    all_transactions = []
+    errors = []
+    
+    for file in files:
+        temp_dir = tempfile.mkdtemp()
+        file_path = os.path.join(temp_dir, file.filename)
+        
+        try:
+            async with aiofiles.open(file_path, 'wb') as f:
+                content = await file.read()
+                await f.write(content)
+            
+            result = await process_image_with_ai(file_path)
+            
+            for t in result.get("transactions", []):
+                # Check if international
+                country = t.get("country", "Ecuador")
+                is_international = any(c.lower() in country.lower() for c in INTERNATIONAL_COUNTRIES) if country else False
+                category = "viajes_internacionales" if is_international else t.get("category", "otros")
+                is_deductible = SRI_CATEGORIES.get(category, {}).get("deductible", False)
+                
+                transaction_id = str(uuid.uuid4())
+                doc = {
+                    "id": transaction_id,
+                    "user_id": user["id"],
+                    "amount": t.get("amount", 0),
+                    "description": t.get("description", ""),
+                    "category": category,
+                    "subcategory": t.get("subcategory", "Varios"),
+                    "date": t.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+                    "transaction_type": "expense",
+                    "establishment": t.get("establishment", ""),
+                    "country": country,
+                    "is_international": is_international,
+                    "payment_source": "internacional" if is_international else "local",
+                    "is_deductible": is_deductible,
+                    "ai_classified": True,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "source_file": file.filename
+                }
+                await db.transactions.insert_one(doc)
+                all_transactions.append({k: v for k, v in doc.items() if k != "_id"})
+        except Exception as e:
+            errors.append({"file": file.filename, "error": str(e)})
+        finally:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            if os.path.exists(temp_dir):
+                os.rmdir(temp_dir)
+    
+    return {
+        "message": f"Procesados {len(files)} archivos, {len(all_transactions)} transacciones creadas",
+        "transactions": all_transactions,
+        "errors": errors
+    }
+
+@api_router.get("/transactions/international")
+async def get_international_transactions(
+    user: dict = Depends(get_current_user)
+):
+    """Get all international transactions"""
+    transactions = await db.transactions.find(
+        {"user_id": user["id"], "is_international": True},
+        {"_id": 0}
+    ).sort("date", -1).to_list(1000)
+    return {"transactions": transactions}
+
+@api_router.get("/transactions/by-payment-source")
+async def get_transactions_by_payment_source(
+    payment_source: str = "internacional",
+    user: dict = Depends(get_current_user)
+):
+    """Get transactions by payment source (local or internacional)"""
+    transactions = await db.transactions.find(
+        {"user_id": user["id"], "payment_source": payment_source},
+        {"_id": 0}
+    ).sort("date", -1).to_list(1000)
+    return {"transactions": transactions, "payment_source": payment_source}
+
+@api_router.get("/budget/suggestions")
+async def get_budget_suggestions(user: dict = Depends(get_current_user)):
+    """Get AI-powered budget adjustment suggestions based on historical data"""
+    # Get last 6 months of transactions
+    now = datetime.now(timezone.utc)
+    six_months_ago = (now - timedelta(days=180)).strftime("%Y-%m-%d")
+    
+    transactions = await db.transactions.find(
+        {"user_id": user["id"], "date": {"$gte": six_months_ago}, "transaction_type": "expense"},
+        {"_id": 0}
+    ).to_list(5000)
+    
+    if len(transactions) < 10:
+        return {"suggestions": [], "message": "Necesitas más transacciones para obtener sugerencias (mínimo 10)"}
+    
+    # Calculate monthly averages by category
+    monthly_data = {}
+    for t in transactions:
+        month = t["date"][:7]
+        cat = t["category"]
+        if month not in monthly_data:
+            monthly_data[month] = {}
+        if cat not in monthly_data[month]:
+            monthly_data[month][cat] = 0
+        monthly_data[month][cat] += t["amount"]
+    
+    # Calculate averages and trends
+    category_stats = {}
+    for month, cats in monthly_data.items():
+        for cat, amount in cats.items():
+            if cat not in category_stats:
+                category_stats[cat] = {"amounts": [], "total": 0}
+            category_stats[cat]["amounts"].append(amount)
+            category_stats[cat]["total"] += amount
+    
+    # Get current budget
+    budget = await db.budgets.find_one({"user_id": user["id"]}, {"_id": 0}, sort=[("created_at", -1)])
+    budget_by_cat = {}
+    if budget:
+        for item in budget.get("items", []):
+            cat = item["category"]
+            budget_by_cat[cat] = budget_by_cat.get(cat, 0) + item["planned_amount"]
+    
+    suggestions = []
+    for cat, stats in category_stats.items():
+        avg = sum(stats["amounts"]) / len(stats["amounts"])
+        current_budget = budget_by_cat.get(cat, 0)
+        cat_info = SRI_CATEGORIES.get(cat, {"name": cat, "deductible": False})
+        
+        # Check if consistently over or under budget
+        if current_budget > 0:
+            ratio = avg / current_budget
+            if ratio > 1.2:  # 20% over budget consistently
+                suggestions.append({
+                    "category": cat,
+                    "category_name": cat_info["name"],
+                    "type": "increase",
+                    "current_budget": current_budget,
+                    "suggested_budget": round(avg * 1.1, 2),
+                    "average_spending": round(avg, 2),
+                    "reason": f"Gastas en promedio ${avg:.2f}/mes, 20% más que tu presupuesto de ${current_budget:.2f}",
+                    "is_deductible": cat_info.get("deductible", False)
+                })
+            elif ratio < 0.6:  # 40% under budget consistently
+                suggestions.append({
+                    "category": cat,
+                    "category_name": cat_info["name"],
+                    "type": "decrease",
+                    "current_budget": current_budget,
+                    "suggested_budget": round(avg * 1.2, 2),
+                    "average_spending": round(avg, 2),
+                    "reason": f"Gastas en promedio ${avg:.2f}/mes, mucho menos que tu presupuesto de ${current_budget:.2f}",
+                    "is_deductible": cat_info.get("deductible", False)
+                })
+        elif avg > 50:  # No budget set but significant spending
+            suggestions.append({
+                "category": cat,
+                "category_name": cat_info["name"],
+                "type": "new",
+                "current_budget": 0,
+                "suggested_budget": round(avg * 1.1, 2),
+                "average_spending": round(avg, 2),
+                "reason": f"No tienes presupuesto para {cat_info['name']} pero gastas ${avg:.2f}/mes en promedio",
+                "is_deductible": cat_info.get("deductible", False)
+            })
+    
+    # Sort by impact (difference between current and suggested)
+    suggestions.sort(key=lambda x: abs(x["suggested_budget"] - x["current_budget"]), reverse=True)
+    
+    return {"suggestions": suggestions[:10], "months_analyzed": len(monthly_data)}
+
 @api_router.post("/process/excel")
 async def process_excel(
     file: UploadFile = File(...),
