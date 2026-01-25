@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../co
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { toast } from "sonner";
 import { 
-  TrendingUp, 
-  TrendingDown, 
+  ArrowUp, 
+  ArrowDown, 
   Wallet, 
   CalendarBlank,
   Receipt,
@@ -103,13 +103,13 @@ export default function Dashboard() {
     { 
       title: "Ingresos", 
       value: stats?.total_income, 
-      icon: TrendingUp,
+      icon: ArrowUp,
       color: "text-emerald-600"
     },
     { 
       title: "Gastos del Mes", 
       value: stats?.monthly_total, 
-      icon: TrendingDown,
+      icon: ArrowDown,
       color: "text-red-500"
     },
     { 

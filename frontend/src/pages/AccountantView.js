@@ -10,7 +10,7 @@ import {
   Calculator, 
   Scales,
   FileText,
-  TrendingUp,
+  ArrowUp,
   CheckCircle,
   XCircle
 } from "@phosphor-icons/react";
@@ -183,7 +183,7 @@ export default function AccountantView() {
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30">
-                  <TrendingUp size={24} weight="duotone" />
+                  <ArrowUp size={24} weight="duotone" />
                 </div>
               </div>
             </CardContent>

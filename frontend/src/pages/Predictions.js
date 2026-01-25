@@ -7,8 +7,8 @@ import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
 import { 
   Brain, 
-  TrendingUp, 
-  TrendingDown,
+  ArrowUp, 
+  ArrowDown,
   Lightbulb,
   Scales,
   SpinnerGap,
@@ -55,8 +55,8 @@ export default function Predictions() {
   };
 
   const getTrendIcon = (trend) => {
-    if (trend === "up") return <TrendingUp size={20} className="text-red-500" />;
-    if (trend === "down") return <TrendingDown size={20} className="text-emerald-500" />;
+    if (trend === "up") return <ArrowUp size={20} className="text-red-500" />;
+    if (trend === "down") return <ArrowDown size={20} className="text-emerald-500" />;
     return <ArrowRight size={20} className="text-amber-500" />;
   };
 
@@ -93,7 +93,7 @@ export default function Predictions() {
           <Card className="bento-card h-full">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
-                <TrendingUp size={20} />
+                <ArrowUp size={20} />
                 Proyecciones del Próximo Mes
               </CardTitle>
               <CardDescription>Estimaciones basadas en tu historial</CardDescription>
