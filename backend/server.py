@@ -118,6 +118,10 @@ class TransactionBase(BaseModel):
     source: Optional[str] = None  # For income: Personal, APX, USA
     establishment: Optional[str] = None
     card_last_digits: Optional[str] = None
+    country: Optional[str] = None  # País del gasto
+    is_international: bool = False  # Si es gasto internacional
+    payment_source: str = "local"  # local o internacional (tarjeta extranjera)
+    is_deductible: bool = True  # Si es deducible para SRI
 
 class TransactionCreate(TransactionBase):
     pass
