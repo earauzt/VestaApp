@@ -212,9 +212,6 @@ export default function Transactions() {
       is_international: false
     });
   };
-      establishment: ""
-    });
-  };
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-EC', {
