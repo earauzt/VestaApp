@@ -939,22 +939,35 @@ async def process_multiple_receipts(
                 category = "viajes_internacionales" if is_international else t.get("category", "otros")
                 is_deductible = SRI_CATEGORIES.get(category, {}).get("deductible", False)
                 
+                amount = t.get("amount", 0)
+                date = t.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+                establishment = t.get("establishment", "")
+                description = t.get("description", "")
+                
+                # Check for duplicates
+                duplicates = await find_potential_duplicates(user["id"], amount, date, establishment, description)
+                
                 transaction_id = str(uuid.uuid4())
                 doc = {
                     "id": transaction_id,
                     "user_id": user["id"],
-                    "amount": t.get("amount", 0),
-                    "description": t.get("description", ""),
+                    "amount": amount,
+                    "description": description,
                     "category": category,
                     "subcategory": t.get("subcategory", "Varios"),
-                    "date": t.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d")),
+                    "date": date,
                     "transaction_type": "expense",
-                    "establishment": t.get("establishment", ""),
+                    "establishment": establishment,
                     "country": country,
                     "is_international": is_international,
                     "payment_source": "internacional" if is_international else "local",
                     "is_deductible": is_deductible,
                     "ai_classified": True,
+                    "status": TransactionStatus.DUPLICATE_SUSPECT if duplicates else TransactionStatus.PENDING_REVIEW,
+                    "source_type": SourceType.RECEIPT,
+                    "has_receipt": True,
+                    "duplicate_of": duplicates[0]["transaction"]["id"] if duplicates else None,
+                    "match_confidence": duplicates[0]["confidence"] if duplicates else None,
                     "created_at": datetime.now(timezone.utc).isoformat(),
                     "source_file": file.filename
                 }
