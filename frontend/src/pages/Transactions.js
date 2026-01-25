@@ -101,13 +101,35 @@ export default function Transactions() {
     }
   };
 
+  // Check if transaction might be international
+  const checkInternational = (description, establishment, country) => {
+    const intlKeywords = ["usa", "united states", "estados unidos", "us ", "miami", "new york", "los angeles", "houston", "amazon.com", "apple.com", "europe", "europa", "spain", "españa"];
+    const text = `${description} ${establishment} ${country}`.toLowerCase();
+    return intlKeywords.some(keyword => text.includes(keyword));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    // Check if it might be international
+    if (formData.transaction_type === "expense" && !formData.is_international) {
+      const mightBeInternational = checkInternational(formData.description, formData.establishment, formData.country);
+      if (mightBeInternational) {
+        setPendingFormData(formData);
+        setShowInternationalPopup(true);
+        return;
+      }
+    }
+    
+    await submitTransaction(formData);
+  };
+
+  const submitTransaction = async (data) => {
     try {
       const payload = {
-        ...formData,
-        amount: parseFloat(formData.amount),
-        date: format(formData.date, "yyyy-MM-dd")
+        ...data,
+        amount: parseFloat(data.amount),
+        date: format(data.date, "yyyy-MM-dd")
       };
 
       if (editingTransaction) {
@@ -128,6 +150,21 @@ export default function Transactions() {
     } catch (error) {
       toast.error(error.response?.data?.detail || "Error al guardar");
     }
+  };
+
+  const handleConfirmInternational = async (isInternational) => {
+    if (pendingFormData) {
+      const updatedData = {
+        ...pendingFormData,
+        is_international: isInternational,
+        category: isInternational ? "viajes_internacionales" : pendingFormData.category,
+        subcategory: isInternational ? "USA" : pendingFormData.subcategory,
+        payment_source: isInternational ? "internacional" : pendingFormData.payment_source
+      };
+      await submitTransaction(updatedData);
+    }
+    setShowInternationalPopup(false);
+    setPendingFormData(null);
   };
 
   const handleDelete = async (id) => {
