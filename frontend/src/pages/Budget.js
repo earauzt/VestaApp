@@ -1,17 +1,21 @@
 import { useState, useEffect } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import { toast } from "sonner";
 import { 
   ChartLine, 
   ArrowUp, 
   ArrowDown,
   Minus,
-  Target
+  Target,
+  Lightbulb,
+  CheckCircle,
+  Scales
 } from "@phosphor-icons/react";
 import { 
   BarChart, 
@@ -33,6 +37,7 @@ const CATEGORY_NAMES = {
   vivienda: "Vivienda",
   vestimenta: "Vestimenta",
   transporte: "Transporte",
+  viajes_internacionales: "Viajes Internacionales",
   otros: "Otros"
 };
 
@@ -43,6 +48,7 @@ const CATEGORY_COLORS = {
   vivienda: "#1c7ed6",
   vestimenta: "#f59f00",
   transporte: "#e67700",
+  viajes_internacionales: "#fd7e14",
   otros: "#868e96"
 };
 
@@ -50,7 +56,10 @@ export default function Budget() {
   const { getAuthHeaders } = useAuth();
   const [budget, setBudget] = useState(null);
   const [comparison, setComparison] = useState([]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [monthsAnalyzed, setMonthsAnalyzed] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -58,12 +67,15 @@ export default function Budget() {
 
   const fetchData = async () => {
     try {
-      const [budgetRes, comparisonRes] = await Promise.all([
+      const [budgetRes, comparisonRes, suggestionsRes] = await Promise.all([
         axios.get(`${API}/budget`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/budget/vs-actual`, { headers: getAuthHeaders() })
+        axios.get(`${API}/budget/vs-actual`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/budget/suggestions`, { headers: getAuthHeaders() })
       ]);
       setBudget(budgetRes.data);
       setComparison(comparisonRes.data.comparison);
+      setSuggestions(suggestionsRes.data.suggestions || []);
+      setMonthsAnalyzed(suggestionsRes.data.months_analyzed || 0);
     } catch (error) {
       toast.error("Error al cargar presupuesto");
     } finally {
