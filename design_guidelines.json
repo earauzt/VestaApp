@@ -1,0 +1,141 @@
+{
+  "identity": {
+    "name": "E1",
+    "mission": "Create a unique, emotionally resonant financial experience for an Ecuadorian family. Fusion of 'Organic Calm' and 'Swiss Precision'.",
+    "principles": [
+      "Fusion over Imitation",
+      "Emotion First (Calmness in Finance)",
+      "Content is King (Data storytelling)",
+      "Zoom in (Focus on key metrics)",
+      "Negative Space (Breathing room)"
+    ]
+  },
+  "typography": {
+    "font_family": {
+      "headings": "Outfit, sans-serif",
+      "body": "Manrope, sans-serif",
+      "mono": "JetBrains Mono, monospace"
+    },
+    "weights": {
+      "light": 300,
+      "regular": 400,
+      "medium": 500,
+      "bold": 700
+    },
+    "usage": {
+      "h1": "text-4xl md:text-5xl font-bold tracking-tight text-primary",
+      "h2": "text-3xl font-semibold tracking-tight text-primary",
+      "h3": "text-2xl font-medium text-primary",
+      "body": "text-base text-muted-foreground leading-relaxed",
+      "caption": "text-sm text-muted-foreground/80 uppercase tracking-wider",
+      "numbers": "font-mono tracking-tight"
+    },
+    "installation": "Import fonts via Google Fonts in index.css: @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;700&family=Outfit:wght@300;500;700&family=JetBrains+Mono:wght@400&display=swap');"
+  },
+  "colors": {
+    "theme_strategy": "Archetype 1: Organic & Earthy (Trust, Growth, Calm)",
+    "palette": {
+      "light": {
+        "background": "210 20% 98%", 
+        "foreground": "150 10% 10%",
+        "card": "0 0% 100%",
+        "card_foreground": "150 10% 10%",
+        "popover": "0 0% 100%",
+        "popover_foreground": "150 10% 10%",
+        "primary": "145 50% 20%", 
+        "primary_foreground": "145 10% 98%",
+        "secondary": "145 20% 90%",
+        "secondary_foreground": "145 50% 20%",
+        "muted": "145 10% 94%",
+        "muted_foreground": "145 10% 40%",
+        "accent": "15 70% 65%", 
+        "accent_foreground": "0 0% 100%",
+        "destructive": "0 84.2% 60.2%",
+        "destructive_foreground": "0 0% 98%",
+        "border": "145 10% 90%",
+        "input": "145 10% 90%",
+        "ring": "145 50% 20%"
+      },
+      "dark": {
+        "background": "150 10% 5%",
+        "foreground": "145 10% 90%",
+        "card": "150 10% 8%",
+        "card_foreground": "145 10% 90%",
+        "popover": "150 10% 8%",
+        "popover_foreground": "145 10% 90%",
+        "primary": "145 40% 50%",
+        "primary_foreground": "145 10% 5%",
+        "secondary": "145 20% 15%",
+        "secondary_foreground": "145 40% 50%",
+        "muted": "145 10% 15%",
+        "muted_foreground": "145 10% 60%",
+        "accent": "15 70% 65%",
+        "accent_foreground": "0 0% 100%",
+        "destructive": "0 62.8% 30.6%",
+        "destructive_foreground": "0 0% 98%",
+        "border": "145 10% 15%",
+        "input": "145 10% 15%",
+        "ring": "145 40% 50%"
+      }
+    },
+    "semantic": {
+      "success": "text-emerald-600 dark:text-emerald-400",
+      "warning": "text-amber-500 dark:text-amber-400",
+      "error": "text-red-600 dark:text-red-400",
+      "info": "text-blue-600 dark:text-blue-400"
+    }
+  },
+  "layout": {
+    "spacing_scale": "p-1, p-2, p-4, p-6, p-8, p-12, p-16, p-20, p-24, p-32",
+    "container_padding": "px-4 md:px-8 lg:px-12",
+    "radius": "0.75rem",
+    "grid_strategies": {
+      "dashboard": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-6",
+      "marketing": "grid grid-cols-1 md:grid-cols-8 lg:grid-cols-12 gap-8 md:gap-12"
+    }
+  },
+  "components": {
+    "buttons": {
+      "default": "rounded-full font-medium transition-all active:scale-95",
+      "primary": "bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20",
+      "secondary": "bg-secondary text-secondary-foreground hover:bg-secondary/80",
+      "ghost": "hover:bg-muted hover:text-foreground"
+    },
+    "cards": {
+      "style": "bg-card text-card-foreground rounded-xl border border-border/50 shadow-sm hover:shadow-md transition-shadow duration-300",
+      "glass": "bg-white/70 dark:bg-black/60 backdrop-blur-xl border border-white/20 shadow-sm"
+    },
+    "inputs": {
+      "style": "rounded-lg border-input bg-transparent px-3 py-2 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
+    }
+  },
+  "motion": {
+    "transitions": "transition-all duration-300 ease-out",
+    "hover_lift": "hover:-translate-y-1 hover:shadow-lg",
+    "page_transition": {
+      "initial": { "opacity": 0, "y": 20 },
+      "animate": { "opacity": 1, "y": 0 },
+      "exit": { "opacity": 0, "y": -20 },
+      "transition": { "duration": 0.4, "ease": "easeOut" }
+    }
+  },
+  "assets": {
+    "icons": "phosphor-react",
+    "images": {
+      "login_hero": "https://images.unsplash.com/photo-1767239650392-1f73d63b5652?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxoYXBweSUyMGZhbWlseSUyMGZpbmFuY2lhbCUyMGZyZWVkb218ZW58MHx8fHwxNzY5MzYzMDgwfDA&ixlib=rb-4.1.0&q=85",
+      "dashboard_bg": "https://images.unsplash.com/photo-1615852993296-b42d4dbb5555?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBtaW5pbWFsaXN0JTIwaG9tZSUyMG9mZmljZSUyMGRlc2slMjBmaW5hbmNlfGVufDB8fHx8MTc2OTM2MzA3N3ww&ixlib=rb-4.1.0&q=85",
+      "family_moment": "https://images.unsplash.com/photo-1721042235332-45f89689cfba?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwzfHxoYXBweSUyMGZhbWlseSUyMGZpbmFuY2lhbCUyMGZyZWVkb218ZW58MHx8fHwxNzY5MzYzMDgwfDA&ixlib=rb-4.1.0&q=85"
+    }
+  },
+  "universal_guidelines": [
+    "Avoid 'AI Slop': No generic gradients, no centered text blocks.",
+    "Use 'Manrope' for all financial data/numbers.",
+    "Primary Color (Forest Green) is for Growth/Money. Use Terracotta for Alerts.",
+    "Dashboard Grid: Use 'Bento' style. Mix 1x1, 2x1, and 2x2 blocks.",
+    "Glassmorphism: Use for sticky headers and floating action buttons.",
+    "Data-TestID: All interactive elements must have data-testid attribute.",
+    "Charts: Use Recharts with custom tooltips (no default browser tooltips).",
+    "Forms: Use Shadcn Form + Zod for validation. No raw inputs."
+  ],
+  "instructions_to_main_agent": "1. Install fonts in index.css. 2. Update tailwind.config.js with the color palette. 3. Create a 'Layout' component that handles the sidebar/header structure. 4. Build the Dashboard using the Bento Grid strategy. 5. Implement the 'Login' page with the 'Tetris' grid and the family image."
+}
