@@ -325,6 +325,12 @@ class TransactionBase(BaseModel):
     reviewed_at: Optional[str] = None  # Fecha de revisión
     duplicate_of: Optional[str] = None  # ID de la transacción original si es duplicado
     match_confidence: Optional[float] = None  # Confianza de match (0-100)
+    # Campos para split y adjuntos
+    is_split: bool = False  # Si es parte de un split
+    parent_transaction_id: Optional[str] = None  # ID de la transacción padre (para splits)
+    attachments: List[str] = []  # Lista de URLs/paths de archivos adjuntos
+    auto_categorized: bool = False  # Si fue categorizado automáticamente
+    matched_rule: Optional[str] = None  # Keyword que hizo match en auto-categorización
 
 class TransactionCreate(TransactionBase):
     pass
@@ -335,6 +341,24 @@ class TransactionResponse(TransactionBase):
     user_id: str
     created_at: str
     ai_classified: bool = False
+
+# Modelo para split de transacciones
+class SplitItem(BaseModel):
+    amount: float
+    category: str
+    subcategory: str
+    description: Optional[str] = None
+
+class TransactionSplitRequest(BaseModel):
+    transaction_id: str
+    splits: List[SplitItem]
+
+# Modelo para reglas de categorización
+class CategorizationRule(BaseModel):
+    keywords: List[str]
+    category: str
+    subcategory: str
+    is_active: bool = True
 
 class BudgetItem(BaseModel):
     category: str
