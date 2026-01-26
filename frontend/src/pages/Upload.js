@@ -329,12 +329,12 @@ export default function Upload() {
                   >
                     <Images size={40} className="mx-auto text-muted-foreground mb-3" />
                     <p className="text-muted-foreground mb-2">
-                      Arrastra múltiples imágenes aquí o
+                      Arrastra imágenes o PDFs aquí o
                     </p>
                     <label>
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/*,.pdf,application/pdf"
                         multiple
                         className="hidden"
                         onChange={handleFileSelect}
@@ -344,6 +344,9 @@ export default function Upload() {
                         <span>Seleccionar archivos</span>
                       </Button>
                     </label>
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Soporta: JPG, PNG, PDF (estados de cuenta)
+                    </p>
                   </div>
 
                   {/* Selected Files List */}
