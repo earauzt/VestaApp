@@ -212,9 +212,9 @@ export default function Upload() {
   const uploadTypes = [
     { 
       id: "receipt", 
-      label: "Screenshots/Recibos", 
+      label: "Screenshots/Recibos/PDFs", 
       icon: Images,
-      description: "Sube screenshots de consumos de tarjeta o fotos de recibos (OCR con AI)"
+      description: "Sube screenshots, fotos de recibos o PDFs de estados de cuenta (OCR con AI)"
     },
     { 
       id: "excel", 
