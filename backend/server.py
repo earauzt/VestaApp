@@ -167,11 +167,108 @@ SRI_CATEGORIES = {
     }
 }
 
+# Payment methods (auto-detected)
+PAYMENT_METHODS = {
+    "transferencia": {"name": "Transferencia", "keywords": ["transfer", "wire", "venmo", "zelle", "deposito", "banco"]},
+    "tarjeta": {"name": "Tarjeta", "keywords": ["visa", "mastercard", "card", "tarjeta", "pacificard", "diners"]},
+    "efectivo": {"name": "Efectivo", "keywords": ["cash", "efectivo", "contado"]},
+    "venmo": {"name": "Venmo", "keywords": ["venmo"]},
+    "apple_card": {"name": "Apple Card", "keywords": ["apple card", "apple pay", "apple cash"]}
+}
+
 # Payment sources
 PAYMENT_SOURCES = ["local", "internacional"]  # tarjeta local vs tarjeta extranjera
 
-# Income Sources
+# Income Sources - Distribution for tax purposes
 INCOME_SOURCES = ["Personal", "APX", "USA"]
+
+# Income Concepts
+INCOME_CONCEPTS = ["Salario", "Bonus", "Dividendos", "Arriendo", "Honorarios", "Otros"]
+
+# ================= PERSONAL BUDGET CATEGORIES (User's Excel) =================
+# Separate from SRI categories - this is the user's personal budget structure
+BUDGET_CATEGORIES = {
+    "servicios_basicos": {
+        "name": "Servicios Básicos",
+        "subcategories": ["Alícuota B", "Alícuota GT", "Luz", "Gas", "Celular", "Agua", "Clubes", "Internet"],
+        "type": "fixed",
+        "payment_methods": ["transferencia", "tarjeta"],
+        "is_recurring": True
+    },
+    "empleados": {
+        "name": "Empleados",
+        "subcategories": ["Ramona", "Angélica", "IESS"],
+        "type": "fixed",
+        "payment_methods": ["transferencia", "efectivo"],
+        "is_recurring": True
+    },
+    "colegio_actividades": {
+        "name": "Colegio y Actividades",
+        "subcategories": ["Menor", "Fútbol", "Telas", "Aros"],
+        "type": "fixed",
+        "payment_methods": ["transferencia", "tarjeta", "efectivo"],
+        "is_recurring": True
+    },
+    "seguros": {
+        "name": "Seguros",
+        "subcategories": ["Salud", "Carros"],
+        "type": "fixed",
+        "payment_methods": ["tarjeta", "transferencia"],
+        "is_recurring": True
+    },
+    "comida": {
+        "name": "Comida",
+        "subcategories": ["Supermaxi", "Mercado"],
+        "type": "variable",
+        "payment_methods": ["tarjeta", "efectivo"],
+        "is_recurring": False
+    },
+    "restaurantes": {
+        "name": "Restaurantes",
+        "subcategories": ["Comida afuera", "Delivery"],
+        "type": "variable",
+        "payment_methods": ["tarjeta", "efectivo"],
+        "is_recurring": False
+    },
+    "carros": {
+        "name": "Carros",
+        "subcategories": ["Gasolina 1", "Gasolina 2", "Mantenimiento"],
+        "type": "variable",
+        "payment_methods": ["tarjeta", "efectivo"],
+        "is_recurring": False
+    },
+    "usa": {
+        "name": "USA",
+        "subcategories": ["Transfer Mamá (Venmo)", "Universidad bebés", "TMobile"],
+        "type": "fixed",
+        "payment_methods": ["venmo", "apple_card", "transferencia"],
+        "is_recurring": True,
+        "is_international": True
+    },
+    "viajes": {
+        "name": "Viajes",
+        "subcategories": ["Pasajes", "Navidad", "Marzo", "Junio"],
+        "type": "variable",
+        "payment_methods": ["tarjeta", "apple_card"],
+        "is_recurring": False
+    },
+    "gastos_libres": {
+        "name": "Gastos Libres",
+        "subcategories": ["KP (Esposa)", "EA (Emilio)"],
+        "type": "discretionary",
+        "payment_methods": ["tarjeta", "efectivo"],
+        "is_recurring": True,
+        "monthly_limits": {"KP (Esposa)": 800, "EA (Emilio)": 500}
+    }
+}
+
+# Budget Goals (User's financial targets)
+BUDGET_GOALS = {
+    "gastos_fijos_target": {"min": 0.55, "max": 0.65, "name": "Gastos Fijos"},
+    "ahorro_target": {"min": 0.10, "max": 0.10, "name": "Ahorro"},
+    "inversion_target": {"min": 0.15, "max": 0.15, "name": "Inversión"},
+    "gastos_libres_max_annual": 30000  # Max $30k/year
+}
 
 # Countries considered international
 INTERNATIONAL_COUNTRIES = ["USA", "United States", "Estados Unidos", "US", "EU", "Europa", "Spain", "España", "Colombia", "Peru", "Perú", "México", "Mexico", "Miami", "New York", "Los Angeles", "Houston", "Texas", "California", "Florida"]
