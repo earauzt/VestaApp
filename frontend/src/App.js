@@ -12,6 +12,8 @@ import InternationalExpenses from "./pages/InternationalExpenses";
 import SRILimits from "./pages/SRILimits";
 import Reconciliation from "./pages/Reconciliation";
 import Ingresos from "./pages/Ingresos";
+import Deudas from "./pages/Deudas";
+import Flujo from "./pages/Flujo";
 import Layout from "./components/Layout";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
