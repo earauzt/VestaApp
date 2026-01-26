@@ -2650,6 +2650,469 @@ async def get_transactions_grouped(
     
     return result
 
+# ================= CREDIT CARDS & DEBT MANAGEMENT =================
+
+@api_router.get("/credit-cards")
+async def get_credit_cards(user: dict = Depends(get_current_user)):
+    """Get all credit cards for user"""
+    cards = await db.credit_cards.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
+    
+    # Calculate available credit for each card
+    for card in cards:
+        card["available_credit"] = card.get("credit_limit", 0) - card.get("current_balance", 0)
+    
+    return cards
+
+@api_router.post("/credit-cards")
+async def create_credit_card(card: CreditCard, user: dict = Depends(get_current_user)):
+    """Add a new credit card"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    card_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        **card.model_dump(),
+        "available_credit": card.credit_limit - card.current_balance,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": None
+    }
+    
+    await db.credit_cards.insert_one(card_doc)
+    del card_doc["_id"]
+    
+    return card_doc
+
+@api_router.put("/credit-cards/{card_id}")
+async def update_credit_card(card_id: str, card: CreditCard, user: dict = Depends(get_current_user)):
+    """Update credit card details"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    update_data = {
+        **card.model_dump(),
+        "available_credit": card.credit_limit - card.current_balance,
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    result = await db.credit_cards.update_one(
+        {"id": card_id, "user_id": user["id"]},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Tarjeta no encontrada")
+    
+    return {"message": "Tarjeta actualizada"}
+
+@api_router.delete("/credit-cards/{card_id}")
+async def delete_credit_card(card_id: str, user: dict = Depends(get_current_user)):
+    """Delete a credit card"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    result = await db.credit_cards.delete_one({"id": card_id, "user_id": user["id"]})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Tarjeta no encontrada")
+    
+    return {"message": "Tarjeta eliminada"}
+
+@api_router.get("/debt/summary")
+async def get_debt_summary(user: dict = Depends(get_current_user)):
+    """Get debt summary across all cards"""
+    cards = await db.credit_cards.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
+    
+    total_debt = sum(c.get("current_balance", 0) for c in cards)
+    total_limit = sum(c.get("credit_limit", 0) for c in cards)
+    total_minimum = sum(c.get("minimum_payment", 0) for c in cards)
+    
+    # Calculate weighted average APR
+    if total_debt > 0:
+        weighted_apr = sum(c.get("current_balance", 0) * c.get("apr", 0) for c in cards) / total_debt
+    else:
+        weighted_apr = 0
+    
+    # Sort by APR for avalanche strategy
+    cards_by_apr = sorted(cards, key=lambda x: x.get("apr", 0), reverse=True)
+    
+    return {
+        "total_debt": total_debt,
+        "total_credit_limit": total_limit,
+        "total_available_credit": total_limit - total_debt,
+        "total_minimum_payment": total_minimum,
+        "weighted_average_apr": round(weighted_apr, 2),
+        "utilization_rate": round((total_debt / total_limit * 100) if total_limit > 0 else 0, 1),
+        "cards_count": len(cards),
+        "cards": cards,
+        "highest_apr_card": cards_by_apr[0] if cards_by_apr else None
+    }
+
+@api_router.post("/debt/snowball-plan")
+async def calculate_snowball_plan(
+    plan: SnowballPlan,
+    user: dict = Depends(get_current_user)
+):
+    """Calculate debt payoff plan using Avalanche or Snowball method"""
+    cards = await db.credit_cards.find(
+        {"user_id": user["id"], "current_balance": {"$gt": 0}},
+        {"_id": 0}
+    ).to_list(100)
+    
+    if not cards:
+        return {"message": "No hay deudas activas", "plan": [], "months_to_payoff": 0}
+    
+    # Sort cards based on strategy
+    if plan.strategy == "avalanche":
+        # Pay highest interest first (mathematically optimal)
+        cards = sorted(cards, key=lambda x: x.get("apr", 0), reverse=True)
+    else:
+        # Pay smallest balance first (psychologically motivating)
+        cards = sorted(cards, key=lambda x: x.get("current_balance", 0))
+    
+    # Calculate payoff plan
+    payoff_plan = []
+    total_interest_saved = 0
+    months = 0
+    max_months = 120  # 10 years max
+    
+    # Clone cards for simulation
+    import copy
+    sim_cards = copy.deepcopy(cards)
+    
+    while any(c["current_balance"] > 0 for c in sim_cards) and months < max_months:
+        months += 1
+        month_plan = {"month": months, "payments": [], "total_payment": 0}
+        
+        # First, pay minimum on all cards
+        for card in sim_cards:
+            if card["current_balance"] > 0:
+                # Add monthly interest
+                monthly_interest = card["current_balance"] * (card["apr"] / 100 / 12)
+                card["current_balance"] += monthly_interest
+                
+                # Pay minimum
+                min_payment = min(card["minimum_payment"], card["current_balance"])
+                card["current_balance"] -= min_payment
+                month_plan["payments"].append({
+                    "card": card["name"],
+                    "payment": min_payment,
+                    "remaining": card["current_balance"],
+                    "type": "minimum"
+                })
+                month_plan["total_payment"] += min_payment
+        
+        # Apply extra payment to target card (first with balance > 0)
+        extra_remaining = plan.extra_payment
+        for card in sim_cards:
+            if card["current_balance"] > 0 and extra_remaining > 0:
+                extra_to_pay = min(extra_remaining, card["current_balance"])
+                card["current_balance"] -= extra_to_pay
+                extra_remaining -= extra_to_pay
+                
+                # Update the payment in month_plan
+                for p in month_plan["payments"]:
+                    if p["card"] == card["name"]:
+                        p["payment"] += extra_to_pay
+                        p["remaining"] = card["current_balance"]
+                        p["type"] = "extra" if extra_to_pay > 0 else p["type"]
+                        break
+                
+                month_plan["total_payment"] += extra_to_pay
+                
+                if card["current_balance"] <= 0:
+                    card["current_balance"] = 0
+                    # Card paid off! Continue to next card
+        
+        payoff_plan.append(month_plan)
+    
+    # Calculate total paid and interest
+    total_paid = sum(m["total_payment"] for m in payoff_plan)
+    original_debt = sum(c.get("current_balance", 0) for c in cards)
+    total_interest = total_paid - original_debt
+    
+    return {
+        "strategy": plan.strategy,
+        "strategy_name": "Avalanche (mayor interés primero)" if plan.strategy == "avalanche" else "Snowball (menor saldo primero)",
+        "months_to_payoff": months,
+        "years_to_payoff": round(months / 12, 1),
+        "total_paid": round(total_paid, 2),
+        "total_interest": round(total_interest, 2),
+        "original_debt": round(original_debt, 2),
+        "extra_payment_monthly": plan.extra_payment,
+        "payoff_order": [c["name"] for c in cards],
+        "monthly_plan": payoff_plan[:12],  # First 12 months detail
+        "recommendation": f"Paga primero {cards[0]['name']} ({cards[0]['apr']}% APR) para ahorrar en intereses" if cards else None
+    }
+
+@api_router.post("/debt/payment")
+async def record_debt_payment(payment: DebtPayment, user: dict = Depends(get_current_user)):
+    """Record a payment to a credit card"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    # Get card
+    card = await db.credit_cards.find_one({"id": payment.card_id, "user_id": user["id"]})
+    if not card:
+        raise HTTPException(status_code=404, detail="Tarjeta no encontrada")
+    
+    # Update balance
+    new_balance = max(0, card["current_balance"] - payment.amount)
+    
+    await db.credit_cards.update_one(
+        {"id": payment.card_id},
+        {"$set": {
+            "current_balance": new_balance,
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    # Record payment history
+    payment_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "card_id": payment.card_id,
+        "card_name": card["name"],
+        "amount": payment.amount,
+        "payment_type": payment.payment_type,
+        "date": payment.date,
+        "balance_after": new_balance,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.debt_payments.insert_one(payment_doc)
+    
+    return {"message": "Pago registrado", "new_balance": new_balance}
+
+# ================= CASH FLOW PLANNING =================
+
+@api_router.get("/scheduled-payments")
+async def get_scheduled_payments(user: dict = Depends(get_current_user)):
+    """Get all scheduled payments"""
+    payments = await db.scheduled_payments.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
+    
+    # Calculate next due date for each payment
+    today = datetime.now(timezone.utc)
+    current_month = today.month
+    current_year = today.year
+    
+    for payment in payments:
+        due_day = payment.get("due_day", 1)
+        # If due day has passed this month, next is next month
+        if today.day > due_day:
+            next_month = current_month + 1 if current_month < 12 else 1
+            next_year = current_year if current_month < 12 else current_year + 1
+        else:
+            next_month = current_month
+            next_year = current_year
+        
+        payment["next_due_date"] = f"{next_year}-{str(next_month).zfill(2)}-{str(due_day).zfill(2)}"
+        
+        # Check if payment is due soon (within reminder days)
+        days_until_due = (datetime(next_year, next_month, min(due_day, 28)) - today.replace(tzinfo=None)).days
+        payment["is_due_soon"] = days_until_due <= payment.get("reminder_days_before", 2)
+        payment["days_until_due"] = days_until_due
+    
+    # Sort by next due date
+    payments.sort(key=lambda x: x.get("next_due_date", ""))
+    
+    return payments
+
+@api_router.post("/scheduled-payments")
+async def create_scheduled_payment(payment: ScheduledPayment, user: dict = Depends(get_current_user)):
+    """Create a new scheduled payment"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    payment_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        **payment.model_dump(),
+        "last_paid_date": None,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.scheduled_payments.insert_one(payment_doc)
+    del payment_doc["_id"]
+    
+    return payment_doc
+
+@api_router.put("/scheduled-payments/{payment_id}")
+async def update_scheduled_payment(
+    payment_id: str, 
+    payment: ScheduledPayment, 
+    user: dict = Depends(get_current_user)
+):
+    """Update a scheduled payment"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    result = await db.scheduled_payments.update_one(
+        {"id": payment_id, "user_id": user["id"]},
+        {"$set": payment.model_dump()}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+    
+    return {"message": "Pago actualizado"}
+
+@api_router.delete("/scheduled-payments/{payment_id}")
+async def delete_scheduled_payment(payment_id: str, user: dict = Depends(get_current_user)):
+    """Delete a scheduled payment"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    result = await db.scheduled_payments.delete_one({"id": payment_id, "user_id": user["id"]})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+    
+    return {"message": "Pago eliminado"}
+
+@api_router.post("/scheduled-payments/{payment_id}/mark-paid")
+async def mark_payment_paid(payment_id: str, user: dict = Depends(get_current_user)):
+    """Mark a scheduled payment as paid this month"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    result = await db.scheduled_payments.update_one(
+        {"id": payment_id, "user_id": user["id"]},
+        {"$set": {"last_paid_date": datetime.now(timezone.utc).strftime("%Y-%m-%d")}}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+    
+    return {"message": "Marcado como pagado"}
+
+@api_router.get("/reminders")
+async def get_reminders(user: dict = Depends(get_current_user)):
+    """Get smart reminders for dashboard"""
+    today = datetime.now(timezone.utc)
+    reminders = []
+    
+    # 1. Scheduled payments due soon
+    scheduled = await db.scheduled_payments.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
+    for payment in scheduled:
+        due_day = payment.get("due_day", 1)
+        current_month = today.month
+        current_year = today.year
+        
+        if today.day > due_day:
+            next_month = current_month + 1 if current_month < 12 else 1
+            next_year = current_year if current_month < 12 else current_year + 1
+        else:
+            next_month = current_month
+            next_year = current_year
+        
+        try:
+            due_date = datetime(next_year, next_month, min(due_day, 28))
+            days_until = (due_date - today.replace(tzinfo=None)).days
+            
+            if days_until <= payment.get("reminder_days_before", 2) and days_until >= 0:
+                reminders.append({
+                    "type": "payment_due",
+                    "priority": "high" if days_until == 0 else "medium",
+                    "title": f"Pago de {payment['name']}",
+                    "message": f"Vence {'hoy' if days_until == 0 else f'en {days_until} días'} - ${payment['amount']:.2f}",
+                    "action": f"Pagar con {payment.get('payment_method', 'transferencia')}",
+                    "category": payment.get("category"),
+                    "amount": payment.get("amount")
+                })
+        except:
+            pass
+    
+    # 2. Credit card payment reminders
+    cards = await db.credit_cards.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
+    for card in cards:
+        if card.get("current_balance", 0) > 0:
+            payment_day = card.get("payment_due_day", 15)
+            current_month = today.month
+            current_year = today.year
+            
+            if today.day > payment_day:
+                next_month = current_month + 1 if current_month < 12 else 1
+                next_year = current_year if current_month < 12 else current_year + 1
+            else:
+                next_month = current_month
+                next_year = current_year
+            
+            try:
+                due_date = datetime(next_year, next_month, min(payment_day, 28))
+                days_until = (due_date - today.replace(tzinfo=None)).days
+                
+                if days_until <= 5 and days_until >= 0:
+                    reminders.append({
+                        "type": "card_payment",
+                        "priority": "high" if days_until <= 2 else "medium",
+                        "title": f"Pago tarjeta {card['name']}",
+                        "message": f"Mínimo: ${card.get('minimum_payment', 0):.2f} | Total: ${card['current_balance']:.2f}",
+                        "action": f"Vence {'hoy' if days_until == 0 else f'en {days_until} días'}",
+                        "card_id": card.get("id"),
+                        "apr": card.get("apr")
+                    })
+            except:
+                pass
+    
+    # 3. Subscription review reminders (every 3 months)
+    recurring_expenses = await db.transactions.find({
+        "user_id": user["id"],
+        "is_recurring": True,
+        "transaction_type": "expense"
+    }, {"_id": 0}).to_list(100)
+    
+    # Check for recurring expenses that might need review
+    for expense in recurring_expenses[:3]:  # Limit to 3
+        reminders.append({
+            "type": "subscription_review",
+            "priority": "low",
+            "title": f"¿Sigues usando {expense.get('description', 'este servicio')}?",
+            "message": f"${expense.get('amount', 0):.2f}/mes - Revisa si lo necesitas",
+            "action": "Revisar"
+        })
+    
+    # 4. Medical expense reminder (if category is salud)
+    medical_expenses = await db.transactions.find({
+        "user_id": user["id"],
+        "category": "salud",
+        "date": {"$gte": (today - timedelta(days=30)).strftime("%Y-%m-%d")}
+    }, {"_id": 0}).to_list(10)
+    
+    for med in medical_expenses[:2]:
+        if not med.get("sent_to_insurance"):
+            reminders.append({
+                "type": "insurance_reminder",
+                "priority": "medium",
+                "title": "Enviar factura al seguro",
+                "message": f"{med.get('description', 'Gasto médico')} - ${med.get('amount', 0):.2f}",
+                "action": "Enviar para deducible de prima"
+            })
+    
+    # 5. Motivational message if no urgent reminders
+    if not any(r["priority"] == "high" for r in reminders):
+        import random
+        motivational = [
+            "💪 ¡Vas bien! Sigue controlando tus gastos.",
+            "🎯 Recuerda tu meta: Gastos fijos 55-65%",
+            "💡 Tip: Revisa tus suscripciones mensualmente",
+            "🌟 ¡Excelente! No tienes pagos urgentes pendientes",
+            "📈 Cada día sin deuda nueva es un paso adelante"
+        ]
+        reminders.append({
+            "type": "motivation",
+            "priority": "low",
+            "title": random.choice(motivational),
+            "message": "",
+            "action": None
+        })
+    
+    # Sort by priority
+    priority_order = {"high": 0, "medium": 1, "low": 2}
+    reminders.sort(key=lambda x: priority_order.get(x.get("priority", "low"), 2))
+    
+    return reminders
+
 # ================= HEALTH CHECK =================
 
 @api_router.get("/")
