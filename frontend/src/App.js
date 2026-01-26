@@ -11,6 +11,7 @@ import AccountantView from "./pages/AccountantView";
 import InternationalExpenses from "./pages/InternationalExpenses";
 import SRILimits from "./pages/SRILimits";
 import Reconciliation from "./pages/Reconciliation";
+import Ingresos from "./pages/Ingresos";
 import Layout from "./components/Layout";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
