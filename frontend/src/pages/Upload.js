@@ -305,40 +305,7 @@ export default function Upload() {
                 ))}
               </TabsList>
 
-              {/* Email Tab */}
-              <TabsContent value="email">
-                <form onSubmit={handleEmailSubmit} className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Contenido del email</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Pega aquí el contenido del email de consumo de tu tarjeta PacifiCard
-                    </p>
-                    <Textarea
-                      placeholder="Estimado cliente, Por su seguridad, Banco del Pacífico S.A. le comunica que ha realizado una transacción..."
-                      value={emailContent}
-                      onChange={(e) => setEmailContent(e.target.value)}
-                      rows={8}
-                      className="resize-none"
-                      data-testid="email-content"
-                    />
-                  </div>
-                  <Button 
-                    type="submit" 
-                    disabled={loading} 
-                    className="w-full gap-2"
-                    data-testid="process-email-btn"
-                  >
-                    {loading ? (
-                      <SpinnerGap size={18} className="animate-spin" />
-                    ) : (
-                      <CloudArrowUp size={18} />
-                    )}
-                    {loading ? "Procesando..." : "Procesar Email"}
-                  </Button>
-                </form>
-              </TabsContent>
-
-              {/* Receipts Tab - Multiple Files */}
+              {/* Receipts/Screenshots Tab - Multiple Files */}
               <TabsContent value="receipt">
                 <div className="space-y-4">
                   <div className="space-y-2">
