@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -12,6 +12,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
+import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { 
   House, 
   CreditCard, 
@@ -26,18 +27,22 @@ import {
   CaretRight,
   Airplane,
   Scales,
-  CheckSquare
+  CheckSquare,
+  CurrencyDollar,
+  X
 } from "@phosphor-icons/react";
 
 const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: House, roles: ["admin", "spouse", "accountant"] },
   { path: "/transactions", label: "Transacciones", icon: CreditCard, roles: ["admin", "spouse", "accountant"] },
+  { path: "/ingresos", label: "Ingresos", icon: CurrencyDollar, roles: ["admin", "spouse"] },
   { path: "/upload", label: "Cargar Datos", icon: Upload, roles: ["admin", "spouse"] },
-  { path: "/reconciliation", label: "Conciliación", icon: CheckSquare, roles: ["admin", "accountant"] },
-  { path: "/budget", label: "Presupuesto", icon: ChartLine, roles: ["admin", "spouse", "accountant"] },
-  { path: "/sri-limits", label: "Límites SRI", icon: Scales, roles: ["admin", "spouse", "accountant"] },
-  { path: "/international", label: "Gastos Exterior", icon: Airplane, roles: ["admin", "spouse", "accountant"] },
+  { path: "/budget", label: "Mi Presupuesto", icon: ChartLine, roles: ["admin", "spouse"] },
+  { path: "/international", label: "Gastos USA", icon: Airplane, roles: ["admin", "spouse", "accountant"] },
   { path: "/predictions", label: "Predicciones AI", icon: Brain, roles: ["admin", "spouse"] },
+  // Accountant-only items
+  { path: "/reconciliation", label: "Conciliación", icon: CheckSquare, roles: ["admin", "accountant"] },
+  { path: "/sri-limits", label: "Límites SRI", icon: Scales, roles: ["admin", "accountant"] },
   { path: "/accountant", label: "Vista Contadora", icon: Calculator, roles: ["admin", "accountant"] },
 ];
 
