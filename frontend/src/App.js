@@ -127,6 +127,22 @@ function AppRoutes() {
           </ProtectedRoute>
         } 
       />
+      <Route 
+        path="/deudas" 
+        element={
+          <ProtectedRoute allowedRoles={["admin", "spouse"]}>
+            <Deudas />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/flujo" 
+        element={
+          <ProtectedRoute allowedRoles={["admin", "spouse"]}>
+            <Flujo />
+          </ProtectedRoute>
+        } 
+      />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
