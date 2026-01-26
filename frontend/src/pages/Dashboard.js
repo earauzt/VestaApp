@@ -6,16 +6,21 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../co
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
+import { Button } from "../components/ui/button";
 import { toast } from "sonner";
 import { 
   ArrowUp, 
   ArrowDown, 
   Wallet, 
   CalendarBlank,
-  Receipt,
-  Target,
-  TrendUp,
-  PiggyBank
+  Bell,
+  Warning,
+  CheckCircle,
+  Heart,
+  Lightning,
+  CreditCard,
+  FirstAid,
+  Sparkle
 } from "@phosphor-icons/react";
 import { 
   AreaChart, 
@@ -25,48 +30,33 @@ import {
   CartesianGrid, 
   Tooltip, 
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   BarChart,
   Bar,
-  Legend
+  Cell
 } from "recharts";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Personal Budget Categories (from Excel)
-const BUDGET_CATEGORY_COLORS = {
-  servicios_basicos: "#3b82f6",  // blue
-  empleados: "#8b5cf6",          // purple
-  colegio_actividades: "#06b6d4", // cyan
-  seguros: "#ec4899",            // pink
-  comida: "#22c55e",             // green
-  restaurantes: "#f97316",       // orange
-  carros: "#ef4444",             // red
-  usa: "#6366f1",                // indigo
-  viajes: "#14b8a6",             // teal
-  gastos_libres: "#f59e0b"       // amber
-};
-
-const BUDGET_CATEGORY_NAMES = {
-  servicios_basicos: "Servicios Básicos",
-  empleados: "Empleados",
-  colegio_actividades: "Colegio y Actividades",
-  seguros: "Seguros",
-  comida: "Comida",
-  restaurantes: "Restaurantes",
-  carros: "Carros",
-  usa: "USA",
-  viajes: "Viajes",
-  gastos_libres: "Gastos Libres"
+// Categories from Excel "Flujos" tab
+const FLUJO_CATEGORIES = {
+  servicios_basicos: { name: "Servicios Básicos", color: "#3b82f6" },
+  empleados: { name: "Empleados", color: "#8b5cf6" },
+  colegio_actividades: { name: "Colegio y Actividades", color: "#06b6d4" },
+  seguros: { name: "Seguros", color: "#ec4899" },
+  comida: { name: "Comida", color: "#22c55e" },
+  restaurantes: { name: "Restaurantes", color: "#f97316" },
+  carros: { name: "Carros", color: "#ef4444" },
+  usa: { name: "USA", color: "#6366f1" },
+  viajes: { name: "Viajes", color: "#14b8a6" },
+  gastos_libres: { name: "Gastos Libres", color: "#f59e0b" }
 };
 
 export default function Dashboard() {
   const { getAuthHeaders, user } = useAuth();
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
-  const [budgetData, setBudgetData] = useState(null);
+  const [reminders, setReminders] = useState([]);
+  const [categoryData, setCategoryData] = useState([]);
   const [period, setPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
 
@@ -76,14 +66,26 @@ export default function Dashboard() {
 
   const fetchData = async () => {
     try {
-      const [statsRes, chartRes, budgetRes] = await Promise.all([
+      const [statsRes, chartRes, remindersRes] = await Promise.all([
         axios.get(`${API}/dashboard/stats`, { headers: getAuthHeaders() }),
         axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/budget/personal`, { headers: getAuthHeaders() }).catch(() => ({ data: null }))
+        axios.get(`${API}/reminders`, { headers: getAuthHeaders() }).catch(() => ({ data: [] }))
       ]);
+      
       setStats(statsRes.data);
       setChartData(chartRes.data.data);
-      setBudgetData(budgetRes.data);
+      setReminders(remindersRes.data);
+      
+      // Transform category data to match Flujo categories
+      const byCategory = statsRes.data?.by_category || {};
+      const transformed = Object.entries(FLUJO_CATEGORIES).map(([key, config]) => ({
+        name: config.name,
+        value: byCategory[key] || 0,
+        color: config.color,
+        key
+      })).filter(d => d.value > 0);
+      
+      setCategoryData(transformed);
     } catch (error) {
       toast.error("Error al cargar datos del dashboard");
     } finally {
@@ -98,27 +100,31 @@ export default function Dashboard() {
     }).format(value || 0);
   };
 
-  // Use budget categories for pie chart
-  const pieData = budgetData?.by_category 
-    ? Object.entries(budgetData.by_category).map(([key, value]) => ({
-        name: BUDGET_CATEGORY_NAMES[key] || key,
-        value,
-        color: BUDGET_CATEGORY_COLORS[key] || "#868e96"
-      })).filter(d => d.value > 0)
-    : stats?.by_category 
-      ? Object.entries(stats.by_category).map(([key, value]) => ({
-          name: BUDGET_CATEGORY_NAMES[key] || key,
-          value,
-          color: BUDGET_CATEGORY_COLORS[key] || "#868e96"
-        })).filter(d => d.value > 0)
-      : [];
+  const getReminderIcon = (type) => {
+    switch (type) {
+      case "payment_due": return Bell;
+      case "card_payment": return CreditCard;
+      case "subscription_review": return Warning;
+      case "insurance_reminder": return FirstAid;
+      case "motivation": return Sparkle;
+      default: return Bell;
+    }
+  };
+
+  const getReminderColor = (priority) => {
+    switch (priority) {
+      case "high": return "bg-red-50 dark:bg-red-900/20 border-red-200 text-red-800 dark:text-red-200";
+      case "medium": return "bg-amber-50 dark:bg-amber-900/20 border-amber-200 text-amber-800 dark:text-amber-200";
+      case "low": return "bg-blue-50 dark:bg-blue-900/20 border-blue-200 text-blue-800 dark:text-blue-200";
+      default: return "bg-muted";
+    }
+  };
 
   const statCards = [
     { 
       title: "Balance Mensual", 
       value: stats?.balance, 
       icon: Wallet,
-      trend: stats?.balance >= 0 ? "up" : "down",
       color: stats?.balance >= 0 ? "text-emerald-600" : "text-red-500"
     },
     { 
@@ -141,9 +147,6 @@ export default function Dashboard() {
     }
   ];
 
-  // Budget goals progress
-  const goalProgress = budgetData?.goal_progress;
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -158,7 +161,9 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">Resumen de tus finanzas familiares</p>
+          <p className="text-sm sm:text-base text-muted-foreground">
+            ¡Hola {user?.name?.split(" ")[0]}! Aquí está tu resumen financiero
+          </p>
         </div>
         <Select value={period} onValueChange={setPeriod}>
           <SelectTrigger className="w-[140px] sm:w-[180px]" data-testid="period-select">
@@ -171,6 +176,46 @@ export default function Dashboard() {
           </SelectContent>
         </Select>
       </div>
+
+      {/* Smart Reminders Banner */}
+      {reminders.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-2"
+        >
+          {reminders.slice(0, 3).map((reminder, index) => {
+            const Icon = getReminderIcon(reminder.type);
+            return (
+              <div 
+                key={index}
+                className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${getReminderColor(reminder.priority)}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${
+                    reminder.priority === "high" ? "bg-red-100 dark:bg-red-900/30" :
+                    reminder.priority === "medium" ? "bg-amber-100 dark:bg-amber-900/30" :
+                    "bg-blue-100 dark:bg-blue-900/30"
+                  }`}>
+                    <Icon size={20} weight="fill" />
+                  </div>
+                  <div>
+                    <p className="font-medium">{reminder.title}</p>
+                    {reminder.message && (
+                      <p className="text-sm opacity-80">{reminder.message}</p>
+                    )}
+                  </div>
+                </div>
+                {reminder.action && reminder.type !== "motivation" && (
+                  <Button size="sm" variant="outline" className="shrink-0">
+                    {reminder.action}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </motion.div>
+      )}
 
       {/* Stats Grid - Responsive */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
@@ -200,66 +245,13 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Budget Goals (if available) */}
-      {goalProgress && user?.role !== "accountant" && (
+      {/* Charts Row - Responsive */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        {/* Area Chart - Money Flow */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.2 }}
-        >
-          <Card className="bento-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Target size={20} className="text-primary" />
-                Metas Financieras
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Fixed Expenses Goal */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Gastos Fijos (meta: 55-65%)</span>
-                  <span className={`font-medium ${
-                    goalProgress.gastos_fijos?.status === "on_track" ? "text-emerald-600" : "text-amber-600"
-                  }`}>
-                    {((goalProgress.gastos_fijos?.actual_percent || 0) * 100).toFixed(0)}%
-                  </span>
-                </div>
-                <Progress 
-                  value={(goalProgress.gastos_fijos?.actual_percent || 0) * 100} 
-                  className="h-2"
-                />
-              </div>
-              
-              {/* Guilt-free Spending */}
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span>Gastos Libres (máx. $30k/año)</span>
-                  <span className="font-medium">
-                    {formatCurrency(goalProgress.gastos_libres?.actual_annual || 0)}
-                  </span>
-                </div>
-                <Progress 
-                  value={((goalProgress.gastos_libres?.actual_annual || 0) / 30000) * 100} 
-                  className="h-2"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Disponible: {formatCurrency(goalProgress.gastos_libres?.remaining || 30000)}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
-      {/* Charts Row - Responsive */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-6">
-        {/* Area Chart - 2 columns on lg */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="lg:col-span-2"
         >
           <Card className="bento-card h-full">
             <CardHeader className="pb-2">
@@ -284,11 +276,12 @@ export default function Dashboard() {
                     <XAxis 
                       dataKey="date" 
                       tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                      tickFormatter={(val) => val.slice(5)}
+                      tickFormatter={(val) => val?.slice(5) || val}
                     />
                     <YAxis 
                       tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} 
                       width={60}
+                      tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`}
                     />
                     <Tooltip 
                       contentStyle={{ 
@@ -322,81 +315,21 @@ export default function Dashboard() {
           </Card>
         </motion.div>
 
-        {/* Pie Chart */}
+        {/* Bar Chart - Categories from Flujo */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
         >
           <Card className="bento-card h-full">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base sm:text-lg">Por Categoría</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Distribución de gastos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[200px] sm:h-[250px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart>
-                    <Pie
-                      data={pieData}
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={40}
-                      outerRadius={70}
-                      paddingAngle={2}
-                      dataKey="value"
-                    >
-                      {pieData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip 
-                      contentStyle={{ 
-                        background: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        fontSize: '12px'
-                      }}
-                      formatter={(value) => formatCurrency(value)}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-              </div>
-              {/* Legend - Scrollable on mobile */}
-              <div className="mt-2 max-h-[100px] overflow-y-auto">
-                <div className="grid grid-cols-2 gap-1.5 sm:gap-2">
-                  {pieData.slice(0, 8).map((item) => (
-                    <div key={item.name} className="flex items-center gap-1.5 text-xs sm:text-sm">
-                      <div 
-                        className="w-2 h-2 sm:w-3 sm:h-3 rounded-full shrink-0" 
-                        style={{ backgroundColor: item.color }}
-                      />
-                      <span className="text-muted-foreground truncate">{item.name}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* Budget Categories Bar Chart */}
-      {pieData.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.5 }}
-        >
-          <Card className="bento-card">
-            <CardHeader className="pb-2">
               <CardTitle className="text-base sm:text-lg">Gastos por Categoría</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Tu presupuesto personal</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Según tu presupuesto (Flujos)</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="h-[200px] sm:h-[250px]">
+              <div className="h-[250px] sm:h-[300px]">
                 <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={pieData} layout="vertical">
+                  <BarChart data={categoryData} layout="vertical">
                     <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
                     <XAxis 
                       type="number" 
@@ -406,7 +339,7 @@ export default function Dashboard() {
                     <YAxis 
                       type="category" 
                       dataKey="name" 
-                      width={80}
+                      width={100}
                       tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
                     />
                     <Tooltip 
@@ -419,17 +352,88 @@ export default function Dashboard() {
                       formatter={(value) => formatCurrency(value)}
                     />
                     <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                      {pieData.map((entry, index) => (
+                      {categoryData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={entry.color} />
                       ))}
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>
               </div>
+              {/* Legend */}
+              <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs">
+                {categoryData.slice(0, 6).map((item) => (
+                  <div key={item.key} className="flex items-center gap-1">
+                    <div 
+                      className="w-2 h-2 rounded-full shrink-0" 
+                      style={{ backgroundColor: item.color }}
+                    />
+                    <span className="text-muted-foreground truncate">{item.name}</span>
+                  </div>
+                ))}
+              </div>
             </CardContent>
           </Card>
         </motion.div>
-      )}
+      </div>
+
+      {/* Quick Stats Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {/* Transactions Count */}
+        <Card className="bento-card">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Transacciones este mes</p>
+                <p className="text-2xl font-bold">{stats?.transaction_count || 0}</p>
+              </div>
+              <Badge variant="secondary">{period === "month" ? "Este mes" : period}</Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Top Category */}
+        <Card className="bento-card">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Mayor gasto</p>
+                <p className="text-lg font-bold truncate">
+                  {categoryData[0]?.name || "Sin datos"}
+                </p>
+              </div>
+              <span className="font-mono font-semibold text-red-500">
+                {formatCurrency(categoryData[0]?.value || 0)}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Savings Rate */}
+        <Card className="bento-card">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Tasa de ahorro</p>
+                <p className={`text-2xl font-bold ${
+                  stats?.total_income > 0 && stats?.balance > 0 
+                    ? "text-emerald-600" 
+                    : "text-red-500"
+                }`}>
+                  {stats?.total_income > 0 
+                    ? `${((stats?.balance / stats?.total_income) * 100).toFixed(0)}%`
+                    : "0%"
+                  }
+                </p>
+              </div>
+              <CheckCircle 
+                size={32} 
+                weight="fill" 
+                className={stats?.balance > 0 ? "text-emerald-500" : "text-red-400"} 
+              />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
