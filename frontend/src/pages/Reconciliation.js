@@ -741,6 +741,7 @@ export default function Reconciliation() {
                         onApprove={() => handleApprove(t.id)}
                         onReject={() => handleReject(t.id)}
                         onEditCategory={() => openCategoryDialog(t)}
+                        onViewDetails={() => openDetailDialog(t)}
                       />
                     ))}
                   </AnimatePresence>
