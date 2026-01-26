@@ -291,7 +291,7 @@ export default function Upload() {
           </CardHeader>
           <CardContent>
             <Tabs value={activeTab} onValueChange={setActiveTab}>
-              <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsList className="grid w-full grid-cols-2 mb-6">
                 {uploadTypes.map((type) => (
                   <TabsTrigger 
                     key={type.id} 
