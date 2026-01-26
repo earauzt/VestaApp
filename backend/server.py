@@ -427,6 +427,10 @@ class TransactionBase(BaseModel):
     attachments: List[str] = []  # Lista de URLs/paths de archivos adjuntos
     auto_categorized: bool = False  # Si fue categorizado automáticamente
     matched_rule: Optional[str] = None  # Keyword que hizo match en auto-categorización
+    # NEW: Payment method and budget category
+    payment_method: Optional[str] = None  # transferencia, tarjeta, efectivo, venmo, apple_card
+    budget_category: Optional[str] = None  # Personal budget category (different from SRI)
+    receipt_group_id: Optional[str] = None  # Group transactions from same receipt/invoice
 
 class TransactionCreate(TransactionBase):
     pass
