@@ -809,62 +809,74 @@ export default function Reconciliation() {
   );
 }
 
-function TransactionCard({ transaction, index, formatCurrency, selected, onToggleSelect, onApprove, onReject, onEditCategory }) {
+function TransactionCard({ transaction, index, formatCurrency, selected, onToggleSelect, onApprove, onReject, onEditCategory, onViewDetails }) {
   return (
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 10 }}
       transition={{ delay: index * 0.02 }}
-      className={`flex items-center gap-4 p-4 rounded-xl border transition-all ${
+      className={`flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4 p-4 rounded-xl border transition-all ${
         selected 
           ? "bg-primary/5 border-primary" 
           : "bg-muted/50 border-transparent hover:bg-muted"
       }`}
     >
-      <Checkbox 
-        checked={selected} 
-        onCheckedChange={onToggleSelect}
-      />
-      
-      <div className="flex-1">
-        <div className="flex items-center gap-2">
-          <p className="font-medium">{transaction.description}</p>
-          {transaction.has_receipt && (
-            <Badge variant="outline" className="text-xs">
-              <Receipt size={12} className="mr-1" /> Recibo
+      <div className="flex items-center gap-3 sm:gap-4 flex-1">
+        <Checkbox 
+          checked={selected} 
+          onCheckedChange={onToggleSelect}
+          className="shrink-0"
+        />
+        
+        {/* Establishment first, then details */}
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            {transaction.establishment && (
+              <span className="font-semibold text-primary truncate">{transaction.establishment}</span>
+            )}
+            {transaction.has_receipt && (
+              <Badge variant="outline" className="text-xs shrink-0">
+                <Receipt size={12} className="mr-1" /> Recibo
+              </Badge>
+            )}
+            {transaction.has_invoice && (
+              <Badge variant="outline" className="text-xs shrink-0">
+                <FileText size={12} className="mr-1" /> Factura
+              </Badge>
+            )}
+          </div>
+          <p className="text-sm text-muted-foreground truncate">{transaction.description}</p>
+          <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground flex-wrap">
+            <span>{transaction.date ? format(new Date(transaction.date), "d MMM yyyy", { locale: es }) : ""}</span>
+            <Badge className={STATUS_COLORS[transaction.category] || STATUS_COLORS.pending_review} variant="secondary">
+              {CATEGORIES[transaction.category]?.name || transaction.category}
             </Badge>
-          )}
-          {transaction.has_invoice && (
-            <Badge variant="outline" className="text-xs">
-              <FileText size={12} className="mr-1" /> Factura
-            </Badge>
-          )}
-        </div>
-        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-          <span>{transaction.date ? format(new Date(transaction.date), "d MMM yyyy", { locale: es }) : ""}</span>
-          {transaction.establishment && <span>• {transaction.establishment}</span>}
-          <Badge className={STATUS_COLORS[transaction.category] || STATUS_COLORS.pending_review}>
-            {CATEGORIES[transaction.category]?.name || transaction.category}
-          </Badge>
+          </div>
         </div>
       </div>
       
-      <div className="text-right">
-        <p className="font-mono font-semibold text-lg">{formatCurrency(transaction.amount)}</p>
-        <p className="text-xs text-muted-foreground">{transaction.source_type || "manual"}</p>
-      </div>
-      
-      <div className="flex gap-2">
-        <Button variant="outline" size="sm" onClick={onEditCategory}>
-          <Scales size={16} />
-        </Button>
-        <Button variant="outline" size="sm" onClick={onReject} className="text-red-600 hover:text-red-700">
-          <XCircle size={16} />
-        </Button>
-        <Button size="sm" onClick={onApprove} className="bg-emerald-600 hover:bg-emerald-700">
-          <CheckCircle size={16} />
-        </Button>
+      <div className="flex items-center justify-between sm:justify-end gap-3 sm:gap-4">
+        <div className="text-right">
+          <p className="font-mono font-bold text-lg">{formatCurrency(transaction.amount)}</p>
+          <p className="text-xs text-muted-foreground">{transaction.source_type || "manual"}</p>
+        </div>
+        
+        <div className="flex gap-1 sm:gap-2">
+          {/* View Details Button - NEW */}
+          <Button variant="ghost" size="icon" onClick={onViewDetails} title="Ver detalles">
+            <Eye size={18} />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onEditCategory} title="Cambiar categoría">
+            <Scales size={16} />
+          </Button>
+          <Button variant="outline" size="icon" onClick={onReject} className="text-red-600 hover:text-red-700" title="Rechazar">
+            <XCircle size={16} />
+          </Button>
+          <Button size="icon" onClick={onApprove} className="bg-emerald-600 hover:bg-emerald-700" title="Aprobar">
+            <CheckCircle size={16} />
+          </Button>
+        </div>
       </div>
     </motion.div>
   );
