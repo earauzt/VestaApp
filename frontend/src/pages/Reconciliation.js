@@ -6,9 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../co
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog";
 import { Checkbox } from "../components/ui/checkbox";
+import { Textarea } from "../components/ui/textarea";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -23,7 +26,12 @@ import {
   FileText,
   SpinnerGap,
   CheckSquare,
-  Scales
+  Scales,
+  Pencil,
+  Paperclip,
+  CalendarBlank,
+  Storefront,
+  CreditCard
 } from "@phosphor-icons/react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -38,6 +46,18 @@ const CATEGORIES = {
   transporte: { name: "Transporte", deductible: false },
   viajes_internacionales: { name: "Viajes Internacionales", deductible: false },
   otros: { name: "Otros", deductible: false }
+};
+
+const SUBCATEGORIES = {
+  alimentacion: ["Comida", "Restaurantes", "Supermercado", "Mercado"],
+  salud: ["Seguros", "Medicina", "Consultas", "Hospitalización", "Laboratorio"],
+  educacion: ["Colegio y actividades", "Cursos", "Materiales", "Universidad", "Maestría"],
+  vivienda: ["Servicios básicos", "Arriendo", "Intereses hipoteca", "Mantenimiento"],
+  vestimenta: ["Ropa", "Calzado", "Accesorios"],
+  turismo: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"],
+  transporte: ["Carros", "Combustible", "Mantenimiento vehicular", "Taxi", "Bus"],
+  viajes_internacionales: ["USA", "Europa", "Otros países"],
+  otros: ["Empleados", "Entretenimiento", "Varios"]
 };
 
 const STATUS_COLORS = {
@@ -57,7 +77,7 @@ const STATUS_LABELS = {
 };
 
 export default function Reconciliation() {
-  const { getAuthHeaders } = useAuth();
+  const { getAuthHeaders, user } = useAuth();
   const [activeTab, setActiveTab] = useState("pending");
   const [pendingData, setPendingData] = useState({ pending_review: [], duplicate_suspects: [], stats: {} });
   const [duplicatePairs, setDuplicatePairs] = useState([]);
@@ -65,12 +85,25 @@ export default function Reconciliation() {
   const [loading, setLoading] = useState(true);
   const [selectedItems, setSelectedItems] = useState([]);
   
-  // Dialog state
+  // Dialog states
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [selectedPair, setSelectedPair] = useState(null);
   const [showCategoryDialog, setShowCategoryDialog] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [newCategory, setNewCategory] = useState("");
+  
+  // NEW: Detail view dialog
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [detailTransaction, setDetailTransaction] = useState(null);
+  const [editMode, setEditMode] = useState(false);
+  const [editForm, setEditForm] = useState({
+    description: "",
+    amount: "",
+    category: "",
+    subcategory: "",
+    establishment: "",
+    review_notes: ""
+  });
 
   useEffect(() => {
     fetchData();
