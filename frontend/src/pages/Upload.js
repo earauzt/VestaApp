@@ -28,7 +28,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function Upload() {
   const { getAuthHeaders } = useAuth();
-  const [activeTab, setActiveTab] = useState("email");
+  const [activeTab, setActiveTab] = useState("receipt");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
