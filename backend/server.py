@@ -460,6 +460,29 @@ class CategorizationRule(BaseModel):
     subcategory: str
     is_active: bool = True
 
+# NEW: Income Entry Model (Manual entry with distribution)
+class IncomeEntry(BaseModel):
+    amount: float
+    date: str
+    distribution: str  # Personal, APX, USA
+    concept: str  # Salario, Bonus, Dividendos, etc.
+    description: Optional[str] = None
+    is_recurring: bool = False
+    payment_method: Optional[str] = None
+
+class IncomeResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    user_id: str
+    amount: float
+    date: str
+    distribution: str
+    concept: str
+    description: Optional[str] = None
+    is_recurring: bool
+    payment_method: Optional[str] = None
+    created_at: str
+
 class BudgetItem(BaseModel):
     category: str
     subcategory: str
