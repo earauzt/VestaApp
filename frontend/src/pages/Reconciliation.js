@@ -230,6 +230,50 @@ export default function Reconciliation() {
     setShowCategoryDialog(true);
   };
 
+  // NEW: Open detail dialog
+  const openDetailDialog = (transaction) => {
+    setDetailTransaction(transaction);
+    setEditForm({
+      description: transaction.description || "",
+      amount: transaction.amount?.toString() || "",
+      category: transaction.category || "",
+      subcategory: transaction.subcategory || "",
+      establishment: transaction.establishment || "",
+      review_notes: transaction.review_notes || ""
+    });
+    setEditMode(false);
+    setShowDetailDialog(true);
+  };
+
+  // NEW: Save edited transaction
+  const handleSaveEdit = async () => {
+    if (!detailTransaction) return;
+    
+    try {
+      await axios.put(
+        `${API}/transactions/${detailTransaction.id}`,
+        {
+          ...detailTransaction,
+          ...editForm,
+          amount: parseFloat(editForm.amount)
+        },
+        { headers: getAuthHeaders() }
+      );
+      toast.success("Transacción actualizada");
+      setShowDetailDialog(false);
+      fetchData();
+    } catch (error) {
+      toast.error("Error al guardar cambios");
+    }
+  };
+
+  // NEW: Approve from detail view
+  const handleApproveFromDetail = async () => {
+    if (!detailTransaction) return;
+    await handleApprove(detailTransaction.id, editForm.category, editForm.subcategory);
+    setShowDetailDialog(false);
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
