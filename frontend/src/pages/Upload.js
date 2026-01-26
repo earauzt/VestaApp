@@ -211,16 +211,10 @@ export default function Upload() {
 
   const uploadTypes = [
     { 
-      id: "email", 
-      label: "Email", 
-      icon: Envelope,
-      description: "Pega el contenido de emails de consumo de tu tarjeta PacifiCard"
-    },
-    { 
       id: "receipt", 
-      label: "Recibos", 
+      label: "Screenshots/Recibos", 
       icon: Images,
-      description: "Sube múltiples fotos de recibos o facturas para procesamiento OCR con AI"
+      description: "Sube screenshots de consumos de tarjeta o fotos de recibos (OCR con AI)"
     },
     { 
       id: "excel", 
