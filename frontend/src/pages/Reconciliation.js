@@ -407,6 +407,236 @@ export default function Reconciliation() {
         </DialogContent>
       </Dialog>
 
+      {/* NEW: Detail View Dialog */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Eye size={24} className="text-primary" />
+              {editMode ? "Editar Transacción" : "Detalle de Transacción"}
+            </DialogTitle>
+            <DialogDescription>
+              Revisa todos los detalles antes de aprobar o rechazar
+            </DialogDescription>
+          </DialogHeader>
+          
+          {detailTransaction && (
+            <div className="space-y-4">
+              {/* Transaction Summary */}
+              <div className="p-4 rounded-lg bg-muted/50 border">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <Badge className={STATUS_COLORS[detailTransaction.status] || STATUS_COLORS.pending_review}>
+                      {STATUS_LABELS[detailTransaction.status] || "Pendiente"}
+                    </Badge>
+                    <p className="text-2xl font-mono font-bold mt-2">
+                      {formatCurrency(detailTransaction.amount)}
+                    </p>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setEditMode(!editMode)}
+                    className="gap-1"
+                  >
+                    <Pencil size={14} />
+                    {editMode ? "Cancelar edición" : "Editar"}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Form Fields */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    <FileText size={14} />
+                    Descripción
+                  </Label>
+                  {editMode ? (
+                    <Input
+                      value={editForm.description}
+                      onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                    />
+                  ) : (
+                    <p className="p-2 rounded bg-muted text-sm">{detailTransaction.description}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    <CreditCard size={14} />
+                    Monto
+                  </Label>
+                  {editMode ? (
+                    <Input
+                      type="number"
+                      step="0.01"
+                      value={editForm.amount}
+                      onChange={(e) => setEditForm({ ...editForm, amount: e.target.value })}
+                    />
+                  ) : (
+                    <p className="p-2 rounded bg-muted text-sm font-mono">{formatCurrency(detailTransaction.amount)}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    <Storefront size={14} />
+                    Establecimiento
+                  </Label>
+                  {editMode ? (
+                    <Input
+                      value={editForm.establishment}
+                      onChange={(e) => setEditForm({ ...editForm, establishment: e.target.value })}
+                    />
+                  ) : (
+                    <p className="p-2 rounded bg-muted text-sm">{detailTransaction.establishment || "No especificado"}</p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    <CalendarBlank size={14} />
+                    Fecha
+                  </Label>
+                  <p className="p-2 rounded bg-muted text-sm">
+                    {detailTransaction.date ? format(new Date(detailTransaction.date), "PPP", { locale: es }) : "No especificada"}
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Categoría SRI</Label>
+                  {editMode ? (
+                    <Select 
+                      value={editForm.category} 
+                      onValueChange={(v) => setEditForm({ ...editForm, category: v, subcategory: "" })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(CATEGORIES).map(([key, cat]) => (
+                          <SelectItem key={key} value={key}>
+                            {cat.name} {cat.deductible ? "✓" : "✗"}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="p-2 rounded bg-muted text-sm">
+                      {CATEGORIES[detailTransaction.category]?.name || detailTransaction.category}
+                      {CATEGORIES[detailTransaction.category]?.deductible && (
+                        <Badge variant="outline" className="ml-2 text-emerald-600 text-xs">Deducible</Badge>
+                      )}
+                    </p>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Subcategoría</Label>
+                  {editMode ? (
+                    <Select 
+                      value={editForm.subcategory} 
+                      onValueChange={(v) => setEditForm({ ...editForm, subcategory: v })}
+                      disabled={!editForm.category}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {editForm.category && SUBCATEGORIES[editForm.category]?.map((sub) => (
+                          <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <p className="p-2 rounded bg-muted text-sm">{detailTransaction.subcategory || "No especificada"}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Additional Info */}
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <span className="text-muted-foreground">Fuente:</span>
+                  <p className="font-medium">{detailTransaction.source_type || "Manual"}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-muted/30">
+                  <span className="text-muted-foreground">Método de pago:</span>
+                  <p className="font-medium">{detailTransaction.payment_method || "Tarjeta"}</p>
+                </div>
+              </div>
+
+              {/* Attachments */}
+              {detailTransaction.attachments?.length > 0 && (
+                <div className="space-y-2">
+                  <Label className="flex items-center gap-1">
+                    <Paperclip size={14} />
+                    Adjuntos
+                  </Label>
+                  <div className="flex flex-wrap gap-2">
+                    {detailTransaction.attachments.map((att, i) => (
+                      <Badge key={i} variant="secondary" className="gap-1">
+                        <Paperclip size={12} />
+                        {att.split("_").pop()}
+                      </Badge>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Review Notes */}
+              <div className="space-y-2">
+                <Label>Notas de revisión</Label>
+                {editMode ? (
+                  <Textarea
+                    value={editForm.review_notes}
+                    onChange={(e) => setEditForm({ ...editForm, review_notes: e.target.value })}
+                    placeholder="Agregar notas sobre esta transacción..."
+                    rows={3}
+                  />
+                ) : (
+                  <p className="p-2 rounded bg-muted text-sm min-h-[60px]">
+                    {detailTransaction.review_notes || "Sin notas"}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
+
+          <DialogFooter className="flex-col sm:flex-row gap-2">
+            {editMode ? (
+              <>
+                <Button variant="outline" onClick={() => setEditMode(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveEdit}>
+                  Guardar cambios
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    handleReject(detailTransaction?.id, "Rechazado desde revisión detallada");
+                    setShowDetailDialog(false);
+                  }}
+                  className="text-red-600"
+                >
+                  <XCircle size={16} className="mr-1" />
+                  Rechazar
+                </Button>
+                <Button onClick={handleApproveFromDetail} className="bg-emerald-600 hover:bg-emerald-700">
+                  <CheckCircle size={16} className="mr-1" />
+                  Aprobar
+                </Button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
