@@ -104,8 +104,16 @@ function AppRoutes() {
       <Route 
         path="/sri-limits" 
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "accountant"]}>
             <SRILimits />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/ingresos" 
+        element={
+          <ProtectedRoute allowedRoles={["admin", "spouse"]}>
+            <Ingresos />
           </ProtectedRoute>
         } 
       />
