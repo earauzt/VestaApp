@@ -2309,6 +2309,279 @@ async def update_user_role(
     
     return {"message": "Rol actualizado"}
 
+# ================= INCOME MANAGEMENT (Manual Entry) =================
+
+@api_router.get("/income")
+async def get_incomes(
+    year: Optional[int] = None,
+    distribution: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Get all income entries"""
+    query = {"user_id": user["id"]}
+    if year:
+        query["date"] = {"$regex": f"^{year}"}
+    if distribution:
+        query["distribution"] = distribution
+    
+    incomes = await db.incomes.find(query, {"_id": 0}).sort("date", -1).to_list(1000)
+    return incomes
+
+@api_router.post("/income")
+async def create_income(
+    income: IncomeEntry,
+    user: dict = Depends(get_current_user)
+):
+    """Create a new income entry with distribution"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado para crear ingresos")
+    
+    income_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "amount": income.amount,
+        "date": income.date,
+        "distribution": income.distribution,
+        "concept": income.concept,
+        "description": income.description,
+        "is_recurring": income.is_recurring,
+        "payment_method": income.payment_method,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.incomes.insert_one(income_doc)
+    del income_doc["_id"]
+    
+    return income_doc
+
+@api_router.put("/income/{income_id}")
+async def update_income(
+    income_id: str,
+    income: IncomeEntry,
+    user: dict = Depends(get_current_user)
+):
+    """Update an income entry"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    update_data = {
+        "amount": income.amount,
+        "date": income.date,
+        "distribution": income.distribution,
+        "concept": income.concept,
+        "description": income.description,
+        "is_recurring": income.is_recurring,
+        "payment_method": income.payment_method
+    }
+    
+    result = await db.incomes.update_one({"id": income_id, "user_id": user["id"]}, {"$set": update_data})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Ingreso no encontrado")
+    
+    return {"message": "Ingreso actualizado"}
+
+@api_router.delete("/income/{income_id}")
+async def delete_income(
+    income_id: str,
+    user: dict = Depends(get_current_user)
+):
+    """Delete an income entry"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    result = await db.incomes.delete_one({"id": income_id, "user_id": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Ingreso no encontrado")
+    
+    return {"message": "Ingreso eliminado"}
+
+@api_router.get("/income/summary")
+async def get_income_summary(
+    year: Optional[int] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Get income summary by distribution"""
+    current_year = year or datetime.now().year
+    query = {"user_id": user["id"], "date": {"$regex": f"^{current_year}"}}
+    
+    incomes = await db.incomes.find(query, {"_id": 0}).to_list(1000)
+    
+    by_distribution = {}
+    by_concept = {}
+    total = 0
+    
+    for income in incomes:
+        dist = income.get("distribution", "Personal")
+        concept = income.get("concept", "Otros")
+        amount = income.get("amount", 0)
+        
+        by_distribution[dist] = by_distribution.get(dist, 0) + amount
+        by_concept[concept] = by_concept.get(concept, 0) + amount
+        total += amount
+    
+    return {
+        "total": total,
+        "by_distribution": by_distribution,
+        "by_concept": by_concept,
+        "year": current_year,
+        "count": len(incomes)
+    }
+
+# ================= PERSONAL BUDGET (User's Custom Categories) =================
+
+@api_router.get("/budget/categories")
+async def get_budget_categories(user: dict = Depends(get_current_user)):
+    """Get personal budget categories (from Excel structure)"""
+    return {
+        "categories": BUDGET_CATEGORIES,
+        "payment_methods": PAYMENT_METHODS,
+        "goals": BUDGET_GOALS,
+        "income_sources": INCOME_SOURCES,
+        "income_concepts": INCOME_CONCEPTS
+    }
+
+@api_router.get("/budget/personal")
+async def get_personal_budget(
+    year: Optional[int] = None,
+    month: Optional[int] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Get personal budget with actuals vs planned"""
+    current_year = year or datetime.now().year
+    
+    # Get planned budget from database
+    budget_query = {"user_id": user["id"], "year": current_year}
+    planned_budget = await db.personal_budgets.find_one(budget_query, {"_id": 0})
+    
+    # Get actual expenses by budget category
+    expense_query = {"user_id": user["id"], "date": {"$regex": f"^{current_year}"}}
+    if month:
+        expense_query["date"] = {"$regex": f"^{current_year}-{str(month).zfill(2)}"}
+    
+    transactions = await db.transactions.find(
+        expense_query, 
+        {"_id": 0, "amount": 1, "budget_category": 1, "category": 1, "date": 1}
+    ).to_list(10000)
+    
+    # Get incomes
+    incomes = await db.incomes.find(expense_query, {"_id": 0}).to_list(1000)
+    total_income = sum(i.get("amount", 0) for i in incomes)
+    
+    # Calculate actuals by budget category
+    actuals = {}
+    for t in transactions:
+        cat = t.get("budget_category") or t.get("category") or "otros"
+        actuals[cat] = actuals.get(cat, 0) + t.get("amount", 0)
+    
+    total_expenses = sum(actuals.values())
+    
+    # Calculate goal progress
+    goal_progress = {
+        "gastos_fijos": {
+            "target_percent": BUDGET_GOALS["gastos_fijos_target"],
+            "actual_percent": total_expenses / total_income if total_income > 0 else 0,
+            "status": "on_track" if total_income > 0 and (total_expenses / total_income) <= BUDGET_GOALS["gastos_fijos_target"]["max"] else "over"
+        },
+        "gastos_libres": {
+            "target_annual": BUDGET_GOALS["gastos_libres_max_annual"],
+            "actual_annual": actuals.get("gastos_libres", 0),
+            "remaining": BUDGET_GOALS["gastos_libres_max_annual"] - actuals.get("gastos_libres", 0)
+        }
+    }
+    
+    return {
+        "year": current_year,
+        "month": month,
+        "total_income": total_income,
+        "total_expenses": total_expenses,
+        "balance": total_income - total_expenses,
+        "by_category": actuals,
+        "planned": planned_budget.get("categories", {}) if planned_budget else {},
+        "goal_progress": goal_progress,
+        "categories_config": BUDGET_CATEGORIES
+    }
+
+@api_router.post("/budget/personal")
+async def save_personal_budget(
+    budget_data: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Save personal budget configuration"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    year = budget_data.get("year", datetime.now().year)
+    
+    budget_doc = {
+        "user_id": user["id"],
+        "year": year,
+        "categories": budget_data.get("categories", {}),
+        "goals": budget_data.get("goals", BUDGET_GOALS),
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.personal_budgets.update_one(
+        {"user_id": user["id"], "year": year},
+        {"$set": budget_doc},
+        upsert=True
+    )
+    
+    return {"message": "Presupuesto guardado", "year": year}
+
+# ================= TRANSACTIONS GROUPED BY ESTABLISHMENT =================
+
+@api_router.get("/transactions/grouped")
+async def get_transactions_grouped(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Get transactions grouped by establishment and date (accordion view)"""
+    query = {"user_id": user["id"], "transaction_type": "expense"}
+    if start_date:
+        query["date"] = {"$gte": start_date}
+    if end_date:
+        query.setdefault("date", {})["$lte"] = end_date
+    
+    transactions = await db.transactions.find(query, {"_id": 0}).sort("date", -1).to_list(10000)
+    
+    # Group by establishment + date
+    groups = {}
+    for t in transactions:
+        # Create group key: establishment + date
+        establishment = t.get("establishment") or t.get("description", "Sin establecimiento")
+        date = t.get("date", "")
+        group_key = f"{establishment}|{date}"
+        
+        if group_key not in groups:
+            groups[group_key] = {
+                "establishment": establishment,
+                "date": date,
+                "total": 0,
+                "items": [],
+                "category": t.get("category"),
+                "payment_method": t.get("payment_method"),
+                "attachments": []
+            }
+        
+        groups[group_key]["total"] += t.get("amount", 0)
+        groups[group_key]["items"].append({
+            "id": t.get("id"),
+            "description": t.get("description"),
+            "amount": t.get("amount"),
+            "category": t.get("category"),
+            "subcategory": t.get("subcategory")
+        })
+        
+        if t.get("attachments"):
+            groups[group_key]["attachments"].extend(t["attachments"])
+    
+    # Convert to list and sort by date
+    result = list(groups.values())
+    result.sort(key=lambda x: x["date"], reverse=True)
+    
+    return result
+
 # ================= HEALTH CHECK =================
 
 @api_router.get("/")
