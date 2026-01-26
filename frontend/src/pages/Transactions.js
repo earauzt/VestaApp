@@ -11,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Badge } from "../components/ui/badge";
 import { Calendar } from "../components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "../components/ui/popover";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "../components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -24,8 +25,20 @@ import {
   ArrowDown,
   Funnel,
   Airplane,
-  Warning
+  Warning,
+  DotsThreeVertical,
+  Scissors,
+  Paperclip,
+  Gear,
+  CheckCircle,
+  Eye
 } from "@phosphor-icons/react";
+
+// Import new QuickBooks-style components
+import { SplitTransactionModal } from "../components/SplitTransactionModal";
+import { AttachmentUploader, AttachmentViewer } from "../components/AttachmentUploader";
+import { ExportButtons } from "../components/ExportButtons";
+import { CategoryRulesManager } from "../components/CategoryRulesManager";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -35,27 +48,25 @@ const CATEGORY_COLORS = {
   educacion: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",
   vivienda: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   vestimenta: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  turismo: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
   transporte: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
-  viajes_internacionales: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  viajes_internacionales: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
   otros: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
 };
 
 const CATEGORIES = {
-  alimentacion: { name: "Alimentación", subcategories: ["Comida", "Restaurantes", "Supermercado"], deductible: true },
-  salud: { name: "Salud", subcategories: ["Seguros", "Medicina", "Consultas"], deductible: true },
-  educacion: { name: "Educación", subcategories: ["Colegio y actividades", "Cursos", "Materiales"], deductible: true },
-  vivienda: { name: "Vivienda", subcategories: ["Servicios básicos", "Arriendo", "Mantenimiento"], deductible: true },
+  alimentacion: { name: "Alimentación", subcategories: ["Comida", "Restaurantes", "Supermercado", "Mercado"], deductible: true },
+  salud: { name: "Salud", subcategories: ["Seguros", "Medicina", "Consultas", "Hospitalización", "Laboratorio"], deductible: true },
+  educacion: { name: "Educación", subcategories: ["Colegio y actividades", "Cursos", "Materiales", "Universidad", "Maestría"], deductible: true },
+  vivienda: { name: "Vivienda", subcategories: ["Servicios básicos", "Arriendo", "Intereses hipoteca", "Mantenimiento"], deductible: true },
   vestimenta: { name: "Vestimenta", subcategories: ["Ropa", "Calzado", "Accesorios"], deductible: true },
-  transporte: { name: "Transporte", subcategories: ["Carros", "Combustible", "Mantenimiento vehicular"], deductible: false },
+  turismo: { name: "Turismo Nacional", subcategories: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"], deductible: true },
+  transporte: { name: "Transporte", subcategories: ["Carros", "Combustible", "Mantenimiento vehicular", "Taxi", "Bus"], deductible: false },
   viajes_internacionales: { name: "Viajes Internacionales", subcategories: ["USA", "Europa", "Otros países"], deductible: false },
   otros: { name: "Otros", subcategories: ["Empleados", "Entretenimiento", "Varios"], deductible: false }
 };
 
 const INCOME_SOURCES = ["Personal", "APX", "USA"];
-const PAYMENT_SOURCES = [
-  { value: "local", label: "Tarjeta Local (Ecuador)" },
-  { value: "internacional", label: "Tarjeta Extranjera (USA/Otro)" }
-];
 
 export default function Transactions() {
   const { getAuthHeaders, user } = useAuth();
@@ -70,6 +81,13 @@ export default function Transactions() {
   // International transaction popup
   const [showInternationalPopup, setShowInternationalPopup] = useState(false);
   const [pendingFormData, setPendingFormData] = useState(null);
+
+  // QuickBooks-style modals
+  const [splitModalOpen, setSplitModalOpen] = useState(false);
+  const [splitTransaction, setSplitTransaction] = useState(null);
+  const [attachmentModalOpen, setAttachmentModalOpen] = useState(false);
+  const [attachmentTransaction, setAttachmentTransaction] = useState(null);
+  const [rulesModalOpen, setRulesModalOpen] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -196,6 +214,16 @@ export default function Transactions() {
     setDialogOpen(true);
   };
 
+  const handleSplit = (transaction) => {
+    setSplitTransaction(transaction);
+    setSplitModalOpen(true);
+  };
+
+  const handleAttachment = (transaction) => {
+    setAttachmentTransaction(transaction);
+    setAttachmentModalOpen(true);
+  };
+
   const resetForm = () => {
     setEditingTransaction(null);
     setFormData({
@@ -230,8 +258,31 @@ export default function Transactions() {
 
   const canEdit = user?.role === "admin" || user?.role === "spouse";
 
+  // Calculate current date range for export
+  const currentYear = new Date().getFullYear();
+
   return (
     <div className="space-y-6" data-testid="transactions-page">
+      {/* QuickBooks-style Modals */}
+      <SplitTransactionModal
+        open={splitModalOpen}
+        onOpenChange={setSplitModalOpen}
+        transaction={splitTransaction}
+        onSplitComplete={fetchTransactions}
+      />
+      
+      <AttachmentUploader
+        open={attachmentModalOpen}
+        onOpenChange={setAttachmentModalOpen}
+        transaction={attachmentTransaction}
+        onUploadComplete={fetchTransactions}
+      />
+      
+      <CategoryRulesManager
+        open={rulesModalOpen}
+        onOpenChange={setRulesModalOpen}
+      />
+
       {/* International Transaction Popup */}
       <Dialog open={showInternationalPopup} onOpenChange={setShowInternationalPopup}>
         <DialogContent className="sm:max-w-[425px]">
@@ -285,167 +336,189 @@ export default function Transactions() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Transacciones</h1>
-          <p className="text-muted-foreground">Gestiona tus ingresos y gastos</p>
+          <p className="text-muted-foreground">Gestiona tus ingresos y gastos con funciones estilo QuickBooks</p>
         </div>
-        {canEdit && (
-          <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-            <DialogTrigger asChild>
-              <Button className="rounded-full gap-2" data-testid="add-transaction-btn">
-                <Plus size={18} weight="bold" />
-                Nueva transacción
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[500px]">
-              <DialogHeader>
-                <DialogTitle>
-                  {editingTransaction ? "Editar transacción" : "Nueva transacción"}
-                </DialogTitle>
-              </DialogHeader>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                {/* Type selector */}
-                <div className="grid grid-cols-2 gap-4">
-                  <Button
-                    type="button"
-                    variant={formData.transaction_type === "expense" ? "default" : "outline"}
-                    onClick={() => setFormData({ ...formData, transaction_type: "expense" })}
-                    className="gap-2"
-                    data-testid="type-expense"
-                  >
-                    <ArrowDown size={18} className="text-red-500" />
-                    Gasto
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={formData.transaction_type === "income" ? "default" : "outline"}
-                    onClick={() => setFormData({ ...formData, transaction_type: "income" })}
-                    className="gap-2"
-                    data-testid="type-income"
-                  >
-                    <ArrowUp size={18} className="text-emerald-500" />
-                    Ingreso
-                  </Button>
-                </div>
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Export Button */}
+          <ExportButtons year={currentYear} />
+          
+          {/* Rules Button */}
+          <Button 
+            variant="outline" 
+            className="gap-2" 
+            onClick={() => setRulesModalOpen(true)}
+            data-testid="rules-btn"
+          >
+            <Gear size={18} />
+            <span className="hidden sm:inline">Reglas</span>
+          </Button>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>Monto</Label>
-                    <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="0.00"
-                      value={formData.amount}
-                      onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
-                      required
-                      data-testid="amount-input"
-                    />
+          {/* Add Transaction */}
+          {canEdit && (
+            <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
+              <DialogTrigger asChild>
+                <Button className="rounded-full gap-2" data-testid="add-transaction-btn">
+                  <Plus size={18} weight="bold" />
+                  Nueva transacción
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[500px]">
+                <DialogHeader>
+                  <DialogTitle>
+                    {editingTransaction ? "Editar transacción" : "Nueva transacción"}
+                  </DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Type selector */}
+                  <div className="grid grid-cols-2 gap-4">
+                    <Button
+                      type="button"
+                      variant={formData.transaction_type === "expense" ? "default" : "outline"}
+                      onClick={() => setFormData({ ...formData, transaction_type: "expense" })}
+                      className="gap-2"
+                      data-testid="type-expense"
+                    >
+                      <ArrowDown size={18} className="text-red-500" />
+                      Gasto
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={formData.transaction_type === "income" ? "default" : "outline"}
+                      onClick={() => setFormData({ ...formData, transaction_type: "income" })}
+                      className="gap-2"
+                      data-testid="type-income"
+                    >
+                      <ArrowUp size={18} className="text-emerald-500" />
+                      Ingreso
+                    </Button>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Fecha</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button variant="outline" className="w-full justify-start gap-2" data-testid="date-picker">
-                          <CalendarBlank size={18} />
-                          {format(formData.date, "PPP", { locale: es })}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData.date}
-                          onSelect={(date) => date && setFormData({ ...formData, date })}
-                          initialFocus
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </div>
 
-                <div className="space-y-2">
-                  <Label>Descripción</Label>
-                  <Input
-                    placeholder="Descripción de la transacción"
-                    value={formData.description}
-                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                    required
-                    data-testid="description-input"
-                  />
-                </div>
-
-                {formData.transaction_type === "expense" ? (
-                  <>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label>Categoría SRI</Label>
-                        <Select 
-                          value={formData.category} 
-                          onValueChange={(value) => setFormData({ ...formData, category: value, subcategory: "" })}
-                        >
-                          <SelectTrigger data-testid="category-select">
-                            <SelectValue placeholder="Seleccionar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {Object.entries(CATEGORIES).map(([key, cat]) => (
-                              <SelectItem key={key} value={key}>{cat.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Subcategoría</Label>
-                        <Select 
-                          value={formData.subcategory} 
-                          onValueChange={(value) => setFormData({ ...formData, subcategory: value })}
-                          disabled={!formData.category}
-                        >
-                          <SelectTrigger data-testid="subcategory-select">
-                            <SelectValue placeholder="Seleccionar" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {formData.category && CATEGORIES[formData.category]?.subcategories.map((sub) => (
-                              <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label>Establecimiento (opcional)</Label>
+                      <Label>Monto</Label>
                       <Input
-                        placeholder="Nombre del comercio"
-                        value={formData.establishment}
-                        onChange={(e) => setFormData({ ...formData, establishment: e.target.value })}
-                        data-testid="establishment-input"
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={formData.amount}
+                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                        required
+                        data-testid="amount-input"
                       />
                     </div>
-                  </>
-                ) : (
-                  <div className="space-y-2">
-                    <Label>Fuente de ingreso</Label>
-                    <Select 
-                      value={formData.source} 
-                      onValueChange={(value) => setFormData({ ...formData, source: value })}
-                    >
-                      <SelectTrigger data-testid="source-select">
-                        <SelectValue placeholder="Seleccionar fuente" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {INCOME_SOURCES.map((source) => (
-                          <SelectItem key={source} value={source}>{source}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div className="space-y-2">
+                      <Label>Fecha</Label>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" className="w-full justify-start gap-2" data-testid="date-picker">
+                            <CalendarBlank size={18} />
+                            {format(formData.date, "PPP", { locale: es })}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={formData.date}
+                            onSelect={(date) => date && setFormData({ ...formData, date })}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
                   </div>
-                )}
 
-                <DialogFooter>
-                  <Button type="submit" data-testid="save-transaction">
-                    {editingTransaction ? "Actualizar" : "Guardar"}
-                  </Button>
-                </DialogFooter>
-              </form>
-            </DialogContent>
-          </Dialog>
-        )}
+                  <div className="space-y-2">
+                    <Label>Descripción</Label>
+                    <Input
+                      placeholder="Descripción de la transacción"
+                      value={formData.description}
+                      onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                      required
+                      data-testid="description-input"
+                    />
+                  </div>
+
+                  {formData.transaction_type === "expense" ? (
+                    <>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label>Categoría SRI</Label>
+                          <Select 
+                            value={formData.category} 
+                            onValueChange={(value) => setFormData({ ...formData, category: value, subcategory: "" })}
+                          >
+                            <SelectTrigger data-testid="category-select">
+                              <SelectValue placeholder="Seleccionar" />
+                            </SelectTrigger>
+                            <SelectContent className="z-[100]">
+                              {Object.entries(CATEGORIES).map(([key, cat]) => (
+                                <SelectItem key={key} value={key}>
+                                  <span className="flex items-center gap-2">
+                                    {cat.name}
+                                    {cat.deductible && <CheckCircle size={14} className="text-emerald-500" />}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Subcategoría</Label>
+                          <Select 
+                            value={formData.subcategory} 
+                            onValueChange={(value) => setFormData({ ...formData, subcategory: value })}
+                            disabled={!formData.category}
+                          >
+                            <SelectTrigger data-testid="subcategory-select">
+                              <SelectValue placeholder="Seleccionar" />
+                            </SelectTrigger>
+                            <SelectContent className="z-[100]">
+                              {formData.category && CATEGORIES[formData.category]?.subcategories.map((sub) => (
+                                <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Establecimiento (opcional)</Label>
+                        <Input
+                          placeholder="Nombre del comercio"
+                          value={formData.establishment}
+                          onChange={(e) => setFormData({ ...formData, establishment: e.target.value })}
+                          data-testid="establishment-input"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <div className="space-y-2">
+                      <Label>Fuente de ingreso</Label>
+                      <Select 
+                        value={formData.source} 
+                        onValueChange={(value) => setFormData({ ...formData, source: value })}
+                      >
+                        <SelectTrigger data-testid="source-select">
+                          <SelectValue placeholder="Seleccionar fuente" />
+                        </SelectTrigger>
+                        <SelectContent className="z-[100]">
+                          {INCOME_SOURCES.map((source) => (
+                            <SelectItem key={source} value={source}>{source}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+
+                  <DialogFooter>
+                    <Button type="submit" data-testid="save-transaction">
+                      {editingTransaction ? "Actualizar" : "Guardar"}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </DialogContent>
+            </Dialog>
+          )}
+        </div>
       </div>
 
       {/* Filters */}
@@ -527,8 +600,16 @@ export default function Transactions() {
                         }
                       </div>
                       <div>
-                        <p className="font-medium">{transaction.description}</p>
-                        <div className="flex items-center gap-2 mt-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{transaction.description}</p>
+                          {transaction.is_split && (
+                            <Badge variant="outline" className="text-xs gap-1">
+                              <Scissors size={12} />
+                              Split
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1 flex-wrap">
                           <span className="text-sm text-muted-foreground">
                             {format(new Date(transaction.date), "d MMM yyyy", { locale: es })}
                           </span>
@@ -540,14 +621,34 @@ export default function Transactions() {
                           {transaction.ai_classified && (
                             <Badge variant="secondary" className="text-xs">AI</Badge>
                           )}
+                          {transaction.auto_categorized && (
+                            <Badge variant="secondary" className="text-xs gap-1">
+                              <Gear size={10} />
+                              Auto
+                            </Badge>
+                          )}
+                          {/* Attachments indicator */}
+                          {transaction.attachments?.length > 0 && (
+                            <AttachmentViewer 
+                              attachments={transaction.attachments} 
+                              transactionId={transaction.id} 
+                            />
+                          )}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4">
-                      <Badge className={CATEGORY_COLORS[transaction.category] || CATEGORY_COLORS.otros}>
-                        {CATEGORIES[transaction.category]?.name || transaction.category}
-                      </Badge>
-                      <span className={`font-mono font-semibold ${
+                    <div className="flex items-center gap-3">
+                      <div className="text-right">
+                        <Badge className={CATEGORY_COLORS[transaction.category] || CATEGORY_COLORS.otros}>
+                          {CATEGORIES[transaction.category]?.name || transaction.category}
+                        </Badge>
+                        {transaction.is_deductible && (
+                          <Badge variant="outline" className="ml-1 text-xs text-emerald-600 border-emerald-200">
+                            SRI
+                          </Badge>
+                        )}
+                      </div>
+                      <span className={`font-mono font-semibold min-w-[100px] text-right ${
                         transaction.transaction_type === "income" 
                           ? "text-emerald-600" 
                           : "text-red-600"
@@ -555,26 +656,40 @@ export default function Transactions() {
                         {transaction.transaction_type === "income" ? "+" : "-"}
                         {formatCurrency(transaction.amount)}
                       </span>
+                      
+                      {/* Actions Menu */}
                       {canEdit && (
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleEdit(transaction)}
-                            data-testid={`edit-${transaction.id}`}
-                          >
-                            <Pencil size={16} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => handleDelete(transaction.id)}
-                            className="text-destructive hover:text-destructive"
-                            data-testid={`delete-${transaction.id}`}
-                          >
-                            <Trash size={16} />
-                          </Button>
-                        </div>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="icon" data-testid={`actions-${transaction.id}`}>
+                              <DotsThreeVertical size={20} />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => handleEdit(transaction)} className="gap-2">
+                              <Pencil size={16} />
+                              Editar
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => handleAttachment(transaction)} className="gap-2">
+                              <Paperclip size={16} />
+                              Adjuntar documento
+                            </DropdownMenuItem>
+                            {transaction.transaction_type === "expense" && !transaction.is_split && (
+                              <DropdownMenuItem onClick={() => handleSplit(transaction)} className="gap-2">
+                                <Scissors size={16} />
+                                Dividir transacción
+                              </DropdownMenuItem>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem 
+                              onClick={() => handleDelete(transaction.id)} 
+                              className="gap-2 text-destructive focus:text-destructive"
+                            >
+                              <Trash size={16} />
+                              Eliminar
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       )}
                     </div>
                   </motion.div>
