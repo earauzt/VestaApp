@@ -353,6 +353,17 @@ def apply_categorization_rules(description: str, establishment: str = "") -> dic
     
     return {"category": None, "subcategory": None, "auto_categorized": False, "matched_keyword": None}
 
+def detect_payment_method(description: str, establishment: str = "") -> str:
+    """Auto-detect payment method from description"""
+    text = f"{description} {establishment}".lower()
+    
+    for method_key, method_info in PAYMENT_METHODS.items():
+        for keyword in method_info["keywords"]:
+            if keyword.lower() in text:
+                return method_key
+    
+    return "tarjeta"  # Default to card
+
 # Transaction Status (inspirado en QuickBooks)
 class TransactionStatus:
     PENDING_REVIEW = "pending_review"  # Pendiente de revisión por contadora
