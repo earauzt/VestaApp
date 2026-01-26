@@ -509,6 +509,74 @@ class BudgetResponse(BaseModel):
     total_expenses: float
     created_at: str
 
+# ================= CREDIT CARDS & DEBT MODELS =================
+
+class CreditCard(BaseModel):
+    name: str  # Diners, Pichincha, Pacificard, Apple Card
+    bank: str
+    apr: float  # Annual Percentage Rate (15% Ecuador, 29% USA)
+    credit_limit: float
+    current_balance: float = 0
+    minimum_payment: float = 0
+    cut_off_day: int  # Day of month (1-31)
+    payment_due_day: int  # Day of month for payment
+    currency: str = "USD"
+    is_international: bool = False
+
+class CreditCardResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    user_id: str
+    name: str
+    bank: str
+    apr: float
+    credit_limit: float
+    current_balance: float
+    minimum_payment: float
+    available_credit: float
+    cut_off_day: int
+    payment_due_day: int
+    currency: str
+    is_international: bool
+    created_at: str
+    updated_at: Optional[str] = None
+
+class DebtPayment(BaseModel):
+    card_id: str
+    amount: float
+    date: str
+    payment_type: str  # minimum, full, custom
+
+class SnowballPlan(BaseModel):
+    strategy: str  # avalanche (highest interest first) or snowball (smallest balance first)
+    extra_payment: float  # Extra amount to pay beyond minimums
+    
+# ================= CASH FLOW PLANNING MODELS =================
+
+class ScheduledPayment(BaseModel):
+    name: str  # "Luz", "Internet", "Colegio"
+    amount: float
+    due_day: int  # Day of month
+    category: str
+    payment_method: str  # transferencia, tarjeta_diners, tarjeta_pichincha, etc.
+    is_recurring: bool = True
+    reminder_days_before: int = 2  # Days before to remind
+
+class ScheduledPaymentResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    user_id: str
+    name: str
+    amount: float
+    due_day: int
+    category: str
+    payment_method: str
+    is_recurring: bool
+    reminder_days_before: int
+    last_paid_date: Optional[str] = None
+    next_due_date: str
+    created_at: str
+
 class DocumentUpload(BaseModel):
     document_type: str  # email, receipt, statement, excel
     content: Optional[str] = None
