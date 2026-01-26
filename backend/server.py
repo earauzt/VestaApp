@@ -258,7 +258,6 @@ def apply_categorization_rules(description: str, establishment: str = "") -> dic
 
 # Transaction Status (inspirado en QuickBooks)
 class TransactionStatus:
-class TransactionStatus:
     PENDING_REVIEW = "pending_review"  # Pendiente de revisión por contadora
     APPROVED = "approved"  # Aprobado/conciliado
     REJECTED = "rejected"  # Rechazado (error o inválido)
