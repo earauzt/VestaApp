@@ -57,7 +57,8 @@ export function CategoryRulesManager({ open, onOpenChange }) {
   const fetchRules = async () => {
     try {
       const response = await axios.get(`${API}/categorization-rules`, { headers: getAuthHeaders() });
-      setRules(response.data);
+      // API returns { default_rules: [...], custom_rules: [...] }
+      setRules(response.data.custom_rules || []);
     } catch (error) {
       // API might not exist yet, use empty array
       setRules([]);
