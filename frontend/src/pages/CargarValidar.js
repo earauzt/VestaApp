@@ -1093,6 +1093,78 @@ export default function CargarValidar() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Bulk Action Dialog */}
+      <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Acción en Lote</DialogTitle>
+            <DialogDescription>
+              Procesar {selectedItems.length} transacciones seleccionadas
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div>
+              <Label>Acción</Label>
+              <Select value={bulkAction} onValueChange={setBulkAction}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="approve">✅ Aprobar todas</SelectItem>
+                  <SelectItem value="reject">❌ Rechazar todas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {bulkAction === "approve" && (
+              <>
+                <div>
+                  <Label>Categoría (opcional)</Label>
+                  <Select value={bulkCategory} onValueChange={(v) => { setBulkCategory(v); setBulkSubcategory(""); }}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Mantener categoría actual" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Mantener actual</SelectItem>
+                      {Object.entries(PERSONAL_CATEGORIES).map(([key, cat]) => (
+                        <SelectItem key={key} value={key}>{cat.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                {bulkCategory && PERSONAL_CATEGORIES[bulkCategory]?.subcategories && (
+                  <div>
+                    <Label>Subcategoría</Label>
+                    <Select value={bulkSubcategory} onValueChange={setBulkSubcategory}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Seleccionar subcategoría" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {PERSONAL_CATEGORIES[bulkCategory].subcategories.map(sub => (
+                          <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowBulkDialog(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleBulkAction} disabled={loading}>
+              {loading ? <SpinnerGap className="animate-spin mr-2" size={16} /> : null}
+              Procesar {selectedItems.length} transacciones
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
