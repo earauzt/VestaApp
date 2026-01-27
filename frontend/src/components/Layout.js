@@ -41,7 +41,7 @@ const navItems = [
   { path: "/deudas", label: "Deudas y Tarjetas", icon: Wallet, roles: ["admin"] },
   { path: "/flujo", label: "Planificación Flujo", icon: CalendarCheck, roles: ["admin"] },
   { path: "/budget", label: "Mi Presupuesto", icon: ChartLine, roles: ["admin"] },
-  { path: "/international", label: "Gastos USA", icon: Airplane, roles: ["admin", "accountant"] },
+  { path: "/international", label: "Gastos USA", icon: Airplane, roles: ["admin", "spouse", "accountant"] },
   { path: "/predictions", label: "Predicciones AI", icon: Brain, roles: ["admin"] },
   // Accountant-only items
   { path: "/sri-limits", label: "Límites SRI", icon: Scales, roles: ["admin", "accountant"] },
