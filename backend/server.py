@@ -3059,24 +3059,52 @@ async def get_budget_config(
         {"_id": 0}
     )
     
-    if saved:
-        return {
-            "year": current_year,
-            "categories": saved.get("categories", BUDGET_CATEGORIES),
-            "income_projection": saved.get("income_projection", INCOME_STRUCTURE),
-            "savings_goal": saved.get("savings_goal", BUDGET_SUMMARY["ahorro_esperado"]),
-            "investment_goal": saved.get("investment_goal", BUDGET_SUMMARY["inversion_esperada"]),
-            "is_custom": True
-        }
+    # Merge saved categories with defaults to preserve subcategories
+    merged_categories = dict(BUDGET_CATEGORIES)  # Start with defaults
     
-    # Return defaults
+    if saved and saved.get("categories"):
+        saved_cats = saved["categories"]
+        for key, default_cat in BUDGET_CATEGORIES.items():
+            if key in saved_cats:
+                # User has this category, merge with defaults
+                merged_cat = dict(default_cat)  # Start with default
+                saved_cat = saved_cats[key]
+                
+                # Override with saved values
+                merged_cat["monthly_budget"] = saved_cat.get("monthly_budget", default_cat.get("monthly_budget", 0))
+                merged_cat["annual_budget"] = merged_cat["monthly_budget"] * 12
+                merged_cat["name"] = saved_cat.get("name", default_cat.get("name", key))
+                merged_cat["type"] = saved_cat.get("type", default_cat.get("type", "variable"))
+                merged_cat["is_recurring"] = saved_cat.get("is_recurring", default_cat.get("is_recurring", False))
+                
+                # Merge subcategories - keep defaults but override values if user set them
+                default_subs = default_cat.get("subcategories", {})
+                saved_subs = saved_cat.get("subcategories", {})
+                if isinstance(default_subs, dict):
+                    merged_subs = dict(default_subs)
+                    if isinstance(saved_subs, dict):
+                        merged_subs.update(saved_subs)
+                    merged_cat["subcategories"] = merged_subs
+                else:
+                    merged_cat["subcategories"] = saved_subs if saved_subs else {}
+                    
+                merged_categories[key] = merged_cat
+            else:
+                # User doesn't have this category, keep default
+                merged_categories[key] = default_cat
+        
+        # Add any custom categories the user created
+        for key, cat in saved_cats.items():
+            if key not in BUDGET_CATEGORIES:
+                merged_categories[key] = cat
+    
     return {
         "year": current_year,
-        "categories": BUDGET_CATEGORIES,
-        "income_projection": INCOME_STRUCTURE,
-        "savings_goal": BUDGET_SUMMARY["ahorro_esperado"],
-        "investment_goal": BUDGET_SUMMARY["inversion_esperada"],
-        "is_custom": False
+        "categories": merged_categories,
+        "income_projection": saved.get("income_projection", INCOME_STRUCTURE) if saved else INCOME_STRUCTURE,
+        "savings_goal": saved.get("savings_goal", BUDGET_SUMMARY["ahorro_esperado"]) if saved else BUDGET_SUMMARY["ahorro_esperado"],
+        "investment_goal": saved.get("investment_goal", BUDGET_SUMMARY["inversion_esperada"]) if saved else BUDGET_SUMMARY["inversion_esperada"],
+        "is_custom": saved is not None
     }
 
 @api_router.put("/budget/category/{category_key}")
