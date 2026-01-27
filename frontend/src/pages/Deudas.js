@@ -75,6 +75,18 @@ export default function Deudas() {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentType, setPaymentType] = useState("custom");
 
+  // Deferred payment editing
+  const [deferredDialogOpen, setDeferredDialogOpen] = useState(false);
+  const [editingDeferred, setEditingDeferred] = useState(null);
+  const [deferredForm, setDeferredForm] = useState({
+    description: "",
+    total_amount: 0,
+    monthly_payment: 0,
+    remaining_installments: 0,
+    total_installments: 0,
+    card_name: ""
+  });
+
   useEffect(() => {
     fetchData();
   }, []);
