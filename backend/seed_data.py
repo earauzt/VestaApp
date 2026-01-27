@@ -175,30 +175,37 @@ async def seed_database(mongo_url: str, db_name: str):
             }
             await db.users.insert_one(user_doc)
             logger.info(f"✅ Usuario admin creado: {ADMIN_USER['email']}")
+            user_id = ADMIN_USER["id"]
         else:
-            # Actualizar el user_id si ya existe para que coincida
-            if existing_user.get("id") != ADMIN_USER["id"]:
-                await db.users.update_one(
-                    {"email": ADMIN_USER["email"]},
-                    {"$set": {"id": ADMIN_USER["id"]}}
-                )
-            logger.info(f"ℹ️ Usuario admin ya existe: {ADMIN_USER['email']}")
+            # Usar el user_id existente
+            user_id = existing_user.get("id", ADMIN_USER["id"])
+            # Asegurar que el password esté actualizado
+            await db.users.update_one(
+                {"email": ADMIN_USER["email"]},
+                {"$set": {
+                    "password": pwd_context.hash(ADMIN_PASSWORD),
+                    "hashed_password": pwd_context.hash(ADMIN_PASSWORD)
+                }}
+            )
+            logger.info(f"ℹ️ Usuario admin ya existe: {ADMIN_USER['email']} (ID: {user_id})")
         
         # 2. Crear tarjetas si no existen
         for card in CREDIT_CARDS:
+            card_data = {**card, "user_id": user_id}  # Usar el user_id correcto
             existing_card = await db.credit_cards.find_one({"id": card["id"]})
             if not existing_card:
                 card_doc = {
-                    **card,
+                    **card_data,
                     "created_at": datetime.now(timezone.utc).isoformat()
                 }
                 await db.credit_cards.insert_one(card_doc)
                 logger.info(f"✅ Tarjeta creada: {card['name']}")
             else:
-                # Actualizar datos de la tarjeta
+                # Actualizar datos de la tarjeta incluyendo user_id
                 await db.credit_cards.update_one(
                     {"id": card["id"]},
                     {"$set": {
+                        "user_id": user_id,
                         "current_balance": card["current_balance"],
                         "minimum_payment": card["minimum_payment"],
                         "due_date": card["due_date"],
