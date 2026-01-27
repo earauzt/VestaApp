@@ -249,15 +249,15 @@ export default function Deudas() {
   const handleEdit = (card) => {
     setEditingCard(card);
     setFormData({
-      name: card.name,
-      bank: card.bank,
-      apr: card.apr,
-      credit_limit: card.credit_limit,
-      current_balance: card.current_balance,
-      minimum_payment: card.minimum_payment,
-      cut_off_day: card.cut_off_day,
-      payment_due_day: card.payment_due_day,
-      is_international: card.is_international
+      name: card.name || "",
+      bank: card.bank || "",
+      apr: card.apr || 15,
+      credit_limit: card.credit_limit || 0,
+      current_balance: card.current_balance || 0,
+      minimum_payment: card.minimum_payment || 0,
+      cut_off_day: card.cut_off_day || 15,
+      payment_due_day: card.payment_due_day || 5,
+      is_international: card.is_international || false
     });
     setDialogOpen(true);
   };
