@@ -165,6 +165,69 @@ export default function Deudas() {
     }
   };
 
+  // Deferred payment functions
+  const openDeferredDialog = (deferred = null) => {
+    if (deferred) {
+      setEditingDeferred(deferred);
+      setDeferredForm({
+        description: deferred.description || "",
+        total_amount: deferred.total_amount || 0,
+        monthly_payment: deferred.monthly_payment || 0,
+        remaining_installments: deferred.remaining_installments || 0,
+        total_installments: deferred.total_installments || 0,
+        card_name: deferred.card_name || ""
+      });
+    } else {
+      setEditingDeferred(null);
+      setDeferredForm({
+        description: "",
+        total_amount: 0,
+        monthly_payment: 0,
+        remaining_installments: 0,
+        total_installments: 0,
+        card_name: ""
+      });
+    }
+    setDeferredDialogOpen(true);
+  };
+
+  const handleDeferredSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const payload = {
+        ...deferredForm,
+        total_amount: parseFloat(deferredForm.total_amount),
+        monthly_payment: parseFloat(deferredForm.monthly_payment),
+        remaining_installments: parseInt(deferredForm.remaining_installments),
+        total_installments: parseInt(deferredForm.total_installments)
+      };
+
+      if (editingDeferred) {
+        await axios.put(`${API}/deferred-payments/${editingDeferred.id}`, payload, { headers: getAuthHeaders() });
+        toast.success("Diferido actualizado");
+      } else {
+        await axios.post(`${API}/deferred-payments`, payload, { headers: getAuthHeaders() });
+        toast.success("Diferido agregado");
+      }
+
+      setDeferredDialogOpen(false);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Error al guardar diferido");
+    }
+  };
+
+  const handleDeleteDeferred = async (id) => {
+    if (!window.confirm("¿Eliminar este diferido?")) return;
+    try {
+      await axios.delete(`${API}/deferred-payments/${id}`, { headers: getAuthHeaders() });
+      toast.success("Diferido eliminado");
+      fetchData();
+    } catch (error) {
+      toast.error("Error al eliminar");
+    }
+  };
+
   const handleEdit = (card) => {
     setEditingCard(card);
     setFormData({
