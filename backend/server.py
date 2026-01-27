@@ -285,11 +285,11 @@ BUDGET_CATEGORIES = {
         "name": "USA",
         "subcategories": {
             "Mamá (Venmo)": 600,
-            "TMobile": 250,
+            "TMobile": 150,
             "Universidad": 400
         },
-        "monthly_budget": 1250,
-        "annual_budget": 15000,
+        "monthly_budget": 1150,
+        "annual_budget": 13800,
         "type": "fixed",
         "payment_methods": ["venmo", "apple_card", "transferencia"],
         "is_recurring": True,
