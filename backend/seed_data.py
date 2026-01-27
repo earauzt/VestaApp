@@ -216,15 +216,21 @@ async def seed_database(mongo_url: str, db_name: str):
         
         # 3. Crear diferidos si no existen
         for deferred in DEFERRED_PAYMENTS:
+            deferred_data = {**deferred, "user_id": user_id}  # Usar el user_id correcto
             existing_def = await db.deferred_payments.find_one({"id": deferred["id"]})
             if not existing_def:
                 def_doc = {
-                    **deferred,
+                    **deferred_data,
                     "created_at": datetime.now(timezone.utc).isoformat()
                 }
                 await db.deferred_payments.insert_one(def_doc)
                 logger.info(f"✅ Diferido creado: {deferred['description']}")
             else:
+                # Actualizar user_id si existe
+                await db.deferred_payments.update_one(
+                    {"id": deferred["id"]},
+                    {"$set": {"user_id": user_id}}
+                )
                 logger.info(f"ℹ️ Diferido ya existe: {deferred['description']}")
         
         # Resumen
