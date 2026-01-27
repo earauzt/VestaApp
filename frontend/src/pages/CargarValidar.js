@@ -150,6 +150,13 @@ export default function CargarValidar() {
   const [selectedPair, setSelectedPair] = useState(null);
   const [processingStatus, setProcessingStatus] = useState("");
   const [cardResult, setCardResult] = useState(null);
+  
+  // Filter and bulk actions state
+  const [searchFilter, setSearchFilter] = useState("");
+  const [showBulkDialog, setShowBulkDialog] = useState(false);
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [bulkSubcategory, setBulkSubcategory] = useState("");
+  const [bulkAction, setBulkAction] = useState("approve"); // approve, reject
 
   useEffect(() => {
     if (activeTab === "validate") {
