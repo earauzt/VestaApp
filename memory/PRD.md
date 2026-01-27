@@ -1,141 +1,157 @@
-# FamilyFinance Ecuador - PRD
+# FinTrack Ecuador - Personal Finance Application
+## PRD (Product Requirements Document)
 
-## Problema Original
-App de gestión financiera personal para uso familiar (usuario, esposa, contadora) basada en leyes tributarias de Ecuador. Inspirada en QuickBooks con funciones de categorización automática, división de transacciones, adjuntar documentos y exportar reportes.
+### Original Problem Statement
+Aplicación de finanzas personales para gestión familiar en Ecuador, con soporte para:
+- Usuario administrador (Emilio)
+- Esposa (rol spouse)
+- Contadora (rol accountant)
 
-## User Personas
-1. **Admin (Usuario principal)**: ARAUZ TRIVIÑO EMILIO JOSE - RUC: 0912514890001
-2. **Esposa (KP)**: Visión general, puede ingresar datos, gastos libres $800/mes
-3. **Contadora**: Vista tributaria enfocada en deducciones SRI y conciliación
+La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permitir:
+- Seguimiento de gastos personales según categorías del presupuesto del usuario
+- Cálculo de límites de deducción del SRI (3 dependientes familiares)
+- Gestión de múltiples fuentes de ingreso (Personal, APX, USA)
+- Control de deudas y tarjetas de crédito
 
-## Datos del Contribuyente
-- RUC: 0912514890001
-- Nombre: ARAUZ TRIVIÑO EMILIO JOSE
-- Cargas Familiares: 3 (esposa + 2 hijos menores)
+### User Personas
+1. **Admin (Emilio)**: Acceso completo a todas las funciones
+2. **Esposa**: Acceso a dashboard, transacciones, ingresos, deudas, flujo
+3. **Contadora**: Acceso a conciliación, límites SRI, vista contable
 
-## Estructura de Ingresos (Distribución para Impuestos)
-- **Personal**: $7,250/mes = $87,000/año
-- **APX**: $2,500/mes = $30,000/año
-- **USA**: $1,595/mes = $19,140/año
-- **Total**: ~$136,140/año
+---
 
-## Categorías Presupuesto Personal (desde Excel)
-| Categoría | Subcategorías | Tipo | Recurrente |
-|-----------|--------------|------|------------|
-| Servicios Básicos | Alícuota B, Alícuota GT, Luz, Gas, Celular, Agua, Clubes, Internet | Fijo | Sí |
-| Empleados | Ramona, Angélica, IESS | Fijo | Sí |
-| Colegio y Actividades | Menor, Fútbol, Telas, Aros | Fijo | Sí |
-| Seguros | Salud, Carros | Fijo | Sí |
-| Comida | Supermaxi, Mercado | Variable | No |
-| Restaurantes | Comida afuera, Delivery | Variable | No |
-| Carros | Gasolina 1, Gasolina 2, Mantenimiento | Variable | No |
-| USA | Transfer Mamá (Venmo), Universidad bebés, TMobile | Fijo | Sí |
-| Viajes | Pasajes, Navidad, Marzo, Junio | Variable | No |
-| Gastos Libres | KP ($800/mes), EA ($500/mes) | Discrecional | Sí |
+## Core Requirements
 
-## Metas Financieras
-- Gastos Fijos: 55-65% del total
-- Ahorro: 10%
-- Inversión: 15%
-- Gastos Libres: máx $30,000/año
+### 1. Autenticación y Roles
+- [x] Login con JWT
+- [x] Tres roles: admin, spouse, accountant
+- [x] Rutas protegidas según rol
 
-## Lo Implementado
+### 2. Categorías de Presupuesto Personal (Excel PROYECCION EA 2026)
+| Categoría | Presupuesto Mensual | Presupuesto Anual |
+|-----------|---------------------|-------------------|
+| Servicios Básicos | $1,280 | $15,360 |
+| Empleados | $1,300 | $15,600 |
+| Colegio y Actividades | $2,360 | $28,320 |
+| Seguros | $1,150 | $13,800 |
+| Comida | $950 | $11,400 |
+| Restaurantes | $550 | $6,600 |
+| Carros | $565 | $6,780 |
+| USA | $1,250 | $15,000 |
+| Viajes y Entretenimiento | Variable | $16,500 |
+| Gastos Libres (Otros) | $1,300 | $15,600 |
 
-### Iteración 1-3 - Base Completada
-- ✅ Auth JWT con 3 roles
-- ✅ Dashboard con gráficos
-- ✅ Transacciones CRUD
-- ✅ OCR de recibos
-- ✅ Categorías SRI Ecuador
-- ✅ Límites SRI 2025
-- ✅ Funciones QuickBooks (split, attachments, rules, export)
+### 3. Estructura de Ingresos
+| Fuente | Mensual | Anual |
+|--------|---------|-------|
+| Personal | $7,250 | $87,000 |
+| APX | $2,500 | $30,000 |
+| USA | $2,750 | $33,000 |
+| **Total** | **$12,500** | **$150,000** |
 
-### Iteración 4 - Mejoras Solicitadas (26 Enero 2026)
+### 4. Funcionalidades Implementadas
 
-#### ✅ Nueva Página de Ingresos
-- Registro manual de ingresos con distribución (Personal/APX/USA)
-- Campos: Monto, Fecha, Distribución, Concepto, Descripción, Recurrente, Método de pago
-- Resumen por distribución (cards con totales)
-- Lista de ingresos con edición y eliminación
+#### Dashboard Inteligente
+- [x] Gráfico de gastos por categoría con presupuesto vs gastado
+- [x] Recordatorios y acciones inteligentes
+- [x] Stats: Balance, Gastos, Ingresos, Transacciones
 
-#### ✅ Categorías de Presupuesto Personal
-- Separado de categorías SRI
-- Importado desde Excel del usuario
-- Incluye: servicios_basicos, empleados, colegio_actividades, seguros, comida, restaurantes, carros, usa, viajes, gastos_libres
-- Límites mensuales para gastos libres (KP $800, EA $500)
+#### Chatbot de OpenAI (GPT-5.2)
+- [x] Botón flotante para abrir/cerrar
+- [x] Contexto financiero del usuario inyectado
+- [x] Respuestas en español sobre gastos, presupuesto, consejos
 
-#### ✅ Método de Pago Auto-detectado
-- Opciones: Transferencia, Tarjeta, Efectivo, Venmo, Apple Card
-- Detección automática por keywords
+#### Cargar y Validar (Upload + Reconciliation fusionados)
+- [x] Tab "Cargar Archivos": Drag & drop para imágenes, PDF, Excel
+- [x] Tab "Validar": Lista de transacciones pendientes
+- [x] Aprobación individual y masiva
+- [x] Detección de duplicados
+- [x] Modal de detalles con edición
 
-#### ✅ Conciliación Mejorada
-- Vista de detalle al hacer click (botón ojo)
-- Contadora puede editar todos los campos
-- Establecimiento mostrado primero
-- Notas de revisión editables
-- Aprobar/Rechazar desde vista de detalle
+#### Deudas y Tarjetas de Crédito
+- [x] CRUD de tarjetas (Diners, Pichincha, Pacificard, Apple)
+- [x] Resumen de deuda total y utilización
+- [x] Plan Avalanche con calculadora de pago extra
 
-#### ✅ Dashboard con Metas Financieras
-- Gastos Fijos (meta: 55-65%) con barra de progreso
-- Gastos Libres (máx. $30k/año) con disponible
-- Categorías del presupuesto personal (no SRI)
+#### Planificación de Flujo
+- [x] Vista semanal (4 semanas)
+- [x] Pagos programados por día/semana
+- [x] Selección de método de pago
 
-#### ✅ Diseño Responsive
-- Mobile (390x844): Header con hamburger menu, slide-out navigation
-- Tablet (1024x768): Sidebar colapsable, layout adaptativo
-- Cards en grid 2x2 en móvil
+#### Ingresos
+- [x] Registro manual de ingresos
+- [x] Distribución por categoría (Personal, APX, USA)
+- [x] Resumen y filtros por año
 
-#### ✅ Upload Simplificado
-- Removido tab de "Email" (usuario usa screenshots)
-- Solo 2 tabs: Screenshots/Recibos y Excel
+#### Límites SRI (Vista Contadora)
+- [x] Cálculo basado en canasta básica 2025
+- [x] 3 dependientes configurados
+- [x] Tracking de gastos deducibles
 
-#### ✅ Navegación Actualizada
-- Nuevo item: "Ingresos" para admin/spouse
-- Límites SRI: Solo visible para admin/accountant
-- Conciliación: Solo admin/accountant
-- Orden lógico de menú
+---
 
-## Arquitectura Técnica
-
-### Stack
-- **Backend**: FastAPI + Python 3.11
-- **Frontend**: React.js + Tailwind CSS + shadcn/ui
+## Tech Stack
+- **Frontend**: React 18, Tailwind CSS, shadcn/ui, Framer Motion, Recharts
+- **Backend**: FastAPI, Python 3.11
 - **Database**: MongoDB
-- **Auth**: JWT con RBAC
+- **AI**: OpenAI GPT-5.2 via Emergent LLM Key
+- **Auth**: JWT con bcrypt
 
-### Endpoints Principales
-```
-/api/auth/*                     - Autenticación
-/api/transactions/*             - CRUD transacciones
-/api/transactions/split         - Dividir transacciones
-/api/transactions/grouped       - Vista agrupada por establecimiento
-/api/income/*                   - CRUD ingresos (NUEVO)
-/api/income/summary             - Resumen por distribución (NUEVO)
-/api/budget/categories          - Categorías presupuesto personal (NUEVO)
-/api/budget/personal            - Presupuesto con metas (NUEVO)
-/api/categorization-rules/*     - Reglas auto-categorización
-/api/export/transactions/excel  - Exportar Excel
-/api/export/sri/pdf             - Exportar PDF SRI
-/api/reconciliation/*           - Conciliación para contadora
-/api/sri/deduction-limits       - Límites SRI
-```
+---
 
-## Próximas Tareas
+## API Endpoints Principales
+| Método | Endpoint | Descripción |
+|--------|----------|-------------|
+| POST | /api/auth/login | Autenticación |
+| POST | /api/chat | Chatbot OpenAI |
+| GET | /api/budget/categories | Categorías del presupuesto |
+| GET | /api/reconciliation/pending | Transacciones por validar |
+| PUT | /api/reconciliation/approve/{id} | Aprobar transacción |
+| GET | /api/credit-cards | Lista tarjetas |
+| GET | /api/debt/avalanche-plan | Plan Avalanche |
+| GET | /api/scheduled-payments | Pagos programados |
+| POST | /api/income | Registrar ingreso |
+| GET | /api/dashboard/stats | Estadísticas dashboard |
+| GET | /api/reminders | Recordatorios inteligentes |
 
-### P1 - Alta Prioridad
-1. **Vista acordeón de transacciones**: Agrupar por establecimiento+fecha (ej: "Supermaxi - 26 Ene" → expandir items)
-2. **Popup gastos USA**: Confirmar si gasto es viaje internacional
+---
 
-### P2 - Media Prioridad
-1. **Notificaciones**: Alertar cuando categoría llegue al 80% del límite
-2. **Sincronización Apple Card**: Importar CSV/exportar desde Apple Wallet
+## Issues Conocidos (P1-P2)
+1. **P1**: Backend devuelve 403 en lugar de 401 en fallos de autenticación
+2. **P1**: Problema de visibilidad en dropdown de categorías
+3. **P2**: Advertencias de react-hooks/exhaustive-deps en varios componentes
 
-## Credenciales de Prueba
-- **Email**: emilio@test.com
-- **Password**: test1234
-- **Role**: admin
+---
 
-## Resultados de Testing (Iteración 4)
-- Backend: 100% (17/17 tests passed)
-- Frontend: 100% (todas las features verificadas)
-- Responsive: Verificado en móvil (390x844) y tablet (1024x768)
+## Testing
+- **Última iteración**: iteration_6.json
+- **Backend**: 95% pass rate (18/19)
+- **Frontend**: 100% pass rate
+- **Credenciales de prueba**: test@finanzas.com / test1234
+
+---
+
+## Cambios Recientes (Enero 2026)
+1. ✅ Chatbot OpenAI integrado con contexto financiero
+2. ✅ Página "Cargar y Validar" fusionada
+3. ✅ Categorías de presupuesto con montos exactos del Excel
+4. ✅ Dashboard actualizado con barras de progreso por categoría
+5. ✅ Navegación reorganizada
+
+---
+
+## Backlog / Próximas Tareas
+
+### P1 (Alta Prioridad)
+- [ ] Corregir 403 -> 401 en autenticación fallida
+- [ ] Corregir visibilidad dropdown de categorías
+
+### P2 (Media Prioridad)
+- [ ] Notificaciones push al acercarse a límites SRI (80%)
+- [ ] Sugerencias de ajuste de presupuesto basadas en historial
+- [ ] Corregir advertencias exhaustive-deps en React hooks
+
+### P3 (Baja Prioridad)
+- [ ] Exportación de reportes a Excel/PDF mejorada
+- [ ] Gráficos comparativos mes a mes
+- [ ] Modo oscuro completo
