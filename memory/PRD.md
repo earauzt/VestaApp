@@ -124,27 +124,42 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
 ---
 
 ## Testing
-- **Última iteración**: iteration_6.json
+- **Última iteración**: iteration_7.json
 - **Backend**: 95% pass rate (18/19)
 - **Frontend**: 100% pass rate
-- **Credenciales de prueba**: test@finanzas.com / test1234
+- **Credenciales de prueba**: earauzt@gmail.com / password123
 
 ---
 
 ## Cambios Recientes (Enero 2026)
-1. ✅ Chatbot OpenAI integrado con contexto financiero
-2. ✅ Página "Cargar y Validar" fusionada
-3. ✅ Categorías de presupuesto con montos exactos del Excel
-4. ✅ Dashboard actualizado con barras de progreso por categoría
-5. ✅ Navegación reorganizada
+1. ✅ **Procesamiento de Estados de Cuenta PDF MEJORADO** (27 Enero 2026)
+   - Integración de pdfplumber para extracción de texto de PDFs nativos
+   - OCR mejorado con Gemini para PDFs escaneados/imagen (como Pacificard)
+   - Prompt optimizado específicamente para estados de cuenta ecuatorianos
+   - Soporte mejorado para Pacificard: extrae tarjeta, transacciones y diferidos
+   - Timeout extendido a 5 minutos en frontend para procesamiento largo
+   - **Resultado exitoso**: 186 transacciones, 15 diferidos extraídos de Pacificard
+
+2. ✅ Corrección de error de sintaxis en Flujo.js (código duplicado eliminado)
+3. ✅ Arreglo de autenticación para usuario earauzt@gmail.com
+4. ✅ Chatbot OpenAI integrado con contexto financiero
+5. ✅ Página "Cargar y Validar" fusionada
+6. ✅ Categorías de presupuesto con montos exactos del Excel
+7. ✅ Dashboard actualizado con barras de progreso por categoría
+8. ✅ Navegación reorganizada
 
 ---
 
 ## Backlog / Próximas Tareas
 
+### P0 (Crítica)
+- [ ] Refactorizar Flujo.js a vista lineal (parcialmente completado)
+- [ ] Sincronizar página Transacciones con lógica de categorías de CargarValidar.js
+
 ### P1 (Alta Prioridad)
 - [ ] Corregir 403 -> 401 en autenticación fallida
 - [ ] Corregir visibilidad dropdown de categorías
+- [ ] Investigar integración con Apple Card
 
 ### P2 (Media Prioridad)
 - [ ] Notificaciones push al acercarse a límites SRI (80%)
