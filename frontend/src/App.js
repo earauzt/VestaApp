@@ -1,16 +1,16 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
 import { AuthProvider, useAuth } from "./context/AuthContext";
+import ChatBot from "./components/ChatBot";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
-import Upload from "./pages/Upload";
+import CargarValidar from "./pages/CargarValidar";
 import Budget from "./pages/Budget";
 import Predictions from "./pages/Predictions";
 import AccountantView from "./pages/AccountantView";
 import InternationalExpenses from "./pages/InternationalExpenses";
 import SRILimits from "./pages/SRILimits";
-import Reconciliation from "./pages/Reconciliation";
 import Ingresos from "./pages/Ingresos";
 import Deudas from "./pages/Deudas";
 import Flujo from "./pages/Flujo";
