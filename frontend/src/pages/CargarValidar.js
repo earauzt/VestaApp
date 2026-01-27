@@ -204,13 +204,14 @@ export default function CargarValidar() {
       
       // Process bank statements first (one by one)
       for (const file of bankStatements) {
-        setProcessingStatus(`Procesando estado de cuenta: ${file.name}...`);
+        setProcessingStatus(`Procesando estado de cuenta: ${file.name}... (esto puede tomar 1-3 minutos)`);
         const formData = new FormData();
         formData.append("file", file);
         
         try {
           const response = await axios.post(`${API}/process/bank-statement`, formData, {
-            headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" }
+            headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" },
+            timeout: 300000 // 5 minutes timeout for bank statement processing
           });
           
           if (response.data.data?.card_info) {
