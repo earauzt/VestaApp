@@ -1185,38 +1185,100 @@ async def classify_with_ai(text: str, context: str = "expense") -> dict:
         logger.error(f"AI classification error: {e}")
         return {"category": "otros", "subcategory": "Varios", "amount": 0, "description": text}
 
-async def process_image_with_ai(file_path: str) -> dict:
-    """Use Gemini to extract data from receipt image"""
+async def process_image_with_ai(file_path: str, document_type: str = "receipt") -> dict:
+    """Use Gemini to extract data from receipt/statement image or PDF"""
     if not EMERGENT_LLM_KEY:
         return {"error": "API key not configured"}
     
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"ocr_{uuid.uuid4()}",
-            system_message="""Eres un experto en OCR y análisis de recibos/facturas ecuatorianas.
+        # Determine mime type
+        ext = os.path.splitext(file_path)[1].lower()
+        if ext == ".pdf":
+            mime_type = "application/pdf"
+        elif ext in [".png"]:
+            mime_type = "image/png"
+        elif ext in [".jpg", ".jpeg"]:
+            mime_type = "image/jpeg"
+        else:
+            mime_type = "image/jpeg"
+        
+        # Different prompts based on document type
+        if document_type == "bank_statement":
+            system_prompt = """Eres un experto en análisis de estados de cuenta bancarios de Ecuador (Pichincha, Pacificard, Diners, Produbanco, Guayaquil).
+            
+EXTRAE TODA la información del estado de cuenta en formato JSON:
+
+{
+  "card_info": {
+    "bank_name": "nombre del banco",
+    "card_name": "nombre/tipo de tarjeta",
+    "card_number_last4": "últimos 4 dígitos",
+    "statement_date": "YYYY-MM-DD",
+    "due_date": "YYYY-MM-DD fecha de pago",
+    "credit_limit": numero,
+    "available_credit": numero,
+    "current_balance": numero (saldo actual/total a pagar),
+    "minimum_payment": numero (pago mínimo),
+    "apr": numero (tasa de interés anual en porcentaje),
+    "previous_balance": numero,
+    "payments_credits": numero,
+    "purchases_charges": numero
+  },
+  "transactions": [
+    {
+      "date": "YYYY-MM-DD",
+      "description": "descripción de la transacción",
+      "amount": numero (positivo para compras, negativo para pagos/créditos),
+      "establishment": "nombre del comercio si aplica",
+      "category": "alimentacion|salud|educacion|vivienda|vestimenta|turismo|transporte|otros",
+      "is_international": false
+    }
+  ]
+}
+
+IMPORTANTE: 
+- Extrae TODAS las transacciones del período
+- Los montos de compras son positivos, pagos/créditos son negativos
+- Identifica la categoría según el tipo de comercio
+- Si es compra internacional, marca is_international: true"""
+            
+            user_prompt = "Analiza este estado de cuenta bancario y extrae TODA la información de la tarjeta y TODAS las transacciones del período."
+        else:
+            system_prompt = """Eres un experto en OCR y análisis de recibos/facturas ecuatorianas.
             Extrae la información del recibo y clasifícala según categorías SRI Ecuador.
             Responde SOLO en formato JSON: 
             {"transactions": [{"amount": numero, "description": "...", "category": "...", "subcategory": "...", "establishment": "...", "date": "YYYY-MM-DD"}]}"""
+            user_prompt = "Extrae toda la información de este recibo/factura ecuatoriana"
+        
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"ocr_{uuid.uuid4()}",
+            system_message=system_prompt
         ).with_model("gemini", "gemini-2.5-flash")
         
         file_content = FileContentWithMimeType(
             file_path=file_path,
-            mime_type="image/jpeg"
+            mime_type=mime_type
         )
         
         response = await chat.send_message(UserMessage(
-            text="Extrae toda la información de este recibo/factura ecuatoriana",
+            text=user_prompt,
             file_contents=[file_content]
         ))
         
-        json_match = re.search(r'\{[^}]*"transactions"[^}]*\[.*?\]\s*\}', response, re.DOTALL)
+        # Parse JSON from response
+        json_match = re.search(r'\{[\s\S]*\}', response)
         if json_match:
-            return json.loads(json_match.group())
-        return {"transactions": []}
+            try:
+                return json.loads(json_match.group())
+            except json.JSONDecodeError:
+                # Try to fix common JSON issues
+                fixed = json_match.group().replace("'", '"')
+                return json.loads(fixed)
+        return {"transactions": [], "card_info": None}
     except Exception as e:
         logger.error(f"Image processing error: {e}")
-        return {"transactions": [], "error": str(e)}
+        return {"transactions": [], "card_info": None, "error": str(e)}
 
 @api_router.post("/process/email")
 async def process_email(
