@@ -115,22 +115,6 @@ function AppRoutes() {
         path="/ingresos" 
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse"]}>
-            <Ingresos />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/reconciliation" 
-        element={
-          <ProtectedRoute allowedRoles={["admin", "accountant"]}>
-            <Reconciliation />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/deudas" 
-        element={
-          <ProtectedRoute allowedRoles={["admin", "spouse"]}>
             <Deudas />
           </ProtectedRoute>
         } 
