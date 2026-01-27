@@ -37,8 +37,12 @@ load_dotenv(ROOT_DIR / '.env')
 
 # MongoDB connection
 mongo_url = os.environ.get('MONGO_URL')
+db_name = os.environ.get('DB_NAME')
 client = AsyncIOMotorClient(mongo_url)
-db = client[os.environ.get('DB_NAME')]
+db = client[db_name]
+
+# Import seed data function
+from seed_data import seed_database
 
 # JWT Settings
 SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'default_secret_key')
