@@ -75,7 +75,7 @@ function AppRoutes() {
         path="/budget" 
         element={
           <ProtectedRoute>
-            <Budget />
+            <PresupuestoEditable />
           </ProtectedRoute>
         } 
       />
