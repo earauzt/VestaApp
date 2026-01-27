@@ -76,14 +76,21 @@ export default function Dashboard() {
       setChartData(chartRes.data.data);
       setReminders(remindersRes.data);
       
-      // Transform category data to match Flujo categories
+      // Transform category data to match Flujo categories with budgets
       const byCategory = statsRes.data?.by_category || {};
-      const transformed = Object.entries(FLUJO_CATEGORIES).map(([key, config]) => ({
-        name: config.name,
-        value: byCategory[key] || 0,
-        color: config.color,
-        key
-      })).filter(d => d.value > 0);
+      const transformed = Object.entries(FLUJO_CATEGORIES).map(([key, config]) => {
+        const spent = byCategory[key] || 0;
+        const budget = config.budget;
+        const percentage = budget > 0 ? Math.round((spent / budget) * 100) : 0;
+        return {
+          name: config.name,
+          value: spent,
+          budget: budget,
+          percentage: percentage,
+          color: config.color,
+          key
+        };
+      }).filter(d => d.value > 0 || d.budget > 0);
       
       setCategoryData(transformed);
     } catch (error) {
