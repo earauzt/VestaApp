@@ -300,7 +300,7 @@ export default function PresupuestoEditable() {
                   <CardContent>
                     <div className="flex items-center gap-4 mb-4">
                       <div className="flex-1">
-                        <Label className="text-xs text-muted-foreground">Presupuesto Mensual</Label>
+                        <Label className="text-xs text-muted-foreground">Presupuesto Mensual Total</Label>
                         <Input
                           type="number"
                           value={category.monthly_budget || 0}
@@ -316,28 +316,57 @@ export default function PresupuestoEditable() {
                       </div>
                     </div>
 
-                    {/* Subcategories */}
-                    {editingCategory === key && category.subcategories && (
-                      <div className="border-t pt-4 mt-4 space-y-3">
+                    {/* Subcategories - Always visible */}
+                    {category.subcategories && Object.keys(category.subcategories).length > 0 && (
+                      <div className="border-t pt-4 mt-2 space-y-3">
                         <div className="flex items-center justify-between">
-                          <Label className="font-medium">Subcategorías</Label>
+                          <Label className="font-medium text-sm">Detalle por Subcategoría</Label>
                           <Button variant="ghost" size="sm" onClick={() => handleAddSubcategory(key)}>
                             <Plus size={14} className="mr-1" /> Añadir
                           </Button>
                         </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                           {Object.entries(category.subcategories).map(([subName, subValue]) => (
-                            <div key={subName} className="space-y-1">
-                              <Label className="text-xs truncate block">{subName}</Label>
-                              <Input
-                                type="number"
-                                value={subValue || 0}
-                                onChange={(e) => handleSubcategoryChange(key, subName, e.target.value)}
-                                className="text-sm"
-                              />
+                            <div key={subName} className="p-3 rounded-lg bg-muted/50 border space-y-1">
+                              <Label className="text-xs text-muted-foreground truncate block">{subName}</Label>
+                              <div className="flex items-center gap-1">
+                                <span className="text-muted-foreground text-sm">$</span>
+                                <Input
+                                  type="number"
+                                  value={subValue || 0}
+                                  onChange={(e) => handleSubcategoryChange(key, subName, e.target.value)}
+                                  className="text-sm font-mono h-8"
+                                />
+                              </div>
                             </div>
                           ))}
                         </div>
+                        {/* Subcategory total vs category budget */}
+                        {(() => {
+                          const subTotal = Object.values(category.subcategories).reduce((sum, v) => sum + (v || 0), 0);
+                          const diff = (category.monthly_budget || 0) - subTotal;
+                          return (
+                            <div className="flex justify-between items-center pt-2 text-sm">
+                              <span className="text-muted-foreground">
+                                Suma subcategorías: <span className="font-mono">{formatCurrency(subTotal)}</span>
+                              </span>
+                              {diff !== 0 && (
+                                <Badge variant={diff > 0 ? "secondary" : "destructive"}>
+                                  {diff > 0 ? `+${formatCurrency(diff)} sin asignar` : `${formatCurrency(diff)} excedido`}
+                                </Badge>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Add subcategory button if no subcategories */}
+                    {(!category.subcategories || Object.keys(category.subcategories).length === 0) && (
+                      <div className="border-t pt-4 mt-2">
+                        <Button variant="outline" size="sm" onClick={() => handleAddSubcategory(key)} className="w-full">
+                          <Plus size={14} className="mr-1" /> Añadir Subcategorías
+                        </Button>
                       </div>
                     )}
                   </CardContent>
