@@ -81,12 +81,14 @@ export default function Deudas() {
 
   const fetchData = async () => {
     try {
-      const [cardsRes, summaryRes] = await Promise.all([
+      const [cardsRes, summaryRes, deferredRes] = await Promise.all([
         axios.get(`${API}/credit-cards`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/debt/summary`, { headers: getAuthHeaders() })
+        axios.get(`${API}/debt/summary`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/deferred-payments`, { headers: getAuthHeaders() })
       ]);
       setCards(cardsRes.data);
       setSummary(summaryRes.data);
+      setDeferredPayments(deferredRes.data);
     } catch (error) {
       toast.error("Error al cargar datos");
     } finally {
