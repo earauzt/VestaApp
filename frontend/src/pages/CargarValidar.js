@@ -697,7 +697,7 @@ export default function CargarValidar() {
                   {loading ? (
                     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                       <SpinnerGap size={48} className="animate-spin mb-4" />
-                      <p>Procesando con AI...</p>
+                      <p>{processingStatus || "Procesando con AI..."}</p>
                     </div>
                   ) : result ? (
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
@@ -705,15 +705,64 @@ export default function CargarValidar() {
                         <CheckCircle size={24} className="text-emerald-500" />
                         <span className="font-medium">{result.message}</span>
                       </div>
+                      
+                      {/* Card Info Extracted */}
+                      {result.card_info && (
+                        <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                          <div className="flex items-center gap-2 mb-3">
+                            <CreditCard size={20} className="text-primary" />
+                            <span className="font-semibold">Tarjeta Actualizada</span>
+                          </div>
+                          <div className="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                              <p className="text-muted-foreground">Banco/Tarjeta</p>
+                              <p className="font-medium">{result.card_info.name || result.card_info.bank}</p>
+                            </div>
+                            <div>
+                              <p className="text-muted-foreground">Saldo Actual</p>
+                              <p className="font-bold text-lg">{formatCurrency(result.card_info.current_balance)}</p>
+                            </div>
+                            {result.card_info.minimum_payment > 0 && (
+                              <div>
+                                <p className="text-muted-foreground">Pago Mínimo</p>
+                                <p className="font-medium">{formatCurrency(result.card_info.minimum_payment)}</p>
+                              </div>
+                            )}
+                            {result.card_info.due_date && (
+                              <div>
+                                <p className="text-muted-foreground">Fecha de Pago</p>
+                                <p className="font-medium">{result.card_info.due_date}</p>
+                              </div>
+                            )}
+                            {result.card_info.credit_limit > 0 && (
+                              <div>
+                                <p className="text-muted-foreground">Límite</p>
+                                <p className="font-medium">{formatCurrency(result.card_info.credit_limit)}</p>
+                              </div>
+                            )}
+                            {result.card_info.apr > 0 && (
+                              <div>
+                                <p className="text-muted-foreground">APR</p>
+                                <p className="font-medium">{result.card_info.apr}%</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+                      
                       {result.transactions?.length > 0 && (
                         <div className="space-y-2 max-h-[300px] overflow-y-auto">
+                          <p className="text-sm text-muted-foreground">{result.transactions.length} transacciones extraídas:</p>
                           {result.transactions.map((t, i) => (
                             <div key={i} className="p-3 rounded-lg bg-muted">
                               <div className="flex justify-between">
-                                <p className="font-medium truncate">{t.description}</p>
+                                <p className="font-medium truncate">{t.description || t.establishment}</p>
                                 <span className="font-mono">{formatCurrency(t.amount)}</span>
                               </div>
-                              <Badge className="mt-1">{t.category}</Badge>
+                              <div className="flex gap-2 mt-1">
+                                <Badge className="text-xs">{t.category}</Badge>
+                                {t.date && <span className="text-xs text-muted-foreground">{t.date}</span>}
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -727,6 +776,7 @@ export default function CargarValidar() {
                     <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
                       <CloudArrowUp size={48} className="mb-4 opacity-50" />
                       <p>Los resultados aparecerán aquí</p>
+                      <p className="text-xs mt-2">Soporta: recibos, facturas, estados de cuenta</p>
                     </div>
                   )}
                 </div>
