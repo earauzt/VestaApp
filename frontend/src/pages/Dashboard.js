@@ -366,15 +366,29 @@ export default function Dashboard() {
                   </BarChart>
                 </ResponsiveContainer>
               </div>
-              {/* Legend */}
-              <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-1 text-xs">
-                {categoryData.slice(0, 6).map((item) => (
-                  <div key={item.key} className="flex items-center gap-1">
-                    <div 
-                      className="w-2 h-2 rounded-full shrink-0" 
-                      style={{ backgroundColor: item.color }}
-                    />
-                    <span className="text-muted-foreground truncate">{item.name}</span>
+              {/* Legend with budget progress */}
+              <div className="mt-4 space-y-2 max-h-[200px] overflow-y-auto">
+                {categoryData.slice(0, 10).map((item) => (
+                  <div key={item.key} className="space-y-1">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-2">
+                        <div 
+                          className="w-3 h-3 rounded-full shrink-0" 
+                          style={{ backgroundColor: item.color }}
+                        />
+                        <span className="text-muted-foreground">{item.name}</span>
+                      </div>
+                      <span className="font-medium">
+                        {formatCurrency(item.value)} 
+                        {item.budget > 0 && <span className="text-muted-foreground"> / {formatCurrency(item.budget)}</span>}
+                      </span>
+                    </div>
+                    {item.budget > 0 && (
+                      <Progress 
+                        value={Math.min(item.percentage, 100)} 
+                        className={`h-1 ${item.percentage > 100 ? '[&>div]:bg-red-500' : item.percentage > 80 ? '[&>div]:bg-amber-500' : ''}`}
+                      />
+                    )}
                   </div>
                 ))}
               </div>
