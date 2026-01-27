@@ -544,13 +544,20 @@ export default function Deudas() {
             {/* Deferred List */}
             <Card className="bento-card">
               <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <CalendarBlank size={20} />
-                  Compras Diferidas / Cuotas Pendientes
-                </CardTitle>
-                <CardDescription>
-                  Pagos a plazos extraídos de tus estados de cuenta
-                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <CalendarBlank size={20} />
+                      Compras Diferidas / Cuotas Pendientes
+                    </CardTitle>
+                    <CardDescription>
+                      Pagos a plazos extraídos de tus estados de cuenta
+                    </CardDescription>
+                  </div>
+                  <Button onClick={() => openDeferredDialog()} variant="outline" size="sm" className="gap-1">
+                    <Plus size={16} /> Añadir
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent>
                 {!deferredPayments?.payments || deferredPayments.payments.length === 0 ? (
@@ -558,6 +565,9 @@ export default function Deudas() {
                     <CalendarBlank size={48} className="mx-auto mb-4 opacity-50" />
                     <p>No tienes compras diferidas registradas</p>
                     <p className="text-sm">Se extraen automáticamente al subir estados de cuenta</p>
+                    <Button onClick={() => openDeferredDialog()} variant="outline" className="mt-4 gap-2">
+                      <Plus size={16} /> Añadir Manualmente
+                    </Button>
                   </div>
                 ) : (
                   <div className="space-y-3">
@@ -571,7 +581,7 @@ export default function Deudas() {
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
-                          className="p-4 rounded-xl bg-muted/50 border"
+                          className="p-4 rounded-xl bg-muted/50 border group"
                         >
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                             <div className="flex-1">
@@ -591,13 +601,21 @@ export default function Deudas() {
                                 </span>
                               </div>
                             </div>
-                            <div className="text-right">
+                            <div className="flex items-center gap-2">
                               <Badge 
                                 variant={payment.remaining_installments <= 1 ? "default" : "secondary"}
                                 className={payment.remaining_installments <= 1 ? "bg-emerald-600" : ""}
                               >
                                 {payment.remaining_installments} de {payment.total_installments} cuotas
                               </Badge>
+                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" onClick={() => openDeferredDialog(payment)} className="h-8 w-8">
+                                  <Pencil size={14} />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDeleteDeferred(payment.id)} className="h-8 w-8 text-red-500">
+                                  <Trash size={14} />
+                                </Button>
+                              </div>
                             </div>
                           </div>
                           <div className="mt-3">
