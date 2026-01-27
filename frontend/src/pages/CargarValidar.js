@@ -504,34 +504,35 @@ export default function CargarValidar() {
                   </p>
                 </div>
 
+                {/* Categoría Personal (del presupuesto) */}
                 <div className="space-y-2">
-                  <Label>Categoría SRI</Label>
+                  <Label className="flex items-center gap-2">
+                    Categoría Personal
+                    <Badge variant="outline" className="text-xs">Presupuesto</Badge>
+                  </Label>
                   {editMode ? (
                     <Select value={editForm.category} onValueChange={(v) => setEditForm({ ...editForm, category: v, subcategory: "" })}>
-                      <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                      <SelectTrigger><SelectValue placeholder="Seleccionar categoría" /></SelectTrigger>
                       <SelectContent>
-                        {Object.entries(CATEGORIES).map(([key, cat]) => (
-                          <SelectItem key={key} value={key}>{cat.name} {cat.deductible ? "✓" : "✗"}</SelectItem>
+                        {Object.entries(PERSONAL_CATEGORIES).map(([key, cat]) => (
+                          <SelectItem key={key} value={key}>{cat.name}</SelectItem>
                         ))}
                       </SelectContent>
                     </Select>
                   ) : (
                     <p className="p-2 rounded bg-muted text-sm">
-                      {CATEGORIES[detailTransaction.category]?.name || detailTransaction.category}
-                      {CATEGORIES[detailTransaction.category]?.deductible && (
-                        <Badge variant="outline" className="ml-2 text-emerald-600 text-xs">Deducible</Badge>
-                      )}
+                      {PERSONAL_CATEGORIES[detailTransaction.category]?.name || detailTransaction.category || "Sin categoría"}
                     </p>
                   )}
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Subcategoría</Label>
+                  <Label>Subcategoría Personal</Label>
                   {editMode ? (
                     <Select value={editForm.subcategory} onValueChange={(v) => setEditForm({ ...editForm, subcategory: v })} disabled={!editForm.category}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                       <SelectContent>
-                        {editForm.category && SUBCATEGORIES[editForm.category]?.map((sub) => (
+                        {editForm.category && PERSONAL_CATEGORIES[editForm.category]?.subcategories?.map((sub) => (
                           <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                         ))}
                       </SelectContent>
@@ -539,6 +540,53 @@ export default function CargarValidar() {
                   ) : (
                     <p className="p-2 rounded bg-muted text-sm">{detailTransaction.subcategory || "No especificada"}</p>
                   )}
+                </div>
+              </div>
+
+              {/* Sección para Contadora - Categorías SRI */}
+              <div className="border-t pt-4 mt-4">
+                <Label className="flex items-center gap-2 mb-3 text-base font-semibold">
+                  <span>📋</span> Clasificación SRI (Contadora)
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200">
+                  <div className="space-y-2">
+                    <Label className="text-sm">Categoría SRI</Label>
+                    {editMode ? (
+                      <Select value={editForm.sri_category || ""} onValueChange={(v) => setEditForm({ ...editForm, sri_category: v, sri_subcategory: "" })}>
+                        <SelectTrigger><SelectValue placeholder="Categoría deducible" /></SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(SRI_CATEGORIES).map(([key, cat]) => (
+                            <SelectItem key={key} value={key}>
+                              {cat.name} {cat.deductible ? "✓" : "✗"}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="p-2 rounded bg-white dark:bg-muted text-sm">
+                        {SRI_CATEGORIES[detailTransaction.sri_category]?.name || "No asignada"}
+                        {SRI_CATEGORIES[detailTransaction.sri_category]?.deductible && (
+                          <Badge variant="outline" className="ml-2 text-emerald-600 text-xs">Deducible</Badge>
+                        )}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label className="text-sm">Subcategoría SRI</Label>
+                    {editMode ? (
+                      <Select value={editForm.sri_subcategory || ""} onValueChange={(v) => setEditForm({ ...editForm, sri_subcategory: v })} disabled={!editForm.sri_category}>
+                        <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
+                        <SelectContent>
+                          {editForm.sri_category && SRI_SUBCATEGORIES[editForm.sri_category]?.map((sub) => (
+                            <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <p className="p-2 rounded bg-white dark:bg-muted text-sm">{detailTransaction.sri_subcategory || "No especificada"}</p>
+                    )}
+                  </div>
                 </div>
               </div>
 
