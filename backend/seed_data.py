@@ -104,6 +104,8 @@ CREDIT_CARDS = [
         "current_balance": 6912.08,
         "minimum_payment": 148.00,
         "apr": 19.74,
+        "cut_off_day": 31,
+        "payment_due_day": 31,
         "statement_date": "2025-12-31",
         "due_date": "2026-01-31",
         "currency": "USD",
