@@ -195,20 +195,21 @@ export default function Dashboard() {
       </div>
 
       {/* Smart Reminders Banner */}
-      {reminders.length > 0 && (
+      {visibleReminders.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-2"
         >
-          {reminders.slice(0, 3).map((reminder, index) => {
+          {visibleReminders.slice(0, 3).map((reminder, index) => {
             const Icon = getReminderIcon(reminder.type);
+            const originalIndex = reminders.indexOf(reminder);
             return (
               <div 
                 key={index}
                 className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${getReminderColor(reminder.priority)}`}
               >
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-3 flex-1">
                   <div className={`p-2 rounded-lg ${
                     reminder.priority === "high" ? "bg-red-100 dark:bg-red-900/30" :
                     reminder.priority === "medium" ? "bg-amber-100 dark:bg-amber-900/30" :
@@ -223,11 +224,21 @@ export default function Dashboard() {
                     )}
                   </div>
                 </div>
-                {reminder.action && reminder.type !== "motivation" && (
-                  <Button size="sm" variant="outline" className="shrink-0">
-                    {reminder.action}
+                <div className="flex items-center gap-2">
+                  {reminder.action && reminder.type !== "motivation" && (
+                    <Button size="sm" variant="outline" className="shrink-0">
+                      {reminder.action}
+                    </Button>
+                  )}
+                  <Button 
+                    size="icon" 
+                    variant="ghost" 
+                    className="h-8 w-8 shrink-0 opacity-60 hover:opacity-100"
+                    onClick={() => dismissReminder(originalIndex)}
+                  >
+                    <X size={16} />
                   </Button>
-                )}
+                </div>
               </div>
             );
           })}
