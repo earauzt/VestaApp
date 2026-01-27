@@ -15,130 +15,118 @@ El usuario quiere una aplicación de finanzas personales para él, su esposa y s
     *   Adjuntar documentos a transacciones.
     *   Exportar datos a Excel/PDF.
 
-3.  **Requisitos Recientes (Última Interacción)**:
-    *   **Gestión de Transacciones**: Agrupar transacciones por establecimiento, tanto en la vista general como en la de conciliación.
-    *   **Presupuesto Personalizado**: Permitir al usuario manipular su propio presupuesto (basado en un Excel provisto) que es distinto a los límites del SRI. Las categorías personales (servicios básicos, empleados, colegios, etc.) deben ser la base del dashboard principal.
-    *   **Gestión de Ingresos**: Implementar un sistema para registrar ingresos manualmente, con campos para categorizarlos (Personal, APX, USA).
-    *   **Conciliación (Contadora)**: La contadora debe poder ver todos los detalles de una transacción al hacer clic, editarla si es necesario y luego conciliarla. La vista de la contadora debe centrarse en los límites del SRI.
-    *   **Métodos de Pago**: Añadir y detectar automáticamente el método de pago (transferencia, tarjeta, efectivo).
-    *   **Diseño Responsive**: Asegurar que la aplicación se vea y funcione bien en dispositivos móviles y iPad.
-    *   **Carga de Archivos**: Solucionar el problema que impide subir archivos PDF.
-    *   **Nueva Sección de Deudas**:
-        *   Una sección independiente para gestionar deudas y pagos diferidos.
-        *   Registrar 4 tarjetas de crédito (3 de Ecuador, 1 de USA) con sus respectivos APR, límites y fechas de corte (editables por el usuario).
-        *   Implementar una estrategia de pago de deudas (efecto bola de nieve / avalancha) para aconsejar qué deuda pagar primero.
-    *   **Nueva Sección de Planificación de Flujo**:
-        *   Una vista de calendario editable para planificar pagos y saber qué pagar, cuándo y con qué método.
-    *   **Dashboard Inteligente**:
-        *   Mostrar recordatorios de pagos recurrentes o facturas por vencer.
-        *   Sugerir acciones, como enviar gastos médicos al seguro para el deducible de la prima.
-        *   Hacer preguntas sobre gastos recurrentes para que el usuario reflexione si aún los necesita.
-        *   El gráfico de gastos por categoría debe basarse en el presupuesto personal del Excel, no en las categorías del SRI.
+3.  **Requisitos Recientes (Interacciones de la sesión)**:
+    *   **Gestión de Transacciones**: Usar las categorías del presupuesto personal (con subcategorías) en lugar de las del SRI. Mostrar una sección separada para la clasificación del SRI para la contadora.
+    *   **Presupuesto Editable**: Una página donde el usuario pueda editar manualmente sus categorías, subcategorías, montos, proyecciones de ingresos y metas de ahorro.
+    *   **Carga de Datos Unificada**: Fusionar las páginas de Cargar y Conciliación en una sola llamada Cargar y Validar.
+    *   **Procesamiento de Estados de Cuenta**: Extraer automáticamente la información de la tarjeta (saldos, fechas, APR), las transacciones y los pagos diferidos al subir un estado de cuenta en PDF.
+    *   **Gestión de Deudas y Diferidos**: Mostrar un resumen de los pagos diferidos (cuotas) en la sección de Deudas, con la capacidad de editarlos y añadirlos manualmente.
+    *   **Planificación de Flujo**: Cambiar la vista del calendario de flujo de un grid de 4 semanas a una lista vertical (lineal).
+    *   **Chatbot con IA**: Integrar un chatbot de OpenAI para que el usuario pueda hacer preguntas sobre sus datos financieros.
+    *   **Problema de Login**: Solucionar un problema que impedía al usuario  iniciar sesión.
 
 **User's preferred language**: Spanish. The next agent MUST respond in Spanish.
 
 **what currently exists?**
-Una aplicación full-stack (FastAPI, React, MongoDB) de gestión financiera con autenticación JWT y 3 roles de usuario.
-Funcionalidades implementadas:
--   **Core**: Dashboard, gestión de transacciones e ingresos, carga de datos (recibos, extractos, Excel), seguimiento de presupuesto personal y límites del SRI.
--   **Funciones tipo QuickBooks**: Reglas de categorización, división de transacciones, adjuntar documentos y exportación a Excel/PDF.
--   **Gestión de Deudas**: Una sección dedicada para gestionar tarjetas de crédito, ver el uso de la deuda y seguir un plan de pago (Avalancha).
--   **Planificación de Flujo**: Un calendario para visualizar pagos programados.
--   **Dashboard Inteligente**: Muestra recordatorios de pagos y sugerencias de acción.
--   **UI/UX**: La interfaz es responsive y se adapta a diferentes tamaños de pantalla (móvil, tablet, escritorio).
--   **Backend**: Lógica para OCR, parseo de Excel, leyes tributarias de Ecuador (límites del SRI basados en 3 dependientes), y todos los nuevos endpoints para deudas, flujo e ingresos.
+Una aplicación full-stack (FastAPI, React, MongoDB) de finanzas personales. La autenticación JWT y los roles de usuario funcionan.
+Se han implementado las siguientes funcionalidades:
+- **Dashboard**: Muestra resúmenes financieros y recordatorios inteligentes.
+- **Cargar y Validar**: Una página unificada que combina la carga de archivos (recibos, estados de cuenta) y la validación/categorización de transacciones. La categorización ahora usa las categorías y subcategorías del presupuesto personal, con una sección separada para la clasificación del SRI.
+- **Mi Presupuesto**: Una página completamente editable para que el usuario gestione sus categorías, subcategorías, montos de presupuesto y proyecciones.
+- **Deudas**: Una sección para gestionar tarjetas de crédito y visualizar un resumen de todos los pagos diferidos extraídos de los estados de cuenta. Se puede añadir, editar y eliminar diferidos manualmente.
+- **Planificación de Flujo**: Una página para ver los pagos programados. Actualmente se está refactorizando a una vista de lista lineal.
+- **Chatbot de OpenAI**: Un asistente flotante para hacer consultas sobre los datos financieros.
+- **Backend**: Se crearon endpoints especializados para el procesamiento de estados de cuenta, la gestión de presupuestos editables y los pagos diferidos. Se solucionó un error de login crítico.
 
 **Last working item**:
--   **Last item agent was working**: Implementación de un gran conjunto de nuevas funcionalidades y correcciones solicitadas por el usuario. Esto incluyó la creación de la sección de Deudas y Tarjetas, la sección de Planificación de Flujo, la corrección del bug de subida de PDF, la actualización del Dashboard con categorías personales y recordatorios inteligentes, y la mejora de la UI para ser responsive.
--   **Status**: IN PROGRESS (La implementación del código parece completa, pero requiere pruebas exhaustivas y la verificación del usuario).
--   **Agent Testing Done**: N (El agente realizó pruebas manuales con  y capturas de pantalla, pero no ejecutó al  para este último gran lote de cambios).
--   **Which testing method agent to use?**: both
+-   **Last item agent was working**: El agente estaba abordando una lista de problemas y solicitudes del usuario. El último paso fue arreglar un problema de login y luego comenzar a refactorizar la página de Planificación de Flujo () para cambiar su diseño de un grid de 4 semanas a una vista de lista lineal. Ya se aplicó una primera modificación para cambiar la estructura a una lista vertical.
+-   **Status**: IN PROGRESS
+-   **Agent Testing Done**: Y (solo para el arreglo del login, usando ).
+-   **Which testing method agent to use?**: frontend testing agent (para verificar las vistas de Flujo y Transacciones).
 -   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
--   **Issue 1 (P0)**: Probar y verificar la implementación completa del último gran conjunto de solicitudes del usuario (Deudas, Flujo, Dashboard, corrección de PDF, etc.).
--   **Issue 2 (P1)**: El backend devuelve HTTP 403 en lugar de 401 para accesos no autorizados.
--   **Issue 3 (P1)**: Hay un problema de visibilidad con el menú desplegable de categorías en el frontend.
--   **Issue 4 (P2)**: Múltiples advertencias de  en varios componentes de React.
+-   **Issue 1 (P0)**: El procesamiento automatizado de estados de cuenta PDF es poco fiable y a menudo falla o agota el tiempo de espera, especialmente con el PDF de Pacificard.
+-   **Issue 2 (P0)**: La página de Transacciones aún no se ha actualizado para usar la nueva lógica de categorías (presupuesto personal + sección SRI), a diferencia de Cargar y Validar.
+-   **Issue 3 (P1)**: El backend devuelve HTTP 403 en lugar de 401 para accesos no autorizados.
+-   **Issue 4 (P1)**: Hay un problema de visibilidad con el menú desplegable de categorías en el frontend que hace que se oculte detrás de otros elementos.
+-   **Issue 5 (P2)**: Múltiples advertencias de  en varios componentes de React.
 
 **Issues Detail**:
--   **Issue 1**:
-    -   **Attempted fixes**: El agente implementó todo el código para las nuevas funciones y realizó verificaciones manuales.
+-   **Issue 1: Fallo en el procesamiento de estados de cuenta**
+    -   **Attempted fixes**: Se creó un endpoint dedicado () y se ajustó el prompt de la IA. Funcionó para el PDF de Pichincha pero falló consistentemente para Pacificard, obligando al agente a crear los datos manualmente. La causa raíz parece ser un timeout o un error 502 de la API de LLM durante el procesamiento de archivos más complejos.
     -   **Next debug checklist**:
-        1.  Llamar al  para realizar una prueba completa de regresión y de las nuevas funcionalidades (Deudas, Flujo, Ingresos, Dashboard, Carga de PDF).
-        2.  Revisar y corregir cualquier error encontrado por el agente de pruebas.
-        3.  Presentar los resultados al usuario para su validación final.
-    -   **Why fix this issue and what will be achieved with the fix?**: Para asegurar que las nuevas y complejas funcionalidades son estables, funcionan como se espera y no han introducido regresiones antes de entregarlas al usuario.
-    -   **Status**: TESTING PENDING
-    -   **Is recurring issue?** N
-    -   **Should Test frontend/backend/both after fix?**: both
-    -   **Blocked on other issue**: None
-
--   **Issue 2**:
-    -   **Attempted fixes**: Ninguno. Reportado en un fork anterior.
-    -   **Next debug checklist**: Revisar el middleware de autenticación y los endpoints protegidos en  para asegurar que se lance  en fallos de autenticación.
-    -   **Why fix this issue and what will be achieved with the fix?**: Cumplir con los estándares HTTP para un manejo de errores de autenticación más predecible en el cliente.
-    -   **Status**: NOT STARTED
-    -   **Is recurring issue?** N
+        1.  Revisar los logs del backend () en busca de errores detallados de la API de LLM durante el procesamiento del PDF de Pacificard.
+        2.  En , dentro de , añadir más logs para ver el texto extraído del PDF antes de enviarlo a la IA.
+        3.  Considerar el uso de una librería de parsing de PDF más robusta (como PyPDF2 o pdfplumber) para pre-procesar y limpiar el texto antes de pasarlo al LLM, reduciendo la carga en el modelo.
+        4.  Probar con un modelo de IA diferente (si está disponible) para el procesamiento de documentos complejos.
+    -   **Why fix this issue and what will be achieved with the fix?**: Esta es una funcionalidad core para la ingesta de datos. Arreglarlo automatizará la entrada de transacciones, saldos de tarjetas y diferidos, eliminando la necesidad de entrada manual.
+    -   **Status**: IN PROGRESS
+    -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?**: backend
     -   **Blocked on other issue**: None
 
--   **Issue 3**:
-    -   **Attempted fixes**: Ninguno. Reportado en un fork anterior.
-    -   **Next debug checklist**: Inspeccionar el CSS (, ) y la estructura del componente del dropdown en .
-    -   **Why fix this issue and what will be achieved with the fix?**: Mejora la usabilidad de una función central de la aplicación.
+-   **Issue 2: Sincronizar la página de Transacciones**
+    -   **Attempted fixes**: Ninguno. El trabajo se centró en .
+    -   **Next debug checklist**:
+        1.  Abrir .
+        2.  Replicar la lógica de obtención y visualización de categorías/subcategorías del presupuesto personal y la sección separada para SRI, tal como se implementó en .
+    -   **Why fix this issue and what will be achieved with the fix?**: Proporcionará una experiencia de usuario consistente en toda la aplicación para la gestión de categorías.
     -   **Status**: NOT STARTED
     -   **Is recurring issue?** N
     -   **Should Test frontend/backend/both after fix?**: frontend
     -   **Blocked on other issue**: None
 
--   **Issue 4**:
-    -   **Attempted fixes**: Ninguno. Visto en los logs de compilación del frontend repetidamente.
-    -   **Next debug checklist**: Revisar todos los componentes de React que muestran esta advertencia (ej. , ) y añadir las dependencias que faltan a los arrays de dependencia de los hooks .
-    -   **Why fix this issue and what will be achieved with the fix?**: Previene bugs sutiles relacionados con estado obsoleto y mejora la calidad del código.
-    -   **Status**: NOT STARTED
-    -   **Is recurring issue?**: Y
-    -   **Should Test frontend/backend/both after fix?**: frontend
-    -   **Blocked on other issue**: None
+-   **Issue 3-5 (Menores)**: Ídem a la sección de **Earlier issues found/mentioned but not fixed**.
 
 **In progress Task List**:
--   **Task 1**: Finalizar y validar el último gran lote de funcionalidades. (Priority: P0)
-
-**Task Detail**:
--   **Task 1**:
-    -   **Where to resume**: El código está implementado. El siguiente paso inmediato es ejecutar una suite de pruebas completa usando  para validar las nuevas secciones (Deudas, Flujo), las actualizaciones del Dashboard y la corrección de la carga de PDF.
-    -   **What will be achieved with this?**: Entregar al usuario una versión estable y funcional que incorpora sus solicitudes más recientes y complejas.
+-   **Task 1: Finalizar refactor de la página de Flujo (P0)**
+    -   **Where to resume**: En . El agente acaba de cambiar la estructura principal a una lista vertical. Es necesario eliminar el código CSS y JSX restante del antiguo diseño de grid de 2x2.
+    -   **What will be achieved with this?**: Cumplir con la solicitud del usuario de tener una vista lineal y más clara de los pagos semanales.
     -   **Status**: IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?**: both
+    -   **Should Test frontend/backend/both after fix?**: frontend
     -   **Blocked on something**: No
 
 **Upcoming and Future Tasks**
 - **Upcoming Tasks**:
-    -   **Task 1 (P1)**: Investigar e implementar una conexión directa con Apple Card para importar transacciones automáticamente. Esto requerirá el uso de  para ver si existe una API o método de integración viable.
+    -   **Task 1 (P1)**: Investigar e implementar una conexión directa con Apple Card para importar transacciones automáticamente, usando .
 - **Future Tasks**:
-    -   **Task 1 (P2)**: Añadir notificaciones push para alertar al usuario cuando una categoría de gasto se acerque a su límite de deducción del SRI (ej. al 80%).
+    -   **Task 1 (P2)**: Añadir notificaciones push cuando una categoría de gasto se acerque a su límite de deducción del SRI.
     -   **Task 2 (P2)**: Implementar un sistema para sugerir ajustes de presupuesto basados en el análisis del historial de gastos.
 
 **Completed work in this session**
--   **Funciones QuickBooks**: Se implementaron y probaron con éxito las funciones de dividir transacciones, adjuntar documentos, reglas de categorización y exportación a PDF/Excel.
--   **Corrección de Bug del Backend**: Se solucionó un  en  que impedía que el servidor se iniciara.
--   **Revisión Mayor de Funcionalidades**:
-    *   **Presupuesto Personal**: Se reestructuró la lógica para usar las categorías del presupuesto personal del usuario (del Excel) como base para el Dashboard.
-    *   **Gestión de Ingresos**: Se creó una nueva página y endpoints para que el usuario ingrese sus ingresos manualmente.
-    *   **Carga de Archivos**: Se solucionó el bug que impedía subir archivos PDF, actualizando el atributo  en el input de archivos.
-    *   **UI Responsive**: Se reescribió el componente  para incluir una barra de navegación lateral y un menú móvil, haciendo la aplicación completamente responsive.
-    *   **Conciliación Mejorada**: Se actualizó la página de Conciliación para agrupar por establecimiento y mostrar un diálogo con detalles completos para facilitar la revisión de la contadora.
-    *   **Sección de Deudas**: Se creó de cero una nueva sección  y los endpoints correspondientes para gestionar tarjetas de crédito y visualizar un plan de pago (Avalancha).
-    *   **Planificación de Flujo**: Se creó la nueva página  y sus endpoints para mostrar un calendario de pagos programados.
-    *   **Dashboard Inteligente**: Se rediseñó el  para eliminar las metas financieras y añadir una sección de Recordatorios y Acciones inteligentes.
+-   **Arreglo de Login**: Se solucionó un bug crítico en  que impedía el inicio de sesión al usar  en lugar de .
+-   **Fusión de Carga y Validación**: Se crearon la página  y el componente , fusionando  y  en un solo flujo de trabajo.
+-   **Presupuesto Personal Editable**: Se creó la página  y los endpoints correspondientes para permitir al usuario definir y editar sus propias categorías, subcategorías y montos de presupuesto.
+-   **Mejora de Categorización**: Se actualizó el diálogo de edición de transacciones para usar las categorías del presupuesto personal (con subcategorías) y una sección separada para la contadora (categorías del SRI).
+-   **Gestión de Pagos Diferidos**: Se implementó la lógica en el backend para extraer pagos diferidos de los estados de cuenta y se añadió una nueva pestaña en la página  para visualizarlos y gestionarlos (CRUD completo).
+-   **Procesamiento de Estados de Cuenta**: Se creó un endpoint () que extrae detalles de la tarjeta, transacciones y diferidos, y crea automáticamente una entrada en la página de Flujo para el pago de la tarjeta.
+-   **Creación Manual de Datos**: Debido a fallos en el procesamiento del PDF de Pacificard, se crearon manualmente los datos de la tarjeta y sus diferidos para no bloquear al usuario.
+-   **Corrección de Datos USA**: Se actualizaron los gastos de USA en el presupuesto según la petición del usuario (Mamá 00, TMobile 50, Universidad 00).
+-   **Pruebas**: Se ejecutó el  exitosamente después de las primeras grandes implementaciones y se realizaron pruebas manuales (curl, screenshots) para cambios posteriores.
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1**: El backend devuelve HTTP 403 en lugar de 401 en fallos de autenticación.
--   **Issue 2**: Problema de visibilidad en el menú desplegable de categorías del frontend.
--   **Issue 3**: Advertencias de  en el código del frontend.
+-   **Issue 1: 403 vs 401**
+    -   **Debug checklist**: Revisar el middleware de autenticación en  para lanzar  en lugar de 403 en fallos de autenticación.
+    -   **Why to solve**: Cumplir con los estándares HTTP para un manejo de errores predecible.
+    -   **Should Test**: backend
+    -   **Is recurring issue**: Y
+
+-   **Issue 2: Visibilidad del Dropdown**
+    -   **Debug checklist**: Inspeccionar el CSS (, , ) del componente de dropdown y sus contenedores.
+    -   **Why to solve**: Mejora la usabilidad de una función clave.
+    -   **Should Test**: frontend
+    -   **Is recurring issue**: Y
+
+-   **Issue 3: Warnings de **
+    -   **Debug checklist**: Usar el linter para identificar los componentes afectados y añadir las dependencias que faltan a los arrays de , , etc.
+    -   **Why to solve**: Evita bugs de estado obsoleto y mejora la calidad del código.
+    -   **Should Test**: frontend
+    -   **Is recurring issue**: Y
 
 **Known issue recurrence from previous fork**
--   None.
+-   Las advertencias de  siguen apareciendo en los logs del linter.
+-   El problema de 403 vs 401 y la visibilidad del dropdown no se han abordado.
 
 **Code Architecture**
 
@@ -147,91 +135,82 @@ Funcionalidades implementadas:
 -   **Backend**: FastAPI, Python
 -   **Frontend**: React.js
 -   **Database**: MongoDB
--   **Authentication**: JWT con RBAC
--   **Styling**: Tailwind CSS, shadcn/ui, Framer Motion
--   **Debt Management**: Implementación de la estrategia de pago Avalanche.
+-   **Authentication**: JWT con RBAC (basado en roles)
+-   **Styling**: Tailwind CSS, shadcn/ui
+-   **IA**:  para interactuar con OpenAI (Chatbot) y Gemini (OCR).
 
 **key DB schema**
 -   **users**: 
 -   **transactions**: 
--   **rules**: 
--   **incomes**:  (New)
--   **credit_cards**:  (New)
--   **flow_plan_items**:  (New)
+-   **personal_budgets**:  (New editable structure)
+-   **deferred_payments**:  (New)
 
 **changes in tech stack**
-- No se instalaron nuevas dependencias en esta sesión.
+-    se instaló para la integración con OpenAI.
 
 **All files of reference**
-*   **Creados**:
-    *   
-    *   
-    *   
-    *   
-    *   
-    *   
-    *   
-*   **Modificados significativamente**:
-    *   : Se añadieron modelos y endpoints para ingresos, deudas, tarjetas y planificación de flujo. Se actualizaron modelos existentes.
-    *   : Integración de los nuevos componentes de QuickBooks.
-    *   : Rediseño completo para mostrar categorías de presupuesto personal y recordatorios inteligentes.
-    *   : Se eliminó la pestaña de email y se corrigió la carga de PDF.
-    *   : Se mejoró para mostrar más detalles y permitir la edición.
-    *   : Se reescribió para ser completamente responsive.
-    *   : Se añadieron las nuevas rutas.
+-   **Creados**:
+    -   : Nueva página que fusiona la carga de archivos y la validación de transacciones.
+    -   : Componente para el chatbot flotante de OpenAI.
+    -   : Nueva página para que el usuario gestione su presupuesto de forma manual.
+-   **Modificados significativamente**:
+    -   : Se añadieron endpoints para el chatbot, presupuesto editable, procesamiento de estados de cuenta y gestión de diferidos. Se corrigió un error crítico de autenticación.
+    -   : Se añadió una nueva pestaña y lógica para mostrar y gestionar (CRUD) los pagos diferidos.
+    -   : Creado para ser una interfaz de presupuesto totalmente editable.
+    -   : Se actualizaron las rutas para reflejar las nuevas páginas (, ) y eliminar las antiguas.
+    -   : Se actualizó la navegación para enlazar a las nuevas páginas.
+    -   : Se empezó a refactorizar para mostrar una vista lineal en lugar de un grid.
 
 **Areas that need refactoring**:
--   Los componentes con advertencias de  deberían ser corregidos para evitar comportamientos inesperados.
+-    necesita que se complete su refactorización para eliminar el código del antiguo diseño en grid.
+-   Los componentes con advertencias de  deben corregirse.
 
 **key api endpoints**
--   **/api/incomes**: (GET, POST)
--   **/api/budget/personal-config**: (GET)
--   **/api/cards**: (GET, POST, PUT, DELETE)
--   **/api/debt/summary**: (GET)
--   **/api/debt/avalanche-plan**: (GET)
--   **/api/flow/schedule**: (GET, POST)
--   **/api/dashboard/reminders**: (GET)
+-   **/api/chatbot**: (POST) Para interactuar con el asistente de IA.
+-   **/api/process/bank-statement**: (POST) Endpoint especializado para procesar PDFs de estados de cuenta.
+-   **/api/budget/config**: (GET, POST) Para obtener y guardar la configuración del presupuesto editable.
+-   **/api/deferred-payments**: (GET, POST, PUT, DELETE) CRUD completo para los pagos diferidos.
+-   **/api/auth/login**: (POST) Corregido para usar .
 
 **Critical Info for New Agent**
--   El presupuesto personal del usuario (extraído del archivo ) ahora es la fuente principal para las categorías en el Dashboard y la lógica de gastos del usuario. Los límites del SRI son principalmente para la vista de la contadora.
--   La estrategia de pago de deudas implementada es **Avalanche** (pagar primero la de mayor interés), no Snowball.
--   La aplicación ahora tiene un diseño responsive. Las pruebas y nuevas implementaciones deben mantener la compatibilidad con vistas de móvil y tablet.
--   El usuario ya no usa la función de reenviar emails. La carga de datos se centra en subir archivos (imágenes/PDF de recibos) y extractos bancarios.
+-   **Fallo en Procesamiento de PDF**: El problema más crítico y sin resolver es la incapacidad del sistema para procesar de manera fiable los estados de cuenta en PDF, especialmente el de Pacificard. El agente tuvo que recurrir a la entrada manual de datos. La investigación de este problema es de máxima prioridad.
+-   **Pérdida de Datos en Preview**: La base de datos () apareció vacía en un punto, lo que causó el problema de login. Esto parece ser un comportamiento del entorno de vista previa, pero es importante tenerlo en cuenta si los datos desaparecen. El nombre de la DB en uso es , no .
+-   **Arreglo del Login**: El problema de login del usuario  se resolvió corrigiendo una referencia de campo ( -> ) en la función de login en .
+-   **Categorización Dual**: Las transacciones ahora tienen una doble categorización: una para el presupuesto personal del usuario y otra para la contadora (basada en las categorías del SRI). Esta lógica ya está en  y debe replicarse en .
 
 **documents and test reports created in this job**
 -    (actualizado)
 -   
 -   
+-   Archivos PDF subidos por el usuario para análisis (Pichincha y Pacificard).
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User**: Proporciona un gran conjunto de requisitos de cambio: agrupar transacciones por establecimiento, presupuesto personal editable, ingresos manuales, mejoras en la conciliación, diseño responsive, conexión con Apple Card, y reporta que no puede subir PDF y que el dashboard no usa sus categorías personales.
-2.  **User**: Aclara que la carga de archivos por screenshot está bien y pide añadir método de pago. Pregunta por mejoras para facturas grandes como las de Supermaxi. Confirma que el ingreso es de una sola fuente pero lo distribuye por temas fiscales.
-3.  **User**: Elige la Opción B propuesta por el agente para manejar los detalles de las facturas grandes (categorización a nivel de transacción principal, con notas para el detalle).
-4.  **User**: Pide una nueva sección para gestionar deudas y pagos diferidos, con un plan para pagarlas más rápido (snowball). Pregunta si la app puede analizar estados de cuenta para identificar deudas. Pide un plan de flujo editable. Solicita que el dashboard muestre recordatorios inteligentes y que las categorías de gastos reflejen su archivo Excel. Reporta nuevamente el bug de subida de PDF y que el dashboard está mal.
-5.  **User**: Aclara los detalles de sus deudas: 4 tarjetas (Diners, Pichincha, Pacificard, Apple) con sus APR. Confirma que no tiene más deudas y que subirá los estados de cuenta en PDF. Acepta la propuesta del plan de flujo.
+1.  **User**: Pide que los diferidos se muestren en la UI y que en la página de presupuesto se puedan ver las subcategorías expandidas. Sube el estado de cuenta de Pacificard para análisis.
+2.  **User**: Informa que los datos de Comandato están mal, pero pide que se priorice añadir una opción de edición para todos los datos extraídos. Pregunta cómo hacer deploy y guardar en GitHub, y si los datos se pierden después del deploy.
+3.  **User**: Solicita que las categorías al editar transacciones sean las de su presupuesto personal (con subcategorías) y que haya una sección separada para las categorías del SRI (para la contadora).
+4.  **User**: Reporta un problema de login con , que la carga de estados de cuenta no está guardando los datos, que quiere ver la planificación de flujo de forma lineal (lista) y que la página de Transacciones debe ser similar a la de Cargar y Validar en cuanto a categorías.
 
 **Project Health Check:**
--   **Broken**: Existen los problemas menores no resueltos (403 vs 401, visibilidad del dropdown). La nueva funcionalidad principal está sin probar por el subagente, por lo que su estado es incierto.
--   **Mocked**: None.
+-   **Broken**: El procesamiento automatizado de estados de cuenta en PDF es poco fiable y falla con archivos complejos.
+-   **Mocked**: Ninguno.
 
 **3rd Party Integrations**
--   **OpenAI**: Planificado para predicciones de IA. Usa Emergent LLM Key.
--   **Gemini**: Planificado para OCR. Usa Emergent LLM Key.
--   **Apple Card**: El usuario solicitó una integración directa. Se debe investigar su viabilidad.
+-   **OpenAI GPT-5.2**: Integrado para el chatbot financiero. Usa Emergent LLM Key.
+-   **Gemini**: Usado para el OCR de documentos. Usa Emergent LLM Key.
+-   **Apple Card**: El usuario solicitó una integración, pero la investigación está pendiente.
 
 **Testing status**
--   **Testing agent used after significant changes**: YES, pero no para el último y más grande conjunto de cambios. Las últimas pruebas exitosas fueron en  antes de implementar las secciones de Deudas, Flujo y las actualizaciones del Dashboard.
+-   **Testing agent used after significant changes**: YES, se usó para verificar un gran lote de cambios iniciales ( y ).
 -   **Troubleshoot agent used after agent stuck in loop**: NO
 -   **Test files created**: None.
--   **Known regressions**: Desconocidas. Es crucial realizar una prueba de regresión.
+-   **Known regressions**: El procesamiento de estados de cuenta parece haber empeorado o fallado con el PDF de Pacificard después de haber funcionado con el de Pichincha.
 
 **Credentials to test flow:**
--   Un usuario administrador fue creado para pruebas:
-    -   **Email**: 
-    -   **Password**: 
+-   **Email**: 
+-   **Password**: 
+-   **Rol**: 
 
 **What agent forgot to execute**
--   No se ha solucionado el problema del backend que devuelve 403 en lugar de 401.
--   No se ha solucionado el problema de visibilidad del dropdown de categorías en el frontend.
--   Se ha ignorado consistentemente la corrección de las advertencias .
--   No se investigó la viabilidad de la integración directa con Apple Card como solicitó el usuario. El agente procedió a construir la gestión manual de tarjetas sin abordar esta pregunta.</analysis>
+-   La investigación de viabilidad para la integración con Apple Card no se realizó.
+-   No se solucionó el problema raíz del fallo en el procesamiento de estados de cuenta en PDF, recurriendo a una solución manual temporal.
+-   Los problemas menores recurrentes (403 vs 401, visibilidad del dropdown, warnings de ) no se abordaron.</analysis>
