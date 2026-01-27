@@ -38,28 +38,77 @@ import {
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const CATEGORIES = {
-  alimentacion: { name: "Alimentación", deductible: true },
-  salud: { name: "Salud", deductible: true },
-  educacion: { name: "Educación", deductible: true },
-  vivienda: { name: "Vivienda", deductible: true },
-  vestimenta: { name: "Vestimenta", deductible: true },
-  turismo: { name: "Turismo Nacional", deductible: true },
-  transporte: { name: "Transporte", deductible: false },
-  viajes_internacionales: { name: "Viajes Internacionales", deductible: false },
-  otros: { name: "Otros", deductible: false }
+// ============ CATEGORÍAS PERSONALES (del Excel del usuario) ============
+const PERSONAL_CATEGORIES = {
+  servicios_basicos: { 
+    name: "Servicios Básicos", 
+    subcategories: ["Alícuota B", "Alícuota GT", "Luz", "Gas", "Celular", "Agua", "Clubes", "Internet", "Suscripciones"]
+  },
+  suscripciones: { 
+    name: "Suscripciones", 
+    subcategories: ["Netflix", "Spotify", "Amazon Prime", "Disney+", "YouTube Premium", "iCloud", "Otras"]
+  },
+  empleados: { 
+    name: "Empleados", 
+    subcategories: ["Ramona", "Angélica", "IESS"]
+  },
+  colegio_actividades: { 
+    name: "Colegio y Actividades", 
+    subcategories: ["Menor", "Fútbol", "Telas Aros"]
+  },
+  seguros: { 
+    name: "Seguros", 
+    subcategories: ["Salud", "Carros"]
+  },
+  comida: { 
+    name: "Comida", 
+    subcategories: ["Supermaxi", "Mercado"]
+  },
+  restaurantes: { 
+    name: "Restaurantes", 
+    subcategories: ["Comida afuera", "Delivery"]
+  },
+  carros: { 
+    name: "Carros", 
+    subcategories: ["Gasolina 1", "Gasolina 2", "Mantenimiento"]
+  },
+  usa: { 
+    name: "USA", 
+    subcategories: ["Mamá (Venmo)", "TMobile", "Universidad"]
+  },
+  viajes_entretenimiento: { 
+    name: "Viajes y Entretenimiento", 
+    subcategories: ["Pasajes", "Hoteles", "Navidad", "Ropa", "Tech"]
+  },
+  gastos_libres: { 
+    name: "Gastos Libres (Otros)", 
+    subcategories: ["KP (Esposa)", "EA (Emilio)", "Varios"]
+  },
+  impuestos: {
+    name: "Impuestos",
+    subcategories: ["SRI", "Municipio", "Otros impuestos"]
+  }
 };
 
-const SUBCATEGORIES = {
-  alimentacion: ["Comida", "Restaurantes", "Supermercado", "Mercado"],
-  salud: ["Seguros", "Medicina", "Consultas", "Hospitalización", "Laboratorio"],
-  educacion: ["Colegio y actividades", "Cursos", "Materiales", "Universidad", "Maestría"],
-  vivienda: ["Servicios básicos", "Arriendo", "Intereses hipoteca", "Mantenimiento"],
+// ============ CATEGORÍAS SRI (para contadora - deducibles) ============
+const SRI_CATEGORIES = {
+  alimentacion: { name: "Alimentación", deductible: true, limit_percent: 32.5 },
+  salud: { name: "Salud", deductible: true, limit_percent: 200 },
+  educacion: { name: "Educación", deductible: true, limit_percent: 32.5 },
+  vivienda: { name: "Vivienda", deductible: true, limit_percent: 32.5 },
+  vestimenta: { name: "Vestimenta", deductible: true, limit_percent: 32.5 },
+  turismo: { name: "Turismo Nacional", deductible: true, limit_percent: 32.5 },
+  no_deducible: { name: "No Deducible", deductible: false, limit_percent: 0 }
+};
+
+const SRI_SUBCATEGORIES = {
+  alimentacion: ["Supermercado", "Restaurantes", "Mercado", "Delivery"],
+  salud: ["Seguro médico", "Medicina", "Consultas", "Hospitalización", "Laboratorio", "Odontología"],
+  educacion: ["Colegio", "Universidad", "Cursos", "Materiales", "Uniformes"],
+  vivienda: ["Arriendo", "Intereses hipoteca", "Servicios básicos", "Mantenimiento"],
   vestimenta: ["Ropa", "Calzado", "Accesorios"],
   turismo: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"],
-  transporte: ["Carros", "Combustible", "Mantenimiento vehicular", "Taxi", "Bus"],
-  viajes_internacionales: ["USA", "Europa", "Otros países"],
-  otros: ["Empleados", "Entretenimiento", "Varios"]
+  no_deducible: ["Internacional", "Entretenimiento", "Otros"]
 };
 
 const STATUS_COLORS = {
