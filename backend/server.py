@@ -4151,6 +4151,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_db_seed():
+    """Inicializa los datos base al arrancar la aplicación"""
+    logger.info("🚀 Iniciando aplicación - Ejecutando seed de datos...")
+    await seed_database(mongo_url, db_name)
+    logger.info("✅ Seed de datos completado")
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
