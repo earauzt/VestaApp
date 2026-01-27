@@ -20,7 +20,8 @@ import {
   Lightning,
   CreditCard,
   FirstAid,
-  Sparkle
+  Sparkle,
+  X
 } from "@phosphor-icons/react";
 import { 
   AreaChart, 
