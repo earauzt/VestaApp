@@ -1257,8 +1257,21 @@ EXTRAE TODA la información del estado de cuenta en formato JSON:
       "description": "descripción de la transacción",
       "amount": numero (positivo para compras, negativo para pagos/créditos),
       "establishment": "nombre del comercio si aplica",
-      "category": "alimentacion|salud|educacion|vivienda|vestimenta|turismo|transporte|otros",
-      "is_international": false
+      "category": "alimentacion|salud|educacion|vivienda|vestimenta|suscripciones|turismo|transporte|otros",
+      "is_international": false,
+      "is_subscription": false,
+      "is_deferred": false,
+      "deferred_installments": null,
+      "deferred_remaining": null
+    }
+  ],
+  "deferred_purchases": [
+    {
+      "description": "descripción de la compra diferida",
+      "total_amount": numero,
+      "monthly_payment": numero (cuota mensual),
+      "remaining_installments": numero (cuotas restantes),
+      "total_installments": numero (total de cuotas)
     }
   ]
 }
@@ -1267,9 +1280,12 @@ IMPORTANTE:
 - Extrae TODAS las transacciones del período
 - Los montos de compras son positivos, pagos/créditos son negativos
 - Identifica la categoría según el tipo de comercio
-- Si es compra internacional, marca is_international: true"""
+- Si es compra internacional, marca is_international: true
+- Si es suscripción (Netflix, Spotify, Amazon Prime, Disney, HBO, YouTube, Apple Music, iCloud, etc), marca is_subscription: true y category: suscripciones
+- Si la transacción es un pago diferido/cuotas, extrae la info en deferred_purchases
+- Busca secciones como "COMPRAS DIFERIDAS", "DIFERIDOS VIGENTES", "CUOTAS PENDIENTES" para extraer los diferidos"""
             
-            user_prompt = "Analiza este estado de cuenta bancario y extrae TODA la información de la tarjeta y TODAS las transacciones del período."
+            user_prompt = "Analiza este estado de cuenta bancario y extrae TODA la información de la tarjeta, TODAS las transacciones del período, y TODOS los diferidos/cuotas pendientes."
         else:
             system_prompt = """Eres un experto en OCR y análisis de recibos/facturas ecuatorianas.
             Extrae la información del recibo y clasifícala según categorías SRI Ecuador.
