@@ -2905,6 +2905,9 @@ async def save_personal_budget(
         "user_id": user["id"],
         "year": year,
         "categories": budget_data.get("categories", {}),
+        "income_projection": budget_data.get("income_projection", INCOME_STRUCTURE),
+        "savings_goal": budget_data.get("savings_goal", BUDGET_SUMMARY["ahorro_esperado"]),
+        "investment_goal": budget_data.get("investment_goal", BUDGET_SUMMARY["inversion_esperada"]),
         "goals": budget_data.get("goals", BUDGET_GOALS),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
@@ -2916,6 +2919,200 @@ async def save_personal_budget(
     )
     
     return {"message": "Presupuesto guardado", "year": year}
+
+@api_router.get("/budget/config")
+async def get_budget_config(
+    year: Optional[int] = None,
+    user: dict = Depends(get_current_user)
+):
+    """Get user's editable budget configuration"""
+    current_year = year or datetime.now().year
+    
+    # Try to get saved budget
+    saved = await db.personal_budgets.find_one(
+        {"user_id": user["id"], "year": current_year},
+        {"_id": 0}
+    )
+    
+    if saved:
+        return {
+            "year": current_year,
+            "categories": saved.get("categories", BUDGET_CATEGORIES),
+            "income_projection": saved.get("income_projection", INCOME_STRUCTURE),
+            "savings_goal": saved.get("savings_goal", BUDGET_SUMMARY["ahorro_esperado"]),
+            "investment_goal": saved.get("investment_goal", BUDGET_SUMMARY["inversion_esperada"]),
+            "is_custom": True
+        }
+    
+    # Return defaults
+    return {
+        "year": current_year,
+        "categories": BUDGET_CATEGORIES,
+        "income_projection": INCOME_STRUCTURE,
+        "savings_goal": BUDGET_SUMMARY["ahorro_esperado"],
+        "investment_goal": BUDGET_SUMMARY["inversion_esperada"],
+        "is_custom": False
+    }
+
+@api_router.put("/budget/category/{category_key}")
+async def update_budget_category(
+    category_key: str,
+    category_data: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Update a single budget category"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    year = datetime.now().year
+    
+    # Get or create budget
+    budget = await db.personal_budgets.find_one(
+        {"user_id": user["id"], "year": year}
+    )
+    
+    if not budget:
+        budget = {
+            "user_id": user["id"],
+            "year": year,
+            "categories": dict(BUDGET_CATEGORIES),
+            "income_projection": dict(INCOME_STRUCTURE),
+            "savings_goal": dict(BUDGET_SUMMARY["ahorro_esperado"]),
+            "investment_goal": dict(BUDGET_SUMMARY["inversion_esperada"])
+        }
+    
+    # Update category
+    categories = budget.get("categories", {})
+    if category_key in categories:
+        categories[category_key].update(category_data)
+    else:
+        categories[category_key] = category_data
+    
+    await db.personal_budgets.update_one(
+        {"user_id": user["id"], "year": year},
+        {"$set": {"categories": categories, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    
+    return {"message": f"Categoría {category_key} actualizada"}
+
+@api_router.post("/budget/category")
+async def add_budget_category(
+    category_data: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Add a new budget category"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    category_key = category_data.get("key")
+    if not category_key:
+        raise HTTPException(status_code=400, detail="Se requiere key de categoría")
+    
+    year = datetime.now().year
+    
+    await db.personal_budgets.update_one(
+        {"user_id": user["id"], "year": year},
+        {"$set": {f"categories.{category_key}": category_data, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+    
+    return {"message": f"Categoría {category_key} añadida"}
+
+@api_router.delete("/budget/category/{category_key}")
+async def delete_budget_category(
+    category_key: str,
+    user: dict = Depends(get_current_user)
+):
+    """Delete a budget category"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    year = datetime.now().year
+    
+    await db.personal_budgets.update_one(
+        {"user_id": user["id"], "year": year},
+        {"$unset": {f"categories.{category_key}": ""}}
+    )
+    
+    return {"message": f"Categoría {category_key} eliminada"}
+
+# ================= DEFERRED PAYMENTS (DIFERIDOS) =================
+
+class DeferredPayment(BaseModel):
+    description: str
+    total_amount: float
+    monthly_payment: float
+    remaining_installments: int
+    total_installments: int
+    card_id: Optional[str] = None
+    card_name: Optional[str] = None
+    start_date: Optional[str] = None
+
+@api_router.get("/deferred-payments")
+async def get_deferred_payments(user: dict = Depends(get_current_user)):
+    """Get all deferred/installment payments"""
+    payments = await db.deferred_payments.find(
+        {"user_id": user["id"], "remaining_installments": {"$gt": 0}},
+        {"_id": 0}
+    ).sort("card_name", 1).to_list(100)
+    
+    total_remaining = sum(p.get("monthly_payment", 0) * p.get("remaining_installments", 0) for p in payments)
+    total_monthly = sum(p.get("monthly_payment", 0) for p in payments)
+    
+    return {
+        "payments": payments,
+        "total_remaining": total_remaining,
+        "total_monthly_obligation": total_monthly,
+        "count": len(payments)
+    }
+
+@api_router.post("/deferred-payments")
+async def create_deferred_payment(
+    payment: DeferredPayment,
+    user: dict = Depends(get_current_user)
+):
+    """Create a new deferred payment"""
+    payment_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        **payment.model_dump(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.deferred_payments.insert_one(payment_doc)
+    
+    return {"message": "Diferido creado", "payment": {k: v for k, v in payment_doc.items() if k != "_id"}}
+
+@api_router.put("/deferred-payments/{payment_id}")
+async def update_deferred_payment(
+    payment_id: str,
+    update_data: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Update a deferred payment (e.g., reduce remaining installments)"""
+    result = await db.deferred_payments.update_one(
+        {"id": payment_id, "user_id": user["id"]},
+        {"$set": update_data}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Diferido no encontrado")
+    
+    return {"message": "Diferido actualizado"}
+
+@api_router.delete("/deferred-payments/{payment_id}")
+async def delete_deferred_payment(
+    payment_id: str,
+    user: dict = Depends(get_current_user)
+):
+    """Delete a deferred payment"""
+    result = await db.deferred_payments.delete_one({"id": payment_id, "user_id": user["id"]})
+    
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Diferido no encontrado")
+    
+    return {"message": "Diferido eliminado"}
 
 # ================= TRANSACTIONS GROUPED BY ESTABLISHMENT =================
 
