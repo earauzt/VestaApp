@@ -21,23 +21,23 @@ ADMIN_USER = {
     "role": "admin",
     "created_at": "2026-01-01T00:00:00Z"
 }
-ADMIN_PASSWORD = "password123"
+ADMIN_PASSWORD = "Realmadrid2011"
 
 # Datos de usuarios adicionales
 ADDITIONAL_USERS = [
     {
         "id": "user-kp-001",
-        "email": "esposa@finanzas.com",
+        "email": "karlapolit@gmail.com",
         "name": "KP",
         "role": "spouse",
-        "password": "esposa123"
+        "password": "Emilio87"
     },
     {
         "id": "user-contadora-001",
-        "email": "contadora@finanzas.com",
-        "name": "María Contadora",
+        "email": "cmmgcontador@outlook.com",
+        "name": "Contadora",
         "role": "accountant",
-        "password": "contadora123"
+        "password": "Arauz2025"
     }
 ]
 
