@@ -35,10 +35,11 @@ UPLOADS_DIR.mkdir(exist_ok=True)
 
 load_dotenv(ROOT_DIR / '.env')
 
-# MongoDB connection
+# MongoDB connection with SSL certificate
+import certifi
 mongo_url = os.environ.get('MONGO_URL')
 db_name = os.environ.get('DB_NAME')
-client = AsyncIOMotorClient(mongo_url)
+client = AsyncIOMotorClient(mongo_url, tlsCAFile=certifi.where())
 db = client[db_name]
 
 # Import seed data function
