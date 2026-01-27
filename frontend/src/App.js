@@ -64,10 +64,10 @@ function AppRoutes() {
         } 
       />
       <Route 
-        path="/upload" 
+        path="/cargar" 
         element={
           <ProtectedRoute>
-            <Upload />
+            <CargarValidar />
           </ProtectedRoute>
         } 
       />
