@@ -128,14 +128,16 @@ export default function Deudas() {
     
     try {
       const payload = {
-        ...formData,
-        apr: parseFloat(formData.apr),
-        credit_limit: parseFloat(formData.credit_limit),
-        current_balance: parseFloat(formData.current_balance),
-        minimum_payment: parseFloat(formData.minimum_payment),
-        cut_off_day: parseInt(formData.cut_off_day),
-        payment_due_day: parseInt(formData.payment_due_day),
-        currency: formData.is_international ? "USD" : "USD"
+        name: formData.name,
+        bank: formData.bank,
+        apr: parseFloat(formData.apr) || 0,
+        credit_limit: parseFloat(formData.credit_limit) || 0,
+        current_balance: parseFloat(formData.current_balance) || 0,
+        minimum_payment: parseFloat(formData.minimum_payment) || 0,
+        cut_off_day: parseInt(formData.cut_off_day) || 1,
+        payment_due_day: parseInt(formData.payment_due_day) || 15,
+        currency: "USD",
+        is_international: formData.is_international || false
       };
 
       if (editingCard) {
