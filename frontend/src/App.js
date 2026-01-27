@@ -146,10 +146,18 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <AppRoutes />
+        <ChatBotWrapper />
         <Toaster richColors position="top-right" />
       </AuthProvider>
     </BrowserRouter>
   );
+}
+
+// ChatBot solo se muestra cuando el usuario está logueado
+function ChatBotWrapper() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return <ChatBot />;
 }
 
 export default App;
