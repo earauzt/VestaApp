@@ -185,81 +185,159 @@ INCOME_SOURCES = ["Personal", "APX", "USA"]
 # Income Concepts
 INCOME_CONCEPTS = ["Salario", "Bonus", "Dividendos", "Arriendo", "Honorarios", "Otros"]
 
-# ================= PERSONAL BUDGET CATEGORIES (User's Excel) =================
-# Separate from SRI categories - this is the user's personal budget structure
+# ================= PERSONAL BUDGET CATEGORIES (User's Excel - PROYECCION EA 2026) =================
+# Extracted from user's Excel screenshots - exact monthly budgets
 BUDGET_CATEGORIES = {
     "servicios_basicos": {
         "name": "Servicios Básicos",
-        "subcategories": ["Alícuota B", "Alícuota GT", "Luz", "Gas", "Celular", "Agua", "Clubes", "Internet"],
+        "subcategories": {
+            "Alícuota B": 500,
+            "Alícuota GT": 100,
+            "Luz": 200,
+            "Gas": 15,
+            "Celular": 80,
+            "Agua": 60,
+            "Clubes": 275,
+            "Internet": 50
+        },
+        "monthly_budget": 1280,
+        "annual_budget": 15360,
         "type": "fixed",
         "payment_methods": ["transferencia", "tarjeta"],
         "is_recurring": True
     },
     "empleados": {
         "name": "Empleados",
-        "subcategories": ["Ramona", "Angélica", "IESS"],
+        "subcategories": {
+            "Ramona": 600,
+            "Angélica": 550,
+            "IESS": 150
+        },
+        "monthly_budget": 1300,
+        "annual_budget": 15600,
         "type": "fixed",
         "payment_methods": ["transferencia", "efectivo"],
         "is_recurring": True
     },
     "colegio_actividades": {
         "name": "Colegio y Actividades",
-        "subcategories": ["Menor", "Fútbol", "Telas", "Aros"],
+        "subcategories": {
+            "Menor": 2000,
+            "Fútbol": 150,
+            "Telas Aros": 210
+        },
+        "monthly_budget": 2360,
+        "annual_budget": 28320,
         "type": "fixed",
         "payment_methods": ["transferencia", "tarjeta", "efectivo"],
         "is_recurring": True
     },
     "seguros": {
         "name": "Seguros",
-        "subcategories": ["Salud", "Carros"],
+        "subcategories": {
+            "Salud": 900,
+            "Carros": 250
+        },
+        "monthly_budget": 1150,
+        "annual_budget": 13800,
         "type": "fixed",
         "payment_methods": ["tarjeta", "transferencia"],
         "is_recurring": True
     },
     "comida": {
         "name": "Comida",
-        "subcategories": ["Supermaxi", "Mercado"],
+        "subcategories": {
+            "Supermaxi": 800,
+            "Mercado": 150
+        },
+        "monthly_budget": 950,
+        "annual_budget": 11400,
         "type": "variable",
         "payment_methods": ["tarjeta", "efectivo"],
         "is_recurring": False
     },
     "restaurantes": {
         "name": "Restaurantes",
-        "subcategories": ["Comida afuera", "Delivery"],
+        "subcategories": {
+            "Comida afuera": 350,
+            "Delivery": 200
+        },
+        "monthly_budget": 550,
+        "annual_budget": 6600,
         "type": "variable",
         "payment_methods": ["tarjeta", "efectivo"],
         "is_recurring": False
     },
     "carros": {
         "name": "Carros",
-        "subcategories": ["Gasolina 1", "Gasolina 2", "Mantenimiento"],
+        "subcategories": {
+            "Gasolina 1": 360,
+            "Gasolina 2": 105,
+            "Mantenimiento": 100
+        },
+        "monthly_budget": 565,
+        "annual_budget": 6780,
         "type": "variable",
         "payment_methods": ["tarjeta", "efectivo"],
         "is_recurring": False
     },
     "usa": {
         "name": "USA",
-        "subcategories": ["Transfer Mamá (Venmo)", "Universidad bebés", "TMobile"],
+        "subcategories": {
+            "Mamá (Venmo)": 600,
+            "TMobile": 250,
+            "Universidad": 400
+        },
+        "monthly_budget": 1250,
+        "annual_budget": 15000,
         "type": "fixed",
         "payment_methods": ["venmo", "apple_card", "transferencia"],
         "is_recurring": True,
         "is_international": True
     },
-    "viajes": {
-        "name": "Viajes",
-        "subcategories": ["Pasajes", "Navidad", "Marzo", "Junio"],
+    "viajes_entretenimiento": {
+        "name": "Viajes y Entretenimiento",
+        "subcategories": {
+            "Pasajes": 500,
+            "Navidad": 7000
+        },
+        "monthly_budget": 0,
+        "annual_budget": 16500,
         "type": "variable",
         "payment_methods": ["tarjeta", "apple_card"],
-        "is_recurring": False
+        "is_recurring": False,
+        "notes": "Pasajes en Enero $500, Diciembre $3000. Navidad $7000 en Diciembre"
     },
     "gastos_libres": {
-        "name": "Gastos Libres",
-        "subcategories": ["KP (Esposa)", "EA (Emilio)"],
+        "name": "Gastos Libres (Otros)",
+        "subcategories": {
+            "KP (Esposa)": 800,
+            "EA (Emilio)": 500
+        },
+        "monthly_budget": 1300,
+        "annual_budget": 15600,
         "type": "discretionary",
         "payment_methods": ["tarjeta", "efectivo"],
-        "is_recurring": True,
-        "monthly_limits": {"KP (Esposa)": 800, "EA (Emilio)": 500}
+        "is_recurring": True
     }
+}
+
+# Income structure from Excel (FLUJO AÑO 2026)
+INCOME_STRUCTURE = {
+    "personal": {"monthly": 7250, "annual": 87000, "source": "Personal"},
+    "apx": {"monthly": 2500, "annual": 30000, "source": "APX"},
+    "usa": {"monthly": 2750, "annual": 33000, "source": "USA"}
+}
+TOTAL_MONTHLY_INCOME = 12500
+TOTAL_ANNUAL_INCOME = 150000
+
+# Budget summary from Excel
+BUDGET_SUMMARY = {
+    "total_gastos_fijos_monthly": 8155,  # Sum of fixed categories
+    "total_gastos_fijos_annual": 97860,
+    "flujo_neto_mensual": 1595,  # After Ecuador expenses
+    "ahorro_esperado": {"monthly": 1250, "annual": 15000, "percentage": 10},
+    "inversion_esperada": {"monthly": 1875, "annual": 22500, "percentage": 15}
 }
 
 # Budget Goals (User's financial targets)
