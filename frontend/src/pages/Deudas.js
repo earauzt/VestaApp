@@ -435,6 +435,113 @@ export default function Deudas() {
           </Card>
         </TabsContent>
 
+        {/* Diferidos Tab */}
+        <TabsContent value="diferidos">
+          <div className="space-y-4">
+            {/* Summary Cards */}
+            {deferredPayments?.count > 0 && (
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+                <Card className="bento-card">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Total por Pagar</p>
+                    <p className="text-2xl font-bold text-red-500">
+                      {formatCurrency(deferredPayments.total_remaining)}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="bento-card">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Cuota Mensual</p>
+                    <p className="text-2xl font-bold text-primary">
+                      {formatCurrency(deferredPayments.total_monthly_obligation)}
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card className="bento-card">
+                  <CardContent className="p-4">
+                    <p className="text-xs text-muted-foreground">Diferidos Activos</p>
+                    <p className="text-2xl font-bold">{deferredPayments.count}</p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
+            {/* Deferred List */}
+            <Card className="bento-card">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <CalendarBlank size={20} />
+                  Compras Diferidas / Cuotas Pendientes
+                </CardTitle>
+                <CardDescription>
+                  Pagos a plazos extraídos de tus estados de cuenta
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {!deferredPayments?.payments || deferredPayments.payments.length === 0 ? (
+                  <div className="text-center py-8 text-muted-foreground">
+                    <CalendarBlank size={48} className="mx-auto mb-4 opacity-50" />
+                    <p>No tienes compras diferidas registradas</p>
+                    <p className="text-sm">Se extraen automáticamente al subir estados de cuenta</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {deferredPayments.payments.map((payment, index) => {
+                      const progress = payment.total_installments > 0 
+                        ? ((payment.total_installments - payment.remaining_installments) / payment.total_installments) * 100
+                        : 0;
+                      return (
+                        <motion.div
+                          key={payment.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                          className="p-4 rounded-xl bg-muted/50 border"
+                        >
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="font-semibold">{payment.description}</p>
+                                {payment.card_name && (
+                                  <Badge variant="outline" className="text-xs">
+                                    {payment.card_name}
+                                  </Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                                <span>Total: {formatCurrency(payment.total_amount)}</span>
+                                <span>•</span>
+                                <span className="font-medium text-foreground">
+                                  Cuota: {formatCurrency(payment.monthly_payment)}/mes
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <Badge 
+                                variant={payment.remaining_installments <= 1 ? "default" : "secondary"}
+                                className={payment.remaining_installments <= 1 ? "bg-emerald-600" : ""}
+                              >
+                                {payment.remaining_installments} de {payment.total_installments} cuotas
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="mt-3">
+                            <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                              <span>Progreso</span>
+                              <span>{Math.round(progress)}%</span>
+                            </div>
+                            <Progress value={progress} className="h-2" />
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
         {/* Snowball/Avalanche Plan Tab */}
         <TabsContent value="plan">
           <div className="space-y-4">
