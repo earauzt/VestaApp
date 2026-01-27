@@ -651,21 +651,30 @@ export default function CargarValidar() {
                     <div className="space-y-2">
                       <Label>{selectedFiles.length} archivo(s)</Label>
                       <div className="max-h-[200px] overflow-y-auto space-y-2">
-                        {selectedFiles.map((file, index) => (
-                          <div key={index} className="flex items-center justify-between p-3 rounded-lg bg-muted">
-                            <div className="flex items-center gap-3">
-                              {file.name.endsWith('.xlsx') || file.name.endsWith('.xls') ? (
-                                <FileXls size={20} className="text-emerald-600" />
-                              ) : (
-                                <Receipt size={20} className="text-muted-foreground" />
-                              )}
-                              <span className="text-sm truncate max-w-[180px]">{file.name}</span>
+                        {selectedFiles.map((file, index) => {
+                          const isStatement = isBankStatement(file);
+                          const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
+                          return (
+                            <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${isStatement ? 'bg-primary/10 border border-primary/20' : 'bg-muted'}`}>
+                              <div className="flex items-center gap-3">
+                                {isExcel ? (
+                                  <FileXls size={20} className="text-emerald-600" />
+                                ) : isStatement ? (
+                                  <CreditCard size={20} className="text-primary" />
+                                ) : (
+                                  <Receipt size={20} className="text-muted-foreground" />
+                                )}
+                                <div>
+                                  <span className="text-sm truncate max-w-[180px] block">{file.name}</span>
+                                  {isStatement && <span className="text-xs text-primary">Estado de cuenta detectado</span>}
+                                </div>
+                              </div>
+                              <Button variant="ghost" size="icon" onClick={() => removeFile(index)}>
+                                <X size={16} />
+                              </Button>
                             </div>
-                            <Button variant="ghost" size="icon" onClick={() => removeFile(index)}>
-                              <X size={16} />
-                            </Button>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -677,7 +686,7 @@ export default function CargarValidar() {
                       className="flex-1 gap-2"
                     >
                       {loading ? <SpinnerGap size={18} className="animate-spin" /> : <CloudArrowUp size={18} />}
-                      Procesar Imágenes/PDFs
+                      Procesar Archivos
                     </Button>
                     <Button 
                       onClick={handleExcelUpload}
