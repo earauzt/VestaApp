@@ -1219,8 +1219,21 @@ async def process_image_with_ai(file_path: str, document_type: str = "receipt") 
         return {"error": "API key not configured"}
     
     try:
-        # Determine mime type
         ext = os.path.splitext(file_path)[1].lower()
+        
+        # For PDFs, extract text first using pdfplumber for more reliable processing
+        if ext == ".pdf" and document_type == "bank_statement":
+            logger.info(f"Processing bank statement PDF: {file_path}")
+            extracted_text = extract_text_from_pdf(file_path)
+            
+            if not extracted_text or len(extracted_text) < 100:
+                logger.warning("PDF text extraction returned minimal content, falling back to image mode")
+            else:
+                logger.info(f"Extracted {len(extracted_text)} characters from PDF")
+                # Use text-based processing for bank statements
+                return await process_bank_statement_text(extracted_text)
+        
+        # Determine mime type for image/fallback processing
         if ext == ".pdf":
             mime_type = "application/pdf"
         elif ext in [".png"]:
@@ -1323,6 +1336,150 @@ REGLAS IMPORTANTES PARA PICHINCHA Y BANCOS ECUATORIANOS:
         return {"transactions": [], "card_info": None}
     except Exception as e:
         logger.error(f"Image processing error: {e}")
+        return {"transactions": [], "card_info": None, "error": str(e)}
+
+
+def extract_text_from_pdf(file_path: str) -> str:
+    """Extract all text from PDF using pdfplumber for better accuracy"""
+    try:
+        all_text = []
+        with pdfplumber.open(file_path) as pdf:
+            for page_num, page in enumerate(pdf.pages):
+                # Extract text
+                text = page.extract_text()
+                if text:
+                    all_text.append(f"--- PÁGINA {page_num + 1} ---\n{text}")
+                
+                # Also try to extract tables which are common in bank statements
+                tables = page.extract_tables()
+                for table in tables:
+                    if table:
+                        table_text = "\n".join([" | ".join([str(cell or "") for cell in row]) for row in table if row])
+                        if table_text.strip():
+                            all_text.append(f"\n[TABLA]\n{table_text}")
+        
+        return "\n\n".join(all_text)
+    except Exception as e:
+        logger.error(f"PDF text extraction error: {e}")
+        return ""
+
+
+async def process_bank_statement_text(text: str) -> dict:
+    """Process extracted bank statement text with AI"""
+    if not EMERGENT_LLM_KEY:
+        return {"error": "API key not configured"}
+    
+    try:
+        system_prompt = """Eres un experto en análisis de estados de cuenta bancarios de Ecuador.
+Analiza el texto extraído del estado de cuenta y extrae TODA la información en formato JSON.
+
+INSTRUCCIONES ESPECÍFICAS PARA PACIFICARD:
+- "Deuda Total a la fecha corte" = current_balance (saldo total a pagar)
+- "Total a pagar de contado" o "PAGO SUGERIDO" = pago de contado recomendado
+- "Mínimo a pagar" o "Pago Mínimo" = minimum_payment
+- "Fecha máximo de pago sin recargos" = due_date
+- "Cupo Autorizado" = credit_limit
+- "Disponible" = available_credit
+- "Tasa de interés efectiva anual" = apr
+- "Saldo Diferido Actual" = total de compras diferidas pendientes
+- Buscar "BLACK" o "PLATINUM" en el nombre de la tarjeta
+
+FORMATO DE RESPUESTA JSON:
+{
+  "card_info": {
+    "bank_name": "Pacificard" o el banco detectado,
+    "card_name": "Black/Platinum/etc",
+    "card_number_last4": "últimos 4 dígitos si se encuentran",
+    "statement_date": "YYYY-MM-DD",
+    "due_date": "YYYY-MM-DD",
+    "credit_limit": numero,
+    "available_credit": numero,
+    "current_balance": numero (deuda total),
+    "minimum_payment": numero,
+    "apr": numero (tasa efectiva anual),
+    "previous_balance": numero,
+    "payments_received": numero,
+    "period_charges": numero,
+    "deferred_balance": numero (saldo diferido)
+  },
+  "transactions": [
+    {
+      "date": "YYYY-MM-DD",
+      "description": "descripción",
+      "amount": numero positivo,
+      "establishment": "comercio",
+      "category": "alimentacion|salud|educacion|vivienda|vestimenta|suscripciones|turismo|transporte|entretenimiento|impuestos|otros",
+      "is_international": boolean,
+      "is_subscription": boolean,
+      "is_fee": boolean
+    }
+  ],
+  "deferred_purchases": [
+    {
+      "description": "descripción",
+      "total_amount": numero,
+      "monthly_payment": numero (cuota mensual),
+      "current_installment": numero (cuota actual X de Y),
+      "remaining_installments": numero,
+      "total_installments": numero
+    }
+  ]
+}
+
+CATEGORIZACIÓN:
+- DIAMOND CLUB, SUPERMAXI, KORTES, MEGAMAXI, RED CRAB, DUNKIN, CASADELI, CIABATTA, MIGAJAS = alimentacion
+- DISNEY PLUS, APPLE.COM/BILL, NETFLIX, SPOTIFY, HBO = suscripciones (is_subscription: true)
+- DIFARE, COMFARPI, FYBECA = salud
+- ESTACION DE SERVICIO, PRIMAX, PDV = transporte
+- ZARA, KORTES SOL PLAZA = vestimenta
+- SUPERCINES, RIVER BEACH TENNIS = entretenimiento
+- CONECEL, CLARO = vivienda (telefonía)
+- AMAGUA, CISNERGIA = vivienda (servicios básicos)
+- GESTION DE COBRANZA, INTERES, CONTRIB.FINANC = is_fee: true
+- Consumos con "EXTERIOR" o moneda extranjera = is_international: true
+
+REGLAS:
+- Las fechas DD/MMM/AAAA convertir a YYYY-MM-DD (ENE=01, FEB=02, MAR=03, ABR=04, MAY=05, JUN=06, JUL=07, AGO=08, SEP=09, OCT=10, NOV=11, DIC=12)
+- Incluir TODAS las transacciones del período
+- NO incluir pagos (montos negativos o "SU PAGO")
+- Para diferidos, buscar sección "DIF" o cuotas mensuales recurrentes"""
+
+        user_prompt = f"""Analiza este texto extraído del estado de cuenta bancario y extrae TODA la información:
+
+{text[:15000]}
+
+Responde SOLO con el JSON estructurado."""
+
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"bank_stmt_{uuid.uuid4()}",
+            system_message=system_prompt
+        ).with_model("gemini", "gemini-2.5-flash")
+        
+        response = await chat.send_message(UserMessage(text=user_prompt))
+        
+        logger.info(f"AI response length: {len(response)}")
+        
+        # Parse JSON from response
+        json_match = re.search(r'\{[\s\S]*\}', response)
+        if json_match:
+            try:
+                result = json.loads(json_match.group())
+                logger.info(f"Parsed result - card_info: {bool(result.get('card_info'))}, transactions: {len(result.get('transactions', []))}, deferred: {len(result.get('deferred_purchases', []))}")
+                return result
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {e}")
+                # Try to fix common JSON issues
+                try:
+                    fixed = json_match.group().replace("'", '"')
+                    return json.loads(fixed)
+                except:
+                    pass
+        
+        logger.warning("No valid JSON found in AI response")
+        return {"transactions": [], "card_info": None}
+    except Exception as e:
+        logger.error(f"Bank statement text processing error: {e}")
         return {"transactions": [], "card_info": None, "error": str(e)}
 
 @api_router.post("/process/email")
