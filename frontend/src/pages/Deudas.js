@@ -1059,7 +1059,7 @@ export default function Deudas() {
                   <SelectValue placeholder="Seleccionar tarjeta" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sin tarjeta</SelectItem>
+                  <SelectItem value="none">Sin tarjeta</SelectItem>
                   {cards.map(card => (
                     <SelectItem key={card.id} value={card.name}>{card.name}</SelectItem>
                   ))}
