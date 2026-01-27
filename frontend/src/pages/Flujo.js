@@ -343,67 +343,6 @@ export default function Flujo() {
           </div>
         ))}
       </div>
-                                    <Bell size={10} className="mr-1" />
-                                    {payment.days_until_due === 0 ? "Hoy" : `${payment.days_until_due}d`}
-                                  </Badge>
-                                )}
-                                {payment.is_recurring && (
-                                  <Badge variant="secondary" className="text-xs">
-                                    <Clock size={10} className="mr-1" />
-                                    Recurrente
-                                  </Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                                <span>Día {payment.due_day}</span>
-                                <span>•</span>
-                                <span>{PAYMENT_METHODS.find(m => m.value === payment.payment_method)?.label}</span>
-                              </div>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center gap-2">
-                            <span className="font-mono font-semibold">{formatCurrency(payment.amount)}</span>
-                            {canEdit && (
-                              <div className="flex gap-1">
-                                <Button 
-                                  size="icon" 
-                                  variant="ghost"
-                                  onClick={() => handleMarkPaid(payment.id)}
-                                  title="Marcar como pagado"
-                                  className="h-8 w-8"
-                                >
-                                  <CheckCircle size={16} className="text-emerald-600" />
-                                </Button>
-                                <Button 
-                                  size="icon" 
-                                  variant="ghost"
-                                  onClick={() => handleEdit(payment)}
-                                  className="h-8 w-8"
-                                >
-                                  <Pencil size={14} />
-                                </Button>
-                                <Button 
-                                  size="icon" 
-                                  variant="ghost"
-                                  onClick={() => handleDelete(payment.id)}
-                                  className="h-8 w-8 text-red-600 hover:text-red-700"
-                                >
-                                  <Trash size={14} />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
 
       {/* Quick Actions */}
       <Card className="bento-card">
