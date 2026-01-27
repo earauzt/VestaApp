@@ -402,7 +402,9 @@ export default function CargarValidar() {
       category: transaction.category || "",
       subcategory: transaction.subcategory || "",
       establishment: transaction.establishment || "",
-      review_notes: transaction.review_notes || ""
+      review_notes: transaction.review_notes || "",
+      sri_category: transaction.sri_category || "",
+      sri_subcategory: transaction.sri_subcategory || ""
     });
     setEditMode(false);
     setShowDetailDialog(true);
@@ -413,7 +415,13 @@ export default function CargarValidar() {
     try {
       await axios.put(
         `${API}/transactions/${detailTransaction.id}`,
-        { ...detailTransaction, ...editForm, amount: parseFloat(editForm.amount) },
+        { 
+          ...detailTransaction, 
+          ...editForm, 
+          amount: parseFloat(editForm.amount),
+          sri_category: editForm.sri_category,
+          sri_subcategory: editForm.sri_subcategory
+        },
         { headers: getAuthHeaders() }
       );
       toast.success("Transacción actualizada");
