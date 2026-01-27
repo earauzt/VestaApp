@@ -37,18 +37,18 @@ import {
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Categories from Excel "Flujos" tab
+// Categories from Excel "Flujos" - PROYECCION EA 2026
 const FLUJO_CATEGORIES = {
-  servicios_basicos: { name: "Servicios Básicos", color: "#3b82f6" },
-  empleados: { name: "Empleados", color: "#8b5cf6" },
-  colegio_actividades: { name: "Colegio y Actividades", color: "#06b6d4" },
-  seguros: { name: "Seguros", color: "#ec4899" },
-  comida: { name: "Comida", color: "#22c55e" },
-  restaurantes: { name: "Restaurantes", color: "#f97316" },
-  carros: { name: "Carros", color: "#ef4444" },
-  usa: { name: "USA", color: "#6366f1" },
-  viajes: { name: "Viajes", color: "#14b8a6" },
-  gastos_libres: { name: "Gastos Libres", color: "#f59e0b" }
+  servicios_basicos: { name: "Servicios Básicos", color: "#3b82f6", budget: 1280 },
+  empleados: { name: "Empleados", color: "#8b5cf6", budget: 1300 },
+  colegio_actividades: { name: "Colegio y Actividades", color: "#06b6d4", budget: 2360 },
+  seguros: { name: "Seguros", color: "#ec4899", budget: 1150 },
+  comida: { name: "Comida", color: "#22c55e", budget: 950 },
+  restaurantes: { name: "Restaurantes", color: "#f97316", budget: 550 },
+  carros: { name: "Carros", color: "#ef4444", budget: 565 },
+  usa: { name: "USA", color: "#6366f1", budget: 1250 },
+  viajes_entretenimiento: { name: "Viajes y Entretenimiento", color: "#14b8a6", budget: 0 },
+  gastos_libres: { name: "Gastos Libres (Otros)", color: "#f59e0b", budget: 1300 }
 };
 
 export default function Dashboard() {
