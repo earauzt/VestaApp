@@ -57,9 +57,18 @@ export default function Dashboard() {
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [reminders, setReminders] = useState([]);
+  const [dismissedReminders, setDismissedReminders] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
   const [period, setPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
+
+  // Function to dismiss a reminder
+  const dismissReminder = (index) => {
+    setDismissedReminders([...dismissedReminders, index]);
+  };
+
+  // Filter out dismissed reminders
+  const visibleReminders = reminders.filter((_, index) => !dismissedReminders.includes(index));
 
   useEffect(() => {
     fetchData();
