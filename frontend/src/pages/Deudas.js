@@ -222,7 +222,14 @@ export default function Deudas() {
       setDeferredDialogOpen(false);
       fetchData();
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Error al guardar diferido");
+      const detail = error.response?.data?.detail;
+      if (typeof detail === 'string') {
+        toast.error(detail);
+      } else if (Array.isArray(detail)) {
+        toast.error(detail.map(e => e.msg || e.message || JSON.stringify(e)).join(', '));
+      } else {
+        toast.error("Error al guardar diferido");
+      }
     }
   };
 
