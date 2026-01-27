@@ -322,14 +322,14 @@ BUDGET_CATEGORIES = {
     }
 }
 
-# Income structure from Excel (FLUJO AÑO 2026)
+# Income structure from Excel (FLUJO AÑO 2026) - ESTIMATED/VARIABLE
 INCOME_STRUCTURE = {
-    "personal": {"monthly": 7250, "annual": 87000, "source": "Personal"},
-    "apx": {"monthly": 2500, "annual": 30000, "source": "APX"},
-    "usa": {"monthly": 2750, "annual": 33000, "source": "USA"}
+    "personal": {"monthly": 7250, "annual": 87000, "source": "Personal", "note": "Estimado variable"},
+    "apx": {"monthly": 2500, "annual": 30000, "source": "APX", "note": "Estimado variable"},
+    "usa": {"monthly": 2750, "annual": 33000, "source": "USA", "note": "Estimado variable"}
 }
-TOTAL_MONTHLY_INCOME = 12500
-TOTAL_ANNUAL_INCOME = 150000
+TOTAL_MONTHLY_INCOME = 12500  # Estimado
+TOTAL_ANNUAL_INCOME = 150000  # Estimado
 
 # Budget summary from Excel
 BUDGET_SUMMARY = {
