@@ -181,7 +181,7 @@ DEFERRED_PAYMENTS = [
 async def seed_database(mongo_url: str, db_name: str):
     """Carga los datos iniciales si no existen"""
     try:
-        client = AsyncIOMotorClient(mongo_url)
+        client = AsyncIOMotorClient(mongo_url, tlsCAFile=certifi.where())
         db = client[db_name]
         
         # 1. Crear usuario admin si no existe
