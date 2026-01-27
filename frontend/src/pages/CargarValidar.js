@@ -402,6 +402,51 @@ export default function CargarValidar() {
     }
   };
 
+  // Bulk actions
+  const handleBulkAction = async () => {
+    if (selectedItems.length === 0) return;
+    
+    setLoading(true);
+    let successCount = 0;
+    let errorCount = 0;
+    
+    try {
+      for (const id of selectedItems) {
+        try {
+          if (bulkAction === "approve") {
+            const updateData = {};
+            if (bulkCategory) updateData.category = bulkCategory;
+            if (bulkSubcategory) updateData.subcategory = bulkSubcategory;
+            
+            // Update category if specified
+            if (Object.keys(updateData).length > 0) {
+              await axios.put(`${API}/transactions/${id}`, updateData, { headers: getAuthHeaders() });
+            }
+            
+            // Approve
+            await axios.put(`${API}/reconciliation/approve/${id}`, {}, { headers: getAuthHeaders() });
+          } else {
+            await axios.put(`${API}/reconciliation/reject/${id}`, {}, { headers: getAuthHeaders() });
+          }
+          successCount++;
+        } catch (e) {
+          errorCount++;
+        }
+      }
+      
+      toast.success(`${successCount} transacciones procesadas${errorCount > 0 ? `, ${errorCount} errores` : ""}`);
+      setSelectedItems([]);
+      setShowBulkDialog(false);
+      setBulkCategory("");
+      setBulkSubcategory("");
+      fetchPendingData();
+    } catch (error) {
+      toast.error("Error en acción en lote");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const openDetailDialog = (transaction) => {
     setDetailTransaction(transaction);
     setEditForm({
