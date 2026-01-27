@@ -3191,6 +3191,150 @@ async def get_reminders(user: dict = Depends(get_current_user)):
     
     return reminders
 
+# ================= AI CHATBOT =================
+
+class ChatMessage(BaseModel):
+    message: str
+    session_id: Optional[str] = None
+
+class ChatResponse(BaseModel):
+    response: str
+    session_id: str
+
+@api_router.post("/chat", response_model=ChatResponse)
+async def chat_with_ai(
+    chat_message: ChatMessage,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Chat with AI assistant about financial data.
+    The AI has context about your transactions, budget, and financial situation.
+    """
+    if not EMERGENT_LLM_KEY:
+        raise HTTPException(status_code=500, detail="API key no configurada")
+    
+    session_id = chat_message.session_id or f"chat_{user['id']}_{uuid.uuid4().hex[:8]}"
+    
+    try:
+        # Gather user's financial context
+        now = datetime.now(timezone.utc)
+        start_of_month = now.replace(day=1).strftime("%Y-%m-%d")
+        start_of_year = f"{now.year}-01-01"
+        
+        # Get recent transactions
+        recent_transactions = await db.transactions.find(
+            {"user_id": user["id"], "date": {"$gte": start_of_month}},
+            {"_id": 0, "description": 1, "amount": 1, "category": 1, "date": 1}
+        ).sort("date", -1).to_list(50)
+        
+        # Get monthly totals
+        monthly_totals = {}
+        for t in recent_transactions:
+            cat = t.get("category", "otros")
+            monthly_totals[cat] = monthly_totals.get(cat, 0) + t.get("amount", 0)
+        
+        # Get income summary
+        incomes = await db.incomes.find(
+            {"user_id": user["id"], "date": {"$gte": start_of_year}},
+            {"_id": 0}
+        ).to_list(100)
+        total_income = sum(i.get("amount", 0) for i in incomes)
+        
+        # Get credit cards
+        cards = await db.credit_cards.find({"user_id": user["id"]}, {"_id": 0}).to_list(10)
+        total_debt = sum(c.get("current_balance", 0) for c in cards)
+        
+        # Build context for AI
+        financial_context = f"""
+CONTEXTO FINANCIERO DEL USUARIO:
+
+**Presupuesto Mensual (del Excel del usuario):**
+- Ingresos esperados: $12,500/mes ($150,000/año)
+  - Personal: $7,250/mes
+  - APX: $2,500/mes  
+  - USA: $2,750/mes
+
+**Categorías de Presupuesto Personal:**
+{json.dumps({k: {"nombre": v["name"], "presupuesto_mensual": v.get("monthly_budget", 0)} for k, v in BUDGET_CATEGORIES.items()}, indent=2, ensure_ascii=False)}
+
+**Resumen del mes actual ({now.strftime('%B %Y')}):**
+- Gastos por categoría: {json.dumps(monthly_totals, ensure_ascii=False)}
+- Total gastado este mes: ${sum(monthly_totals.values()):,.2f}
+
+**Ingresos registrados este año:** ${total_income:,.2f}
+
+**Tarjetas de crédito:**
+- Total deuda actual: ${total_debt:,.2f}
+- Tarjetas: {', '.join([f"{c['name']} (${c['current_balance']:,.2f})" for c in cards]) if cards else 'Sin tarjetas registradas'}
+
+**Últimas 10 transacciones:**
+{chr(10).join([f"- {t['date']}: {t['description']} - ${t['amount']:,.2f} ({t['category']})" for t in recent_transactions[:10]])}
+
+**Metas financieras:**
+- Gastos fijos: 55-65% del ingreso
+- Ahorro: 10% ($1,250/mes)
+- Inversión: 15% ($1,875/mes)
+"""
+
+        # Create chat with context
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=session_id,
+            system_message=f"""Eres un asistente financiero personal experto en finanzas familiares y leyes tributarias de Ecuador.
+            
+Tu rol es ayudar al usuario a:
+1. Analizar sus gastos y transacciones
+2. Dar consejos para optimizar su presupuesto
+3. Responder preguntas sobre su situación financiera
+4. Sugerir formas de aumentar ahorros y reducir deudas
+5. Explicar temas tributarios del SRI Ecuador
+
+IMPORTANTE:
+- Responde SIEMPRE en español
+- Sé conciso y práctico
+- Usa los datos reales del usuario cuando sea relevante
+- Si no sabes algo específico, pide más detalles
+- No inventes datos que no tienes
+
+{financial_context}
+"""
+        ).with_model("openai", "gpt-5.2")
+        
+        response = await chat.send_message(UserMessage(text=chat_message.message))
+        
+        # Store conversation in database for history
+        await db.chat_history.insert_one({
+            "session_id": session_id,
+            "user_id": user["id"],
+            "user_message": chat_message.message,
+            "ai_response": response,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        })
+        
+        return ChatResponse(response=response, session_id=session_id)
+        
+    except Exception as e:
+        logger.error(f"Chat error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error en el chat: {str(e)}")
+
+@api_router.get("/chat/history")
+async def get_chat_history(
+    session_id: Optional[str] = None,
+    limit: int = 20,
+    user: dict = Depends(get_current_user)
+):
+    """Get chat history for the user"""
+    query = {"user_id": user["id"]}
+    if session_id:
+        query["session_id"] = session_id
+    
+    history = await db.chat_history.find(
+        query,
+        {"_id": 0}
+    ).sort("timestamp", -1).limit(limit).to_list(limit)
+    
+    return {"history": list(reversed(history)), "count": len(history)}
+
 # ================= HEALTH CHECK =================
 
 @api_router.get("/")
