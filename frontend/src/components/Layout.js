@@ -16,7 +16,7 @@ import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import { 
   House, 
   CreditCard, 
-  Upload, 
+  CloudArrowUp, 
   ChartLine, 
   Brain,
   Calculator,
@@ -27,7 +27,6 @@ import {
   CaretRight,
   Airplane,
   Scales,
-  CheckSquare,
   CurrencyDollar,
   X,
   Wallet,
@@ -38,14 +37,13 @@ const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: House, roles: ["admin", "spouse", "accountant"] },
   { path: "/transactions", label: "Transacciones", icon: CreditCard, roles: ["admin", "spouse", "accountant"] },
   { path: "/ingresos", label: "Ingresos", icon: CurrencyDollar, roles: ["admin", "spouse"] },
+  { path: "/cargar", label: "Cargar y Validar", icon: CloudArrowUp, roles: ["admin", "spouse", "accountant"] },
   { path: "/deudas", label: "Deudas y Tarjetas", icon: Wallet, roles: ["admin", "spouse"] },
   { path: "/flujo", label: "Planificación Flujo", icon: CalendarCheck, roles: ["admin", "spouse"] },
-  { path: "/upload", label: "Cargar Datos", icon: Upload, roles: ["admin", "spouse"] },
   { path: "/budget", label: "Mi Presupuesto", icon: ChartLine, roles: ["admin", "spouse"] },
   { path: "/international", label: "Gastos USA", icon: Airplane, roles: ["admin", "spouse", "accountant"] },
   { path: "/predictions", label: "Predicciones AI", icon: Brain, roles: ["admin", "spouse"] },
   // Accountant-only items
-  { path: "/reconciliation", label: "Conciliación", icon: CheckSquare, roles: ["admin", "accountant"] },
   { path: "/sri-limits", label: "Límites SRI", icon: Scales, roles: ["admin", "accountant"] },
   { path: "/accountant", label: "Vista Contadora", icon: Calculator, roles: ["admin", "accountant"] },
 ];
