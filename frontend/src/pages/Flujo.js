@@ -325,7 +325,7 @@ export default function Flujo() {
                           </div>
                           {canEdit && (
                             <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => openEditDialog(payment)} className="h-8 w-8">
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(payment)} className="h-8 w-8">
                                 <Pencil size={14} />
                               </Button>
                               <Button variant="ghost" size="icon" onClick={() => handleDelete(payment.id)} className="h-8 w-8 text-red-500">
