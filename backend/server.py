@@ -1237,32 +1237,30 @@ EXTRAE TODA la información del estado de cuenta en formato JSON:
 
 {
   "card_info": {
-    "bank_name": "nombre del banco",
-    "card_name": "nombre/tipo de tarjeta",
-    "card_number_last4": "últimos 4 dígitos",
-    "statement_date": "YYYY-MM-DD",
-    "due_date": "YYYY-MM-DD fecha de pago",
-    "credit_limit": numero,
-    "available_credit": numero,
-    "current_balance": numero (saldo actual/total a pagar),
-    "minimum_payment": numero (pago mínimo),
-    "apr": numero (tasa de interés anual en porcentaje),
-    "previous_balance": numero,
-    "payments_credits": numero,
-    "purchases_charges": numero
+    "bank_name": "Banco Pichincha" o el nombre del banco,
+    "card_name": "Visa/Mastercard/nombre de tarjeta",
+    "card_number_last4": "últimos 4 dígitos (ej: 3223)",
+    "statement_date": "YYYY-MM-DD (fecha de corte)",
+    "due_date": "YYYY-MM-DD (fecha máxima de pago)",
+    "credit_limit": numero (cupo aprobado),
+    "available_credit": numero (disponible),
+    "current_balance": numero (TOTAL A PAGAR),
+    "minimum_payment": numero (PAGO MÍNIMO),
+    "apr": numero (tasa de interés efectiva anual, ej: 16.77),
+    "previous_balance": numero (saldo anterior),
+    "payments_received": numero (pagos recibidos en el período),
+    "period_charges": numero (consumos/débitos del período)
   },
   "transactions": [
     {
       "date": "YYYY-MM-DD",
-      "description": "descripción de la transacción",
-      "amount": numero (positivo para compras, negativo para pagos/créditos),
-      "establishment": "nombre del comercio si aplica",
-      "category": "alimentacion|salud|educacion|vivienda|vestimenta|suscripciones|turismo|transporte|otros",
+      "description": "descripción completa",
+      "amount": numero positivo para cargos/compras,
+      "establishment": "nombre del comercio",
+      "category": "alimentacion|salud|educacion|vivienda|vestimenta|suscripciones|turismo|transporte|impuestos|otros",
       "is_international": false,
-      "is_subscription": false,
-      "is_deferred": false,
-      "deferred_installments": null,
-      "deferred_remaining": null
+      "is_subscription": false (true si es Netflix, Spotify, Amazon, Disney, HBO, YouTube, Apple Music, iCloud, Google, etc),
+      "is_fee": false (true si es interés, comisión, gestión cobranza, etc)
     }
   ],
   "deferred_purchases": [
@@ -1270,22 +1268,25 @@ EXTRAE TODA la información del estado de cuenta en formato JSON:
       "description": "descripción de la compra diferida",
       "total_amount": numero,
       "monthly_payment": numero (cuota mensual),
-      "remaining_installments": numero (cuotas restantes),
-      "total_installments": numero (total de cuotas)
+      "remaining_installments": numero (cuotas que faltan),
+      "total_installments": numero (total de cuotas originales)
     }
   ]
 }
 
-IMPORTANTE: 
-- Extrae TODAS las transacciones del período
-- Los montos de compras son positivos, pagos/créditos son negativos
-- Identifica la categoría según el tipo de comercio
-- Si es compra internacional, marca is_international: true
-- Si es suscripción (Netflix, Spotify, Amazon Prime, Disney, HBO, YouTube, Apple Music, iCloud, etc), marca is_subscription: true y category: suscripciones
-- Si la transacción es un pago diferido/cuotas, extrae la info en deferred_purchases
-- Busca secciones como "COMPRAS DIFERIDAS", "DIFERIDOS VIGENTES", "CUOTAS PENDIENTES" para extraer los diferidos"""
+REGLAS IMPORTANTES PARA PICHINCHA Y BANCOS ECUATORIANOS:
+- "TOTAL A PAGAR" es el current_balance
+- "PAGO MINIMO" es el minimum_payment  
+- "FECHA MÁXIMA DE PAGO" es el due_date
+- "CUPO APROBADO" es el credit_limit
+- Las fechas en formato DD/MM convertir a YYYY-MM-DD
+- NETFLIX, SPOTIFY, AMAZON PRIME, DISNEY+ son suscripciones (is_subscription: true, category: suscripciones)
+- "SRI PAGOS EN LINEA" categoría: impuestos
+- "INT NORE", "GESTION DE COBRANZA", "CONT_FIN" son fees/intereses (is_fee: true)
+- Buscar sección "DIFERIDOS" o "COMPRAS A PLAZOS" para deferred_purchases
+- Si hay montos negativos (con signo -) son pagos/abonos, NO incluir en transactions"""
             
-            user_prompt = "Analiza este estado de cuenta bancario y extrae TODA la información de la tarjeta, TODAS las transacciones del período, y TODOS los diferidos/cuotas pendientes."
+            user_prompt = "Analiza este estado de cuenta bancario ecuatoriano y extrae TODA la información en formato JSON. Incluye la información de la tarjeta, TODAS las transacciones del período, y cualquier compra diferida/a plazos."
         else:
             system_prompt = """Eres un experto en OCR y análisis de recibos/facturas ecuatorianas.
             Extrae la información del recibo y clasifícala según categorías SRI Ecuador.
