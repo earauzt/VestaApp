@@ -8,6 +8,7 @@ from passlib.context import CryptContext
 from datetime import datetime, timezone
 import os
 import logging
+import certifi
 
 logger = logging.getLogger(__name__)
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
