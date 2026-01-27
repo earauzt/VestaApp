@@ -958,7 +958,7 @@ export default function CargarValidar() {
                               <p className="text-sm text-muted-foreground truncate">{t.description}</p>
                               <div className="flex items-center gap-2 mt-1 text-xs flex-wrap">
                                 <span>{t.date}</span>
-                                <Badge variant="secondary">{CATEGORIES[t.category]?.name || t.category}</Badge>
+                                <Badge variant="secondary">{PERSONAL_CATEGORIES[t.category]?.name || t.category}</Badge>
                               </div>
                             </div>
                           </div>
