@@ -198,13 +198,32 @@ BUDGET_CATEGORIES = {
             "Celular": 80,
             "Agua": 60,
             "Clubes": 275,
-            "Internet": 50
+            "Internet": 50,
+            "Suscripciones": 0
         },
         "monthly_budget": 1280,
         "annual_budget": 15360,
         "type": "fixed",
         "payment_methods": ["transferencia", "tarjeta"],
         "is_recurring": True
+    },
+    "suscripciones": {
+        "name": "Suscripciones",
+        "subcategories": {
+            "Netflix": 0,
+            "Spotify": 0,
+            "Amazon Prime": 0,
+            "Disney+": 0,
+            "YouTube Premium": 0,
+            "iCloud": 0,
+            "Otras": 0
+        },
+        "monthly_budget": 0,
+        "annual_budget": 0,
+        "type": "recurring",
+        "payment_methods": ["tarjeta"],
+        "is_recurring": True,
+        "tags": ["recurrente", "suscripcion"]
     },
     "empleados": {
         "name": "Empleados",
@@ -321,6 +340,14 @@ BUDGET_CATEGORIES = {
         "is_recurring": True
     }
 }
+
+# Known subscription services to auto-detect
+SUBSCRIPTION_SERVICES = [
+    "netflix", "spotify", "amazon prime", "disney", "hbo", "youtube", 
+    "apple music", "icloud", "google one", "dropbox", "adobe", 
+    "microsoft 365", "office 365", "chatgpt", "openai", "canva",
+    "audible", "kindle", "paramount", "star+", "crunchyroll"
+]
 
 # Income structure from Excel (FLUJO AÑO 2026) - ESTIMATED/VARIABLE
 INCOME_STRUCTURE = {
