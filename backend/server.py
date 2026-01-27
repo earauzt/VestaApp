@@ -1221,17 +1221,17 @@ async def process_image_with_ai(file_path: str, document_type: str = "receipt") 
     try:
         ext = os.path.splitext(file_path)[1].lower()
         
-        # For PDFs, extract text first using pdfplumber for more reliable processing
+        # For PDFs, try to extract text first using pdfplumber
         if ext == ".pdf" and document_type == "bank_statement":
             logger.info(f"Processing bank statement PDF: {file_path}")
             extracted_text = extract_text_from_pdf(file_path)
             
-            if not extracted_text or len(extracted_text) < 100:
-                logger.warning("PDF text extraction returned minimal content, falling back to image mode")
-            else:
-                logger.info(f"Extracted {len(extracted_text)} characters from PDF")
-                # Use text-based processing for bank statements
+            # Only use text-based processing if we got substantial text
+            if extracted_text and len(extracted_text) > 500:
+                logger.info(f"Using text-based processing. Extracted {len(extracted_text)} characters")
                 return await process_bank_statement_text(extracted_text)
+            else:
+                logger.info("PDF appears to be image-based (scanned). Using Gemini vision for OCR.")
         
         # Determine mime type for image/fallback processing
         if ext == ".pdf":
@@ -1243,70 +1243,100 @@ async def process_image_with_ai(file_path: str, document_type: str = "receipt") 
         else:
             mime_type = "image/jpeg"
         
-        # Different prompts based on document type
+        # Enhanced prompt specifically for Pacificard and Ecuadorian bank statements
         if document_type == "bank_statement":
-            system_prompt = """Eres un experto en análisis de estados de cuenta bancarios de Ecuador (Pichincha, Pacificard, Diners, Produbanco, Guayaquil).
-            
-EXTRAE TODA la información del estado de cuenta en formato JSON:
+            system_prompt = """Eres un experto en OCR y análisis de estados de cuenta bancarios de Ecuador.
+Este documento puede ser un PDF escaneado o imagen de un estado de cuenta de Pacificard, Pichincha, Diners, Produbanco o Guayaquil.
 
+EXTRAE TODA la información del estado de cuenta en formato JSON VÁLIDO.
+
+INSTRUCCIONES ESPECÍFICAS PARA PACIFICARD:
+- "Deuda Total a la fecha corte" o "Valor Monetario USS" = current_balance
+- "Total a pagar de contado" o "PAGO SUGERIDO" = suggested_payment
+- "Mínimo a pagar" = minimum_payment
+- "Fecha máximo de pago sin recargos" = due_date
+- "Cupo Autorizado" = credit_limit
+- "Disponible" = available_credit
+- "Tasa de interés efectiva anual" = apr
+- "Saldo Diferido Actual" = deferred_balance
+- "Saldo Rotativo Actual" = rotative_balance
+- Buscar número de tarjeta formato XXXX-XXXX-XXXX-XXXX o últimos 4 dígitos
+- Buscar "BLACK", "PLATINUM", "GOLD" para tipo de tarjeta
+
+FORMATO JSON REQUERIDO:
 {
   "card_info": {
-    "bank_name": "Banco Pichincha" o el nombre del banco,
-    "card_name": "Visa/Mastercard/nombre de tarjeta",
-    "card_number_last4": "últimos 4 dígitos (ej: 3223)",
-    "statement_date": "YYYY-MM-DD (fecha de corte)",
-    "due_date": "YYYY-MM-DD (fecha máxima de pago)",
-    "credit_limit": numero (cupo aprobado),
-    "available_credit": numero (disponible),
-    "current_balance": numero (TOTAL A PAGAR),
-    "minimum_payment": numero (PAGO MÍNIMO),
-    "apr": numero (tasa de interés efectiva anual, ej: 16.77),
-    "previous_balance": numero (saldo anterior),
-    "payments_received": numero (pagos recibidos en el período),
-    "period_charges": numero (consumos/débitos del período)
+    "bank_name": "Pacificard" (o banco detectado),
+    "card_name": "Black/Platinum/Gold/etc",
+    "card_number_last4": "últimos 4 dígitos",
+    "statement_date": "YYYY-MM-DD",
+    "due_date": "YYYY-MM-DD",
+    "credit_limit": numero,
+    "available_credit": numero,
+    "current_balance": numero,
+    "minimum_payment": numero,
+    "suggested_payment": numero,
+    "apr": numero,
+    "previous_balance": numero,
+    "deferred_balance": numero,
+    "rotative_balance": numero
   },
   "transactions": [
     {
       "date": "YYYY-MM-DD",
-      "description": "descripción completa",
-      "amount": numero positivo para cargos/compras,
-      "establishment": "nombre del comercio",
-      "category": "alimentacion|salud|educacion|vivienda|vestimenta|suscripciones|turismo|transporte|impuestos|otros",
+      "description": "descripción del consumo",
+      "amount": numero positivo,
+      "establishment": "nombre comercio",
+      "category": "alimentacion|salud|educacion|vivienda|vestimenta|suscripciones|turismo|transporte|entretenimiento|otros",
       "is_international": false,
-      "is_subscription": false (true si es Netflix, Spotify, Amazon, Disney, HBO, YouTube, Apple Music, iCloud, Google, etc),
-      "is_fee": false (true si es interés, comisión, gestión cobranza, etc)
+      "is_subscription": false,
+      "is_fee": false
     }
   ],
   "deferred_purchases": [
     {
-      "description": "descripción de la compra diferida",
+      "description": "descripción de compra diferida",
       "total_amount": numero,
-      "monthly_payment": numero (cuota mensual),
-      "remaining_installments": numero (cuotas que faltan),
-      "total_installments": numero (total de cuotas originales)
+      "monthly_payment": numero,
+      "current_installment": numero,
+      "remaining_installments": numero,
+      "total_installments": numero
     }
   ]
 }
 
-REGLAS IMPORTANTES PARA PICHINCHA Y BANCOS ECUATORIANOS:
-- "TOTAL A PAGAR" es el current_balance
-- "PAGO MINIMO" es el minimum_payment  
-- "FECHA MÁXIMA DE PAGO" es el due_date
-- "CUPO APROBADO" es el credit_limit
-- Las fechas en formato DD/MM convertir a YYYY-MM-DD
-- NETFLIX, SPOTIFY, AMAZON PRIME, DISNEY+ son suscripciones (is_subscription: true, category: suscripciones)
-- "SRI PAGOS EN LINEA" categoría: impuestos
-- "INT NORE", "GESTION DE COBRANZA", "CONT_FIN" son fees/intereses (is_fee: true)
-- Buscar sección "DIFERIDOS" o "COMPRAS A PLAZOS" para deferred_purchases
-- Si hay montos negativos (con signo -) son pagos/abonos, NO incluir en transactions"""
+CATEGORIZACIÓN AUTOMÁTICA:
+- SUPERMAXI, MEGAMAXI, KORTES, RED CRAB, DUNKIN, CASADELI, CIABATTA, MIGAJAS, ROGERS, LA COSTENITA, NELSON MARKET = alimentacion
+- DISNEY PLUS, APPLE.COM/BILL, NETFLIX, SPOTIFY, HBO, YOUTUBE PREMIUM = suscripciones (is_subscription: true)
+- DIFARE, COMFARPI, FYBECA, MEDICITY = salud
+- ESTACION DE SERVICIO, PRIMAX, PDV, TEXACO = transporte
+- ZARA, H&M, ETAFASHION, TENIS MARKET, FOREVERSOFT = vestimenta
+- SUPERCINES, RIVER BEACH TENNIS, DIAMOND CLUB = entretenimiento
+- CONECEL, CLARO, MOVISTAR, CNT = vivienda
+- AMAGUA, CISNERGIA, CNEL, LUZ = vivienda
+- GESTION DE COBRANZA, INTERES, CONTRIB.FINANC.SOLCA, COMISION = is_fee: true
+- Consumos marcados como EXTERIOR = is_international: true
+- IVA SERVICIO DIGITAL = is_international: true, is_fee: false
+
+REGLAS IMPORTANTES:
+- Convertir fechas: ENE=01, FEB=02, MAR=03, ABR=04, MAY=05, JUN=06, JUL=07, AGO=08, SEP=09, OCT=10, NOV=11, DIC=12
+- El año actual es 2025/2026
+- NO incluir pagos (líneas con "SU PAGO" o montos negativos)
+- Para diferidos tipo "PACIFICARD EFECTIVO BANCA" o marcados como "DIF", extraer cuota mensual
+- Buscar sección "DETALLE DE MOVIMIENTOS DEL PERÍODO" para transacciones
+- Cada transacción debe tener amount > 0"""
             
-            user_prompt = "Analiza este estado de cuenta bancario ecuatoriano y extrae TODA la información en formato JSON. Incluye la información de la tarjeta, TODAS las transacciones del período, y cualquier compra diferida/a plazos."
+            user_prompt = """Analiza este estado de cuenta bancario ecuatoriano (puede ser Pacificard, Pichincha u otro banco).
+Extrae TODA la información: datos de la tarjeta, TODAS las transacciones del período, y compras diferidas.
+Responde ÚNICAMENTE con JSON válido, sin explicaciones adicionales."""
         else:
             system_prompt = """Eres un experto en OCR y análisis de recibos/facturas ecuatorianas.
             Extrae la información del recibo y clasifícala según categorías SRI Ecuador.
             Responde SOLO en formato JSON: 
             {"transactions": [{"amount": numero, "description": "...", "category": "...", "subcategory": "...", "establishment": "...", "date": "YYYY-MM-DD"}]}"""
             user_prompt = "Extrae toda la información de este recibo/factura ecuatoriana"
+        
+        logger.info(f"Sending file to Gemini for OCR processing: {file_path}")
         
         chat = LlmChat(
             api_key=EMERGENT_LLM_KEY,
@@ -1324,15 +1354,25 @@ REGLAS IMPORTANTES PARA PICHINCHA Y BANCOS ECUATORIANOS:
             file_contents=[file_content]
         ))
         
+        logger.info(f"Gemini response received, length: {len(response)}")
+        
         # Parse JSON from response
         json_match = re.search(r'\{[\s\S]*\}', response)
         if json_match:
             try:
-                return json.loads(json_match.group())
-            except json.JSONDecodeError:
+                result = json.loads(json_match.group())
+                logger.info(f"Successfully parsed JSON - card_info: {bool(result.get('card_info'))}, transactions: {len(result.get('transactions', []))}")
+                return result
+            except json.JSONDecodeError as e:
+                logger.error(f"JSON decode error: {e}")
                 # Try to fix common JSON issues
-                fixed = json_match.group().replace("'", '"')
-                return json.loads(fixed)
+                try:
+                    fixed = json_match.group().replace("'", '"')
+                    return json.loads(fixed)
+                except:
+                    pass
+        
+        logger.warning("No valid JSON found in Gemini response")
         return {"transactions": [], "card_info": None}
     except Exception as e:
         logger.error(f"Image processing error: {e}")
