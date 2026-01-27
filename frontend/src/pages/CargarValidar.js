@@ -99,6 +99,8 @@ export default function CargarValidar() {
   const [editForm, setEditForm] = useState({});
   const [showDuplicateDialog, setShowDuplicateDialog] = useState(false);
   const [selectedPair, setSelectedPair] = useState(null);
+  const [processingStatus, setProcessingStatus] = useState("");
+  const [cardResult, setCardResult] = useState(null);
 
   useEffect(() => {
     if (activeTab === "validate") {
@@ -121,6 +123,18 @@ export default function CargarValidar() {
     }
   };
 
+  // Detect if file is a bank statement (PDF with certain keywords in name)
+  const isBankStatement = (file) => {
+    const name = file.name.toLowerCase();
+    return (
+      (name.includes("estado") || name.includes("statement") || 
+       name.includes("pichincha") || name.includes("pacificard") || 
+       name.includes("diners") || name.includes("produbanco") ||
+       name.includes("guayaquil") || name.includes("tarjeta")) &&
+      (name.endsWith('.pdf') || name.endsWith('.png') || name.endsWith('.jpg') || name.endsWith('.jpeg'))
+    );
+  };
+
   const handleMultipleFilesUpload = async () => {
     if (selectedFiles.length === 0) {
       toast.error("Selecciona al menos un archivo");
@@ -129,19 +143,64 @@ export default function CargarValidar() {
 
     setLoading(true);
     setResult(null);
+    setCardResult(null);
+    
     try {
-      const formData = new FormData();
-      selectedFiles.forEach(file => {
-        formData.append("files", file);
-      });
+      // Separate bank statements from regular receipts
+      const bankStatements = selectedFiles.filter(f => isBankStatement(f));
+      const receipts = selectedFiles.filter(f => !isBankStatement(f) && !f.name.endsWith('.xlsx') && !f.name.endsWith('.xls'));
+      
+      let allTransactions = [];
+      let cardInfo = null;
+      
+      // Process bank statements first (one by one)
+      for (const file of bankStatements) {
+        setProcessingStatus(`Procesando estado de cuenta: ${file.name}...`);
+        const formData = new FormData();
+        formData.append("file", file);
+        
+        try {
+          const response = await axios.post(`${API}/process/bank-statement`, formData, {
+            headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" }
+          });
+          
+          if (response.data.data?.card_info) {
+            cardInfo = response.data.data.card_info;
+            setCardResult(cardInfo);
+            toast.success(`Tarjeta actualizada: ${cardInfo.name || cardInfo.bank}`);
+          }
+          if (response.data.data?.transactions) {
+            allTransactions = [...allTransactions, ...response.data.data.transactions];
+          }
+        } catch (err) {
+          toast.error(`Error en ${file.name}: ${err.response?.data?.detail || err.message}`);
+        }
+      }
+      
+      // Process regular receipts
+      if (receipts.length > 0) {
+        setProcessingStatus(`Procesando ${receipts.length} recibos...`);
+        const formData = new FormData();
+        receipts.forEach(file => formData.append("files", file));
+        
+        const response = await axios.post(`${API}/process/receipts-multiple`, formData, {
+          headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" }
+        });
+        
+        if (response.data.transactions) {
+          allTransactions = [...allTransactions, ...response.data.transactions];
+        }
+      }
 
-      const response = await axios.post(`${API}/process/receipts-multiple`, formData, {
-        headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" }
+      setResult({
+        message: `Procesados ${selectedFiles.length} archivos`,
+        transactions: allTransactions,
+        card_info: cardInfo
       });
-
-      setResult(response.data);
-      toast.success(`Procesados ${selectedFiles.length} archivos`);
+      
+      toast.success(`${allTransactions.length} transacciones extraídas`);
       setSelectedFiles([]);
+      setProcessingStatus("");
       
       // Switch to validation tab and refresh
       setTimeout(() => {
@@ -152,6 +211,7 @@ export default function CargarValidar() {
       toast.error(error.response?.data?.detail || "Error procesando archivos");
     } finally {
       setLoading(false);
+      setProcessingStatus("");
     }
   };
 
