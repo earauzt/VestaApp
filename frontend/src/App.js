@@ -6,7 +6,7 @@ import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import Transactions from "./pages/Transactions";
 import CargarValidar from "./pages/CargarValidar";
-import Budget from "./pages/Budget";
+import PresupuestoEditable from "./pages/PresupuestoEditable";
 import Predictions from "./pages/Predictions";
 import AccountantView from "./pages/AccountantView";
 import InternationalExpenses from "./pages/InternationalExpenses";
