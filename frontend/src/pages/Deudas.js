@@ -49,6 +49,7 @@ export default function Deudas() {
   const [cards, setCards] = useState([]);
   const [summary, setSummary] = useState(null);
   const [snowballPlan, setSnowballPlan] = useState(null);
+  const [deferredPayments, setDeferredPayments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
