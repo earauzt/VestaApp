@@ -305,14 +305,24 @@ export default function Deudas() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2 mb-4">
+        <TabsList className="grid w-full grid-cols-3 mb-4">
           <TabsTrigger value="cards" className="gap-2">
             <CreditCardIcon size={18} />
-            Mis Tarjetas
+            <span className="hidden sm:inline">Mis Tarjetas</span>
+            <span className="sm:hidden">Tarjetas</span>
+          </TabsTrigger>
+          <TabsTrigger value="diferidos" className="gap-2">
+            <CalendarBlank size={18} />
+            <span className="hidden sm:inline">Diferidos</span>
+            <span className="sm:hidden">Cuotas</span>
+            {deferredPayments?.count > 0 && (
+              <Badge variant="secondary" className="ml-1">{deferredPayments.count}</Badge>
+            )}
           </TabsTrigger>
           <TabsTrigger value="plan" className="gap-2">
             <Fire size={18} />
-            Plan Avalanche
+            <span className="hidden sm:inline">Plan Avalanche</span>
+            <span className="sm:hidden">Plan</span>
           </TabsTrigger>
         </TabsList>
 
