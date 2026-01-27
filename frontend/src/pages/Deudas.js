@@ -978,6 +978,106 @@ export default function Deudas() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Deferred Payment Dialog */}
+      <Dialog open={deferredDialogOpen} onOpenChange={setDeferredDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>
+              {editingDeferred ? "Editar Diferido" : "Nuevo Diferido"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingDeferred ? "Corrige los datos del pago diferido" : "Añade una compra a cuotas manualmente"}
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleDeferredSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Descripción</Label>
+              <Input
+                value={deferredForm.description}
+                onChange={(e) => setDeferredForm({ ...deferredForm, description: e.target.value })}
+                placeholder="Ej: Electrodoméstico, Muebles..."
+                required
+              />
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Monto Total</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={deferredForm.total_amount}
+                  onChange={(e) => setDeferredForm({ ...deferredForm, total_amount: e.target.value })}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Cuota Mensual</Label>
+                <Input
+                  type="number"
+                  step="0.01"
+                  value={deferredForm.monthly_payment}
+                  onChange={(e) => setDeferredForm({ ...deferredForm, monthly_payment: e.target.value })}
+                  placeholder="0.00"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Cuotas Restantes</Label>
+                <Input
+                  type="number"
+                  value={deferredForm.remaining_installments}
+                  onChange={(e) => setDeferredForm({ ...deferredForm, remaining_installments: e.target.value })}
+                  placeholder="0"
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Total de Cuotas</Label>
+                <Input
+                  type="number"
+                  value={deferredForm.total_installments}
+                  onChange={(e) => setDeferredForm({ ...deferredForm, total_installments: e.target.value })}
+                  placeholder="0"
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Tarjeta (opcional)</Label>
+              <Select 
+                value={deferredForm.card_name} 
+                onValueChange={(v) => setDeferredForm({ ...deferredForm, card_name: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar tarjeta" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="">Sin tarjeta</SelectItem>
+                  {cards.map(card => (
+                    <SelectItem key={card.id} value={card.name}>{card.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setDeferredDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit">
+                {editingDeferred ? "Guardar Cambios" : "Añadir Diferido"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
