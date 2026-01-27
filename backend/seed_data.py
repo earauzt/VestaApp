@@ -207,6 +207,33 @@ async def seed_database(mongo_url: str, db_name: str):
             )
             logger.info(f"ℹ️ Usuario admin ya existe: {ADMIN_USER['email']} (ID: {user_id})")
         
+        # 1.5 Crear usuarios adicionales (KP y Contadora)
+        for add_user in ADDITIONAL_USERS:
+            existing = await db.users.find_one({"email": add_user["email"]})
+            if not existing:
+                user_doc = {
+                    "id": add_user["id"],
+                    "email": add_user["email"],
+                    "name": add_user["name"],
+                    "role": add_user["role"],
+                    "password": pwd_context.hash(add_user["password"]),
+                    "hashed_password": pwd_context.hash(add_user["password"]),
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.users.insert_one(user_doc)
+                logger.info(f"✅ Usuario creado: {add_user['name']} ({add_user['role']})")
+            else:
+                # Actualizar nombre y password
+                await db.users.update_one(
+                    {"email": add_user["email"]},
+                    {"$set": {
+                        "name": add_user["name"],
+                        "password": pwd_context.hash(add_user["password"]),
+                        "hashed_password": pwd_context.hash(add_user["password"])
+                    }}
+                )
+                logger.info(f"ℹ️ Usuario actualizado: {add_user['name']} ({add_user['role']})")
+        
         # 2. Crear tarjetas si no existen
         for card in CREDIT_CARDS:
             card_data = {**card, "user_id": user_id}  # Usar el user_id correcto
