@@ -41,7 +41,9 @@ const PAYMENT_METHODS = [
 ];
 
 const CATEGORIES = [
+  { value: "tarjeta_credito", label: "Pago Tarjeta de Crédito" },
   { value: "servicios_basicos", label: "Servicios Básicos" },
+  { value: "suscripciones", label: "Suscripciones" },
   { value: "empleados", label: "Empleados" },
   { value: "colegio_actividades", label: "Colegio y Actividades" },
   { value: "seguros", label: "Seguros" },
@@ -50,7 +52,8 @@ const CATEGORIES = [
   { value: "carros", label: "Carros" },
   { value: "usa", label: "USA" },
   { value: "viajes", label: "Viajes" },
-  { value: "gastos_libres", label: "Gastos Libres" }
+  { value: "gastos_libres", label: "Gastos Libres" },
+  { value: "diferido", label: "Pago Diferido" }
 ];
 
 export default function Flujo() {
