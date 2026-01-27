@@ -22,6 +22,24 @@ ADMIN_USER = {
 }
 ADMIN_PASSWORD = "password123"
 
+# Datos de usuarios adicionales
+ADDITIONAL_USERS = [
+    {
+        "id": "user-kp-001",
+        "email": "esposa@finanzas.com",
+        "name": "KP",
+        "role": "spouse",
+        "password": "esposa123"
+    },
+    {
+        "id": "user-contadora-001",
+        "email": "contadora@finanzas.com",
+        "name": "María Contadora",
+        "role": "accountant",
+        "password": "contadora123"
+    }
+]
+
 # Datos de las 4 tarjetas
 CREDIT_CARDS = [
     {
