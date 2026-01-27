@@ -937,16 +937,69 @@ export default function CargarValidar() {
 
                     {/* Transaction List */}
                     {pendingTransactions.length > 0 && (
-                      <div className="flex justify-between items-center mb-2">
-                        <Button variant="outline" size="sm" onClick={() => setSelectedItems(pendingTransactions.map(t => t.id))}>
-                          Seleccionar todas
-                        </Button>
-                        <span className="text-sm text-muted-foreground">{pendingTransactions.length} pendiente(s)</span>
-                      </div>
+                      <>
+                        {/* Search Filter */}
+                        <div className="flex flex-col sm:flex-row gap-3 mb-4">
+                          <div className="flex-1 relative">
+                            <Input
+                              placeholder="Buscar transacción... (ej: uber, netflix, supermaxi)"
+                              value={searchFilter}
+                              onChange={(e) => setSearchFilter(e.target.value)}
+                              className="pl-10"
+                              data-testid="search-filter"
+                            />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🔍</span>
+                          </div>
+                          {selectedItems.length > 0 && (
+                            <Button 
+                              onClick={() => setShowBulkDialog(true)}
+                              className="bg-primary"
+                            >
+                              <CheckSquare size={16} className="mr-2" />
+                              Acción en lote ({selectedItems.length})
+                            </Button>
+                          )}
+                        </div>
+                        
+                        <div className="flex justify-between items-center mb-2">
+                          <div className="flex gap-2">
+                            <Button variant="outline" size="sm" onClick={() => {
+                              const filtered = pendingTransactions
+                                .filter(t => !searchFilter || 
+                                  t.description?.toLowerCase().includes(searchFilter.toLowerCase()) ||
+                                  t.establishment?.toLowerCase().includes(searchFilter.toLowerCase()))
+                                .map(t => t.id);
+                              setSelectedItems(filtered);
+                            }}>
+                              Seleccionar {searchFilter ? "filtradas" : "todas"}
+                            </Button>
+                            {selectedItems.length > 0 && (
+                              <Button variant="ghost" size="sm" onClick={() => setSelectedItems([])}>
+                                Deseleccionar
+                              </Button>
+                            )}
+                          </div>
+                          <span className="text-sm text-muted-foreground">
+                            {searchFilter 
+                              ? `${pendingTransactions.filter(t => 
+                                  t.description?.toLowerCase().includes(searchFilter.toLowerCase()) ||
+                                  t.establishment?.toLowerCase().includes(searchFilter.toLowerCase())
+                                ).length} de ${pendingTransactions.length}`
+                              : `${pendingTransactions.length} pendiente(s)`
+                            }
+                          </span>
+                        </div>
+                      </>
                     )}
 
                     <div className="space-y-2">
-                      {pendingTransactions.map((t, index) => (
+                      {pendingTransactions
+                        .filter(t => !searchFilter || 
+                          t.description?.toLowerCase().includes(searchFilter.toLowerCase()) ||
+                          t.establishment?.toLowerCase().includes(searchFilter.toLowerCase()) ||
+                          t.category?.toLowerCase().includes(searchFilter.toLowerCase())
+                        )
+                        .map((t, index) => (
                         <motion.div
                           key={t.id}
                           initial={{ opacity: 0, x: -10 }}
