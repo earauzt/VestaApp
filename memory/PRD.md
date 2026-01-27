@@ -103,8 +103,15 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
 | Método | Endpoint | Descripción |
 |--------|----------|-------------|
 | POST | /api/auth/login | Autenticación |
-| POST | /api/chat | Chatbot OpenAI |
-| GET | /api/budget/categories | Categorías del presupuesto |
+| POST | /api/chatbot | Chatbot OpenAI |
+| POST | /api/process/bank-statement | Procesar estado de cuenta PDF (OCR mejorado) |
+| POST | /api/process/receipt | Procesar recibo/factura |
+| GET | /api/budget/config | Obtener presupuesto editable |
+| POST | /api/budget/config | Guardar presupuesto editable |
+| GET | /api/deferred-payments | Listar pagos diferidos |
+| POST | /api/deferred-payments | Crear pago diferido |
+| PUT | /api/deferred-payments/{id} | Editar pago diferido |
+| DELETE | /api/deferred-payments/{id} | Eliminar pago diferido |
 | GET | /api/reconciliation/pending | Transacciones por validar |
 | PUT | /api/reconciliation/approve/{id} | Aprobar transacción |
 | GET | /api/credit-cards | Lista tarjetas |
