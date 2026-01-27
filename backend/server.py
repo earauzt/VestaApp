@@ -1427,6 +1427,160 @@ async def process_multiple_receipts(
         "errors": errors
     }
 
+@api_router.post("/process/bank-statement")
+async def process_bank_statement(
+    file: UploadFile = File(...),
+    user: dict = Depends(get_current_user)
+):
+    """
+    Process bank/credit card statement PDF or image.
+    Extracts: card info (balance, minimum payment, APR, dates) AND all transactions.
+    """
+    temp_dir = tempfile.mkdtemp()
+    file_path = os.path.join(temp_dir, file.filename)
+    
+    try:
+        async with aiofiles.open(file_path, 'wb') as f:
+            content = await file.read()
+            await f.write(content)
+        
+        # Process with AI specifically for bank statements
+        result = await process_image_with_ai(file_path, document_type="bank_statement")
+        
+        response_data = {
+            "card_info": None,
+            "card_updated": False,
+            "transactions_created": 0,
+            "transactions": []
+        }
+        
+        # Process card info if found
+        card_info = result.get("card_info")
+        if card_info and card_info.get("current_balance"):
+            # Try to find existing card or create new one
+            bank_name = card_info.get("bank_name", "").lower()
+            card_number = card_info.get("card_number_last4", "")
+            
+            # Search for existing card
+            existing_card = None
+            if bank_name:
+                existing_card = await db.credit_cards.find_one({
+                    "user_id": user["id"],
+                    "$or": [
+                        {"name": {"$regex": bank_name, "$options": "i"}},
+                        {"last_four_digits": card_number}
+                    ]
+                })
+            
+            if existing_card:
+                # Update existing card with new info
+                update_data = {
+                    "current_balance": card_info.get("current_balance", existing_card.get("current_balance", 0)),
+                    "minimum_payment": card_info.get("minimum_payment", existing_card.get("minimum_payment", 0)),
+                    "credit_limit": card_info.get("credit_limit", existing_card.get("credit_limit", 0)),
+                    "available_credit": card_info.get("available_credit"),
+                    "statement_date": card_info.get("statement_date"),
+                    "due_date": card_info.get("due_date"),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+                if card_info.get("apr"):
+                    update_data["apr"] = card_info["apr"]
+                
+                await db.credit_cards.update_one(
+                    {"id": existing_card["id"]},
+                    {"$set": update_data}
+                )
+                response_data["card_updated"] = True
+                response_data["card_info"] = {**existing_card, **update_data, "_id": None}
+            else:
+                # Create new card
+                new_card_id = str(uuid.uuid4())
+                new_card = {
+                    "id": new_card_id,
+                    "user_id": user["id"],
+                    "name": card_info.get("card_name") or card_info.get("bank_name", "Tarjeta Importada"),
+                    "bank": card_info.get("bank_name", ""),
+                    "last_four_digits": card_number,
+                    "credit_limit": card_info.get("credit_limit", 0),
+                    "current_balance": card_info.get("current_balance", 0),
+                    "minimum_payment": card_info.get("minimum_payment", 0),
+                    "apr": card_info.get("apr", 0),
+                    "statement_date": card_info.get("statement_date"),
+                    "due_date": card_info.get("due_date"),
+                    "available_credit": card_info.get("available_credit"),
+                    "currency": "USD",
+                    "is_international": False,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.credit_cards.insert_one(new_card)
+                response_data["card_info"] = {k: v for k, v in new_card.items() if k != "_id"}
+                response_data["card_updated"] = True
+        
+        # Process transactions
+        transactions = result.get("transactions", [])
+        created_transactions = []
+        
+        for t in transactions:
+            amount = abs(t.get("amount", 0))  # Always positive for expenses
+            if amount == 0:
+                continue
+                
+            is_payment = t.get("amount", 0) < 0 or "pago" in t.get("description", "").lower()
+            
+            if is_payment:
+                # This is a payment to the card, skip or handle differently
+                continue
+            
+            date = t.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+            establishment = t.get("establishment", t.get("description", "")[:50])
+            description = t.get("description", "")
+            
+            # Check for duplicates
+            duplicates = await find_potential_duplicates(user["id"], amount, date, establishment, description)
+            
+            transaction_id = str(uuid.uuid4())
+            doc = {
+                "id": transaction_id,
+                "user_id": user["id"],
+                "amount": amount,
+                "description": description,
+                "category": t.get("category", "otros"),
+                "subcategory": t.get("subcategory", "Varios"),
+                "date": date,
+                "transaction_type": "expense",
+                "establishment": establishment,
+                "is_international": t.get("is_international", False),
+                "payment_method": "tarjeta",
+                "card_name": card_info.get("card_name") or card_info.get("bank_name") if card_info else None,
+                "ai_classified": True,
+                "status": TransactionStatus.DUPLICATE_SUSPECT if duplicates else TransactionStatus.PENDING_REVIEW,
+                "source_type": SourceType.BANK_STATEMENT,
+                "duplicate_of": duplicates[0]["transaction"]["id"] if duplicates else None,
+                "match_confidence": duplicates[0]["confidence"] if duplicates else None,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+                "source_file": file.filename
+            }
+            await db.transactions.insert_one(doc)
+            created_transactions.append({k: v for k, v in doc.items() if k != "_id"})
+        
+        response_data["transactions_created"] = len(created_transactions)
+        response_data["transactions"] = created_transactions
+        
+        return {
+            "message": f"Estado de cuenta procesado: {len(created_transactions)} transacciones extraídas",
+            "data": response_data,
+            "raw_extraction": result if not created_transactions else None
+        }
+        
+    except Exception as e:
+        logger.error(f"Bank statement processing error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error procesando estado de cuenta: {str(e)}")
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        if os.path.exists(temp_dir):
+            os.rmdir(temp_dir)
+
 @api_router.get("/transactions/international")
 async def get_international_transactions(
     user: dict = Depends(get_current_user)
