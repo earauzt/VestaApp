@@ -1535,6 +1535,43 @@ async def process_bank_statement(
                 )
                 response_data["card_updated"] = True
                 response_data["card_info"] = {**existing_card, **update_data, "_id": None}
+                
+                # Create scheduled payment in flow for card payment
+                if card_info.get("due_date") and card_info.get("current_balance"):
+                    due_date = card_info["due_date"]
+                    try:
+                        due_day = int(due_date.split("-")[2]) if "-" in due_date else 15
+                    except:
+                        due_day = 15
+                    
+                    # Check if payment already exists for this card this month
+                    existing_payment = await db.scheduled_payments.find_one({
+                        "user_id": user["id"],
+                        "card_id": existing_card["id"],
+                        "month": datetime.now().month
+                    })
+                    
+                    if not existing_payment:
+                        payment_doc = {
+                            "id": str(uuid.uuid4()),
+                            "user_id": user["id"],
+                            "card_id": existing_card["id"],
+                            "description": f"Pago Tarjeta {existing_card['name']}",
+                            "amount": card_info.get("current_balance", 0),
+                            "minimum_amount": card_info.get("minimum_payment", 0),
+                            "due_day": due_day,
+                            "due_date": due_date,
+                            "month": datetime.now().month,
+                            "year": datetime.now().year,
+                            "payment_method": "transferencia",
+                            "category": "tarjeta_credito",
+                            "is_recurring": True,
+                            "is_card_payment": True,
+                            "status": "pending",
+                            "created_at": datetime.now(timezone.utc).isoformat()
+                        }
+                        await db.scheduled_payments.insert_one(payment_doc)
+                        response_data["payment_scheduled"] = True
             else:
                 # Create new card
                 new_card_id = str(uuid.uuid4())
@@ -1558,6 +1595,59 @@ async def process_bank_statement(
                 await db.credit_cards.insert_one(new_card)
                 response_data["card_info"] = {k: v for k, v in new_card.items() if k != "_id"}
                 response_data["card_updated"] = True
+                
+                # Create scheduled payment for new card
+                if card_info.get("due_date") and card_info.get("current_balance"):
+                    due_date = card_info["due_date"]
+                    try:
+                        due_day = int(due_date.split("-")[2]) if "-" in due_date else 15
+                    except:
+                        due_day = 15
+                    
+                    payment_doc = {
+                        "id": str(uuid.uuid4()),
+                        "user_id": user["id"],
+                        "card_id": new_card_id,
+                        "description": f"Pago Tarjeta {new_card['name']}",
+                        "amount": card_info.get("current_balance", 0),
+                        "minimum_amount": card_info.get("minimum_payment", 0),
+                        "due_day": due_day,
+                        "due_date": due_date,
+                        "month": datetime.now().month,
+                        "year": datetime.now().year,
+                        "payment_method": "transferencia",
+                        "category": "tarjeta_credito",
+                        "is_recurring": True,
+                        "is_card_payment": True,
+                        "status": "pending",
+                        "created_at": datetime.now(timezone.utc).isoformat()
+                    }
+                    await db.scheduled_payments.insert_one(payment_doc)
+                    response_data["payment_scheduled"] = True
+        
+        # Process deferred purchases (diferidos)
+        deferred_purchases = result.get("deferred_purchases", [])
+        deferred_created = []
+        for dp in deferred_purchases:
+            if dp.get("remaining_installments", 0) > 0:
+                deferred_doc = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": user["id"],
+                    "description": dp.get("description", "Compra Diferida"),
+                    "total_amount": dp.get("total_amount", 0),
+                    "monthly_payment": dp.get("monthly_payment", 0),
+                    "remaining_installments": dp.get("remaining_installments", 0),
+                    "total_installments": dp.get("total_installments", dp.get("remaining_installments", 0)),
+                    "card_id": response_data.get("card_info", {}).get("id"),
+                    "card_name": card_info.get("card_name") or card_info.get("bank_name") if card_info else None,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "source_file": file.filename
+                }
+                await db.deferred_payments.insert_one(deferred_doc)
+                deferred_created.append({k: v for k, v in deferred_doc.items() if k != "_id"})
+        
+        response_data["deferred_payments_created"] = len(deferred_created)
+        response_data["deferred_payments"] = deferred_created
         
         # Process transactions
         transactions = result.get("transactions", [])
@@ -1578,6 +1668,21 @@ async def process_bank_statement(
             establishment = t.get("establishment", t.get("description", "")[:50])
             description = t.get("description", "")
             
+            # Detect subscriptions
+            is_subscription = t.get("is_subscription", False)
+            desc_lower = description.lower()
+            estab_lower = establishment.lower() if establishment else ""
+            
+            for sub in SUBSCRIPTION_SERVICES:
+                if sub in desc_lower or sub in estab_lower:
+                    is_subscription = True
+                    break
+            
+            # Override category for subscriptions - they are local, not international
+            category = t.get("category", "otros")
+            if is_subscription:
+                category = "suscripciones"
+            
             # Check for duplicates
             duplicates = await find_potential_duplicates(user["id"], amount, date, establishment, description)
             
@@ -1587,12 +1692,15 @@ async def process_bank_statement(
                 "user_id": user["id"],
                 "amount": amount,
                 "description": description,
-                "category": t.get("category", "otros"),
+                "category": category,
                 "subcategory": t.get("subcategory", "Varios"),
                 "date": date,
                 "transaction_type": "expense",
                 "establishment": establishment,
-                "is_international": t.get("is_international", False),
+                "is_international": t.get("is_international", False) if not is_subscription else False,
+                "is_subscription": is_subscription,
+                "is_recurring": is_subscription,
+                "tags": ["recurrente", "suscripcion"] if is_subscription else [],
                 "payment_method": "tarjeta",
                 "card_name": card_info.get("card_name") or card_info.get("bank_name") if card_info else None,
                 "ai_classified": True,
@@ -1610,7 +1718,7 @@ async def process_bank_statement(
         response_data["transactions"] = created_transactions
         
         return {
-            "message": f"Estado de cuenta procesado: {len(created_transactions)} transacciones extraídas",
+            "message": f"Estado de cuenta procesado: {len(created_transactions)} transacciones, {len(deferred_created)} diferidos",
             "data": response_data,
             "raw_extraction": result if not created_transactions else None
         }
