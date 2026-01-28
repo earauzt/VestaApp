@@ -1,132 +1,163 @@
 <analysis>**original_problem_statement:**
 El usuario quiere una aplicación de finanzas personales para él, su esposa y su contadora, basada en las leyes tributarias de Ecuador.
 
-**PRODUCT REQUIREMENTS:**
-1.  **Requisitos Iniciales**:
-    *   Roles de usuario (admin, esposa, contadora).
-    *   Ingesta de datos reenviando emails de tarjetas, subiendo fotos de recibos (OCR), y estados de cuenta.
-    *   Subir un Excel de planificación para estructurar un presupuesto.
-    *   Dashboard con gastos, proyecciones y consejos de optimización con IA.
-    *   Detalles de RUC y 3 dependientes familiares para cálculo de límites de deducción del SRI.
-
-2.  **Requisitos de QuickBooks**:
-    *   Reglas de categorización automática.
-    *   División de transacciones (split).
-    *   Adjuntar documentos a transacciones.
-    *   Exportar datos a Excel/PDF.
-
-3.  **Requisitos Recientes (Interacciones de la sesión)**:
-    *   **Gestión de Transacciones**: Usar las categorías del presupuesto personal (con subcategorías) en lugar de las del SRI. Mostrar una sección separada para la clasificación del SRI para la contadora.
-    *   **Presupuesto Editable**: Una página donde el usuario pueda editar manualmente sus categorías, subcategorías, montos, proyecciones de ingresos y metas de ahorro.
-    *   **Carga de Datos Unificada**: Fusionar las páginas de Cargar y Conciliación en una sola llamada Cargar y Validar.
-    *   **Procesamiento de Estados de Cuenta**: Extraer automáticamente la información de la tarjeta (saldos, fechas, APR), las transacciones y los pagos diferidos al subir un estado de cuenta en PDF.
-    *   **Gestión de Deudas y Diferidos**: Mostrar un resumen de los pagos diferidos (cuotas) en la sección de Deudas, con la capacidad de editarlos y añadirlos manualmente.
-    *   **Planificación de Flujo**: Cambiar la vista del calendario de flujo de un grid de 4 semanas a una lista vertical (lineal).
-    *   **Chatbot con IA**: Integrar un chatbot de OpenAI para que el usuario pueda hacer preguntas sobre sus datos financieros.
-    *   **Problema de Login**: Solucionar un problema que impedía al usuario  iniciar sesión.
+**PRODUCT REQUIREMENTS (New prompt from user):**
+1.  **Módulo de Metas de Ahorro para Viajes**: Para rastrear el progreso de ahorro para viajes, vinculado al presupuesto mensual.
+2.  **Ingresos Previstos y Cuentas por Cobrar**: Para gestionar ingresos pendientes y cuentas por cobrar, con un widget de Flujo Proyectado a 30 días en el dashboard.
+3.  **Fallback de OCR y Entrada Manual**: Un enfoque de múltiples niveles para el procesamiento de recibos: OCR primario (Gemini), y un formulario de entrada manual si el OCR falla.
+4.  **Banner de Notificaciones Inteligentes**: Un banner en el dashboard para mostrar advertencias de flujo de caja, límites del SRI, recordatorios de facturas, etc.
+5.  **Botón de Acción Flotante (FAB)**: Un botón en la esquina inferior derecha para capturar transacciones rápidamente (tomar foto, subir de galería, gasto rápido manual).
+6.  **Mejoras en el Dashboard**: Optimización de la densidad, mini-gráficos de tendencia, y un widget de Próximas Acciones.
 
 **User's preferred language**: Spanish. The next agent MUST respond in Spanish.
 
 **what currently exists?**
-Una aplicación full-stack (FastAPI, React, MongoDB) de finanzas personales. La autenticación JWT y los roles de usuario funcionan.
-Se han implementado las siguientes funcionalidades:
-- **Dashboard**: Muestra resúmenes financieros y recordatorios inteligentes.
-- **Cargar y Validar**: Una página unificada que combina la carga de archivos (recibos, estados de cuenta) y la validación/categorización de transacciones. La categorización ahora usa las categorías y subcategorías del presupuesto personal, con una sección separada para la clasificación del SRI.
-- **Mi Presupuesto**: Una página completamente editable para que el usuario gestione sus categorías, subcategorías, montos de presupuesto y proyecciones.
-- **Deudas**: Una sección para gestionar tarjetas de crédito y visualizar un resumen de todos los pagos diferidos extraídos de los estados de cuenta. Se puede añadir, editar y eliminar diferidos manualmente.
-- **Planificación de Flujo**: Una página para ver los pagos programados. Actualmente se está refactorizando a una vista de lista lineal.
-- **Chatbot de OpenAI**: Un asistente flotante para hacer consultas sobre los datos financieros.
-- **Backend**: Se crearon endpoints especializados para el procesamiento de estados de cuenta, la gestión de presupuestos editables y los pagos diferidos. Se solucionó un error de login crítico.
+Una aplicación full-stack (FastAPI, React) de finanzas personales conectada a una base de datos **MongoDB Atlas persistente**, lo que resuelve el problema de pérdida de datos en cada redeploy.
+
+La aplicación incluye:
+-   **Autenticación y Roles**: Tres roles definidos (Admin, Familiar, Contadora) con permisos específicos en el frontend.
+-   **Seeding de Datos**: Un script () que se ejecuta al inicio para poblar la base de datos con 3 usuarios, 4 tarjetas de crédito y 6 pagos diferidos, asegurando que los datos base persistan.
+-   **Procesamiento de Estados de Cuenta**: Se ha mejorado significativamente el procesamiento de PDFs, que ahora extrae con éxito la información de la tarjeta, transacciones y diferidos de los 4 estados de cuenta del usuario (Pacificard, Pichincha, Diners, Apple Card). Utiliza usage: pdfplumber [-h] [--structure | --structure-text]
+                  [--format {csv,json,text}] [--types TYPES [TYPES ...]]
+                  [--include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]]
+                  [--exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]]
+                  [--laparams LAPARAMS] [--precision PRECISION]
+                  [--pages PAGES [PAGES ...]] [--indent INDENT]
+                  [infile]
+
+positional arguments:
+  infile
+
+options:
+  -h, --help            show this help message and exit
+  --structure           Write the structure tree as JSON. All other arguments
+                        except --pages, --laparams, and --indent will be
+                        ignored
+  --structure-text      Write the structure tree as JSON including text
+                        contents. All other arguments except --pages,
+                        --laparams, and --indent will be ignored
+  --format {csv,json,text}
+  --types TYPES [TYPES ...]
+  --include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]
+                        Include *only* these object attributes in output.
+  --exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]
+                        Exclude these object attributes from output.
+  --laparams LAPARAMS
+  --precision PRECISION
+  --pages PAGES [PAGES ...]
+  --indent INDENT       Indent level for JSON pretty-printing. y un fallback a OCR de Gemini para PDFs basados en imágenes.
+-   **Dashboard**: Muestra resúmenes financieros, recordatorios inteligentes (ahora con un botón para cerrarlos) y una vista simplificada para el rol Familiar (KP) con un resumen de gastos por categoría.
+-   **Cargar y Validar**: Página para subir estados de cuenta y validar transacciones. Ahora incluye un **filtro de búsqueda** y **acciones en lote** (seleccionar múltiples transacciones para categorizarlas o aprobarlas).
+-   **Gestión de Deudas**: Página para ver un resumen de las tarjetas de crédito y los pagos diferidos. Se corrigió un error que ocurría al editar los límites de las tarjetas.
 
 **Last working item**:
--   **Last item agent was working**: El agente estaba abordando una lista de problemas y solicitudes del usuario. El último paso fue arreglar un problema de login y luego comenzar a refactorizar la página de Planificación de Flujo () para cambiar su diseño de un grid de 4 semanas a una vista de lista lineal. Ya se aplicó una primera modificación para cambiar la estructura a una lista vertical.
+-   **Last item agent was working**: El agente estaba en medio de la implementación de un gran conjunto de nuevas funcionalidades solicitadas por el usuario, divididas en fases. Se completó parte de la Fase 1 y la Fase 2 del backend. Específicamente, se crearon el componente FAB en el frontend y los modelos/endpoints para Ingresos Previstos y Cuentas por Cobrar en el backend.
 -   **Status**: IN PROGRESS
--   **Agent Testing Done**: Y (solo para el arreglo del login, usando ).
--   **Which testing method agent to use?**: frontend testing agent (para verificar las vistas de Flujo y Transacciones).
+-   **Agent Testing Done**: Y (manual, a través de scripts y screenshots para verificar la persistencia de datos y las nuevas funcionalidades a nivel superficial).
+-   **Which testing method agent to use?**: frontend testing agent (para verificar las nuevas funcionalidades de FAB, Ingresos y Metas de Viaje una vez que se completen).
 -   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
--   **Issue 1 (P0)**: El procesamiento automatizado de estados de cuenta PDF es poco fiable y a menudo falla o agota el tiempo de espera, especialmente con el PDF de Pacificard.
--   **Issue 2 (P0)**: La página de Transacciones aún no se ha actualizado para usar la nueva lógica de categorías (presupuesto personal + sección SRI), a diferencia de Cargar y Validar.
--   **Issue 3 (P1)**: El backend devuelve HTTP 403 en lugar de 401 para accesos no autorizados.
--   **Issue 4 (P1)**: Hay un problema de visibilidad con el menú desplegable de categorías en el frontend que hace que se oculte detrás de otros elementos.
--   **Issue 5 (P2)**: Múltiples advertencias de  en varios componentes de React.
+-   **Issue 1 (P1)**: El backend devuelve HTTP 403 en lugar de 401 para accesos no autorizados.
+-   **Issue 2 (P1)**: Hay un problema de visibilidad con el menú desplegable de categorías en el frontend que hace que se oculte detrás de otros elementos.
+-   **Issue 3 (P2)**: Múltiples advertencias de  en varios componentes de React.
 
 **Issues Detail**:
--   **Issue 1: Fallo en el procesamiento de estados de cuenta**
-    -   **Attempted fixes**: Se creó un endpoint dedicado () y se ajustó el prompt de la IA. Funcionó para el PDF de Pichincha pero falló consistentemente para Pacificard, obligando al agente a crear los datos manualmente. La causa raíz parece ser un timeout o un error 502 de la API de LLM durante el procesamiento de archivos más complejos.
-    -   **Next debug checklist**:
-        1.  Revisar los logs del backend () en busca de errores detallados de la API de LLM durante el procesamiento del PDF de Pacificard.
-        2.  En , dentro de , añadir más logs para ver el texto extraído del PDF antes de enviarlo a la IA.
-        3.  Considerar el uso de una librería de parsing de PDF más robusta (como PyPDF2 o pdfplumber) para pre-procesar y limpiar el texto antes de pasarlo al LLM, reduciendo la carga en el modelo.
-        4.  Probar con un modelo de IA diferente (si está disponible) para el procesamiento de documentos complejos.
-    -   **Why fix this issue and what will be achieved with the fix?**: Esta es una funcionalidad core para la ingesta de datos. Arreglarlo automatizará la entrada de transacciones, saldos de tarjetas y diferidos, eliminando la necesidad de entrada manual.
-    -   **Status**: IN PROGRESS
+-   **Issue 1: 403 vs 401**
+    -   **Attempted fixes**: Ninguno en esta sesión.
+    -   **Next debug checklist**: Revisar el middleware de autenticación en  para lanzar  en lugar de 403 en fallos de autenticación.
+    -   **Why fix this issue and what will be achieved with the fix?**: Cumplir con los estándares HTTP para un manejo de errores predecible.
+    -   **Status**: NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?**: backend
     -   **Blocked on other issue**: None
 
--   **Issue 2: Sincronizar la página de Transacciones**
-    -   **Attempted fixes**: Ninguno. El trabajo se centró en .
-    -   **Next debug checklist**:
-        1.  Abrir .
-        2.  Replicar la lógica de obtención y visualización de categorías/subcategorías del presupuesto personal y la sección separada para SRI, tal como se implementó en .
-    -   **Why fix this issue and what will be achieved with the fix?**: Proporcionará una experiencia de usuario consistente en toda la aplicación para la gestión de categorías.
+-   **Issue 2: Visibilidad del Dropdown**
+    -   **Attempted fixes**: Ninguno en esta sesión.
+    -   **Next debug checklist**: Inspeccionar el CSS (, , ) del componente de dropdown y sus contenedores.
+    -   **Why to solve**: Mejora la usabilidad de una función clave.
     -   **Status**: NOT STARTED
-    -   **Is recurring issue?** N
+    -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?**: frontend
     -   **Blocked on other issue**: None
 
--   **Issue 3-5 (Menores)**: Ídem a la sección de **Earlier issues found/mentioned but not fixed**.
+-   **Issue 3: Warnings de **
+    -   **Attempted fixes**: Se solucionó uno en , pero quedan más.
+    -   **Next debug checklist**: Usar el linter para identificar los componentes afectados y añadir las dependencias que faltan a los arrays de , , etc.
+    -   **Why to solve**: Evita bugs de estado obsoleto y mejora la calidad del código.
+    -   **Status**: IN PROGRESS
+    -   **Is recurring issue?** Y
+    -   **Should Test frontend/backend/both after fix?**: frontend
+    -   **Blocked on other issue**: None
 
 **In progress Task List**:
--   **Task 1: Finalizar refactor de la página de Flujo (P0)**
-    -   **Where to resume**: En . El agente acaba de cambiar la estructura principal a una lista vertical. Es necesario eliminar el código CSS y JSX restante del antiguo diseño de grid de 2x2.
-    -   **What will be achieved with this?**: Cumplir con la solicitud del usuario de tener una vista lineal y más clara de los pagos semanales.
+-   **Task 1: Implementar nuevas funcionalidades (Fases 1-3) (P0)**
+    -   **Where to resume**:
+        1.  **Fase 1 (FAB)**: En , finalizar la lógica de los modales para Tomar Foto, Subir de Galería y Gasto Rápido Manual. El backend endpoint  ya existe y es funcional.
+        2.  **Fase 1 (OCR Fallback)**: En , implementar la lógica para mostrar un modal de entrada manual cuando el endpoint de procesamiento de archivos falle.
+        3.  **Fase 2 (Ingresos/Cuentas por Cobrar)**: En el frontend, crear las nuevas pestañas en la página de Ingresos para Ingresos Previstos y Cuentas por Cobrar, conectándolas a los endpoints ya creados en  (, ). Implementar la lógica de Flujo Proyectado en el Dashboard.
+        4.  **Fase 3 (Metas de Viaje)**: Crear el backend (modelo y endpoints) y el frontend (nueva página y widget en el dashboard) para las metas de viaje.
+    -   **What will be achieved with this?**: Entregar el conjunto completo de funcionalidades solicitadas por el usuario para llevar la app a un estado operativo y listo para producción.
     -   **Status**: IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?**: frontend
+    -   **Should Test frontend/backend/both after fix?**: both
     -   **Blocked on something**: No
 
 **Upcoming and Future Tasks**
-- **Upcoming Tasks**:
-    -   **Task 1 (P1)**: Investigar e implementar una conexión directa con Apple Card para importar transacciones automáticamente, usando .
-- **Future Tasks**:
-    -   **Task 1 (P2)**: Añadir notificaciones push cuando una categoría de gasto se acerque a su límite de deducción del SRI.
-    -   **Task 2 (P2)**: Implementar un sistema para sugerir ajustes de presupuesto basados en el análisis del historial de gastos.
+-   **Upcoming Tasks**:
+    -   (P1) Implementar la lógica del Banner de Notificaciones Inteligentes con las nuevas alertas.
+    -   (P2) Implementar las mejoras de densidad y el widget de Próximas Acciones en el Dashboard.
+-   **Future Tasks**:
+    -   (P2) Investigar e implementar una conexión directa con Apple Card.
+    -   (P2) Añadir notificaciones push cuando una categoría de gasto se acerque a su límite de deducción del SRI.
 
 **Completed work in this session**
--   **Arreglo de Login**: Se solucionó un bug crítico en  que impedía el inicio de sesión al usar  en lugar de .
--   **Fusión de Carga y Validación**: Se crearon la página  y el componente , fusionando  y  en un solo flujo de trabajo.
--   **Presupuesto Personal Editable**: Se creó la página  y los endpoints correspondientes para permitir al usuario definir y editar sus propias categorías, subcategorías y montos de presupuesto.
--   **Mejora de Categorización**: Se actualizó el diálogo de edición de transacciones para usar las categorías del presupuesto personal (con subcategorías) y una sección separada para la contadora (categorías del SRI).
--   **Gestión de Pagos Diferidos**: Se implementó la lógica en el backend para extraer pagos diferidos de los estados de cuenta y se añadió una nueva pestaña en la página  para visualizarlos y gestionarlos (CRUD completo).
--   **Procesamiento de Estados de Cuenta**: Se creó un endpoint () que extrae detalles de la tarjeta, transacciones y diferidos, y crea automáticamente una entrada en la página de Flujo para el pago de la tarjeta.
--   **Creación Manual de Datos**: Debido a fallos en el procesamiento del PDF de Pacificard, se crearon manualmente los datos de la tarjeta y sus diferidos para no bloquear al usuario.
--   **Corrección de Datos USA**: Se actualizaron los gastos de USA en el presupuesto según la petición del usuario (Mamá 00, TMobile 50, Universidad 00).
--   **Pruebas**: Se ejecutó el  exitosamente después de las primeras grandes implementaciones y se realizaron pruebas manuales (curl, screenshots) para cambios posteriores.
+-   **Integración con MongoDB Atlas**: Se conectó la aplicación a una base de datos MongoDB Atlas externa y persistente, solucionando el problema crítico de la pérdida de datos en cada .
+-   **Script de Seeding de Datos**: Se creó  que se ejecuta al inicio y puebla la base de datos con 3 usuarios (con roles y credenciales actualizadas), 4 tarjetas de crédito y 6 pagos diferidos.
+-   **Solución al Procesamiento de PDFs**: Se arregló el fallo recurrente en el procesamiento de estados de cuenta. El sistema ahora procesa con éxito los 4 PDFs del usuario (Pacificard, Pichincha, Diners, Apple Card) usando usage: pdfplumber [-h] [--structure | --structure-text]
+                  [--format {csv,json,text}] [--types TYPES [TYPES ...]]
+                  [--include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]]
+                  [--exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]]
+                  [--laparams LAPARAMS] [--precision PRECISION]
+                  [--pages PAGES [PAGES ...]] [--indent INDENT]
+                  [infile]
+
+positional arguments:
+  infile
+
+options:
+  -h, --help            show this help message and exit
+  --structure           Write the structure tree as JSON. All other arguments
+                        except --pages, --laparams, and --indent will be
+                        ignored
+  --structure-text      Write the structure tree as JSON including text
+                        contents. All other arguments except --pages,
+                        --laparams, and --indent will be ignored
+  --format {csv,json,text}
+  --types TYPES [TYPES ...]
+  --include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]
+                        Include *only* these object attributes in output.
+  --exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]
+                        Exclude these object attributes from output.
+  --laparams LAPARAMS
+  --precision PRECISION
+  --pages PAGES [PAGES ...]
+  --indent INDENT       Indent level for JSON pretty-printing. con un fallback a OCR de Gemini.
+-   **Limpieza y Carga de Datos**: Se eliminaron las tarjetas duplicadas y se cargó la información correcta de las 4 tarjetas y sus transacciones/diferidos a la base de datos.
+-   **Solución al Problema de **: Se diagnosticó y corrigió un error crítico por el cual los datos no se mostraban en el frontend después de un  debido a s inconsistentes.
+-   **Mejoras en Cargar y Validar**: Se añadió un filtro de búsqueda y la capacidad de realizar acciones en lote (seleccionar todo, categorizar en masa).
+-   **Ajuste de Permisos de Rol**: Se modificaron los permisos para el rol Familiar (esposa) para limitar su acceso a ciertas secciones, según lo solicitado.
+-   **Mejoras en el Dashboard**: Se añadió un botón de 'X' para descartar los recordatorios y se implementó una vista de resumen de gastos simplificada para el rol Familiar.
+-   **Corrección de Bug en Edición de Tarjetas**: Se solucionó un crash en el frontend que ocurría al intentar editar el límite de una tarjeta, mejorando el manejo de errores y asegurando que los datos del seed estuvieran completos.
+-   **Inicio de Nuevas Funcionalidades**: Se comenzó la implementación de las Fases 1 y 2 del nuevo plan del usuario (creación de componente FAB y endpoints de backend para ingresos).
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1: 403 vs 401**
-    -   **Debug checklist**: Revisar el middleware de autenticación en  para lanzar  en lugar de 403 en fallos de autenticación.
-    -   **Why to solve**: Cumplir con los estándares HTTP para un manejo de errores predecible.
-    -   **Should Test**: backend
-    -   **Is recurring issue**: Y
-
--   **Issue 2: Visibilidad del Dropdown**
-    -   **Debug checklist**: Inspeccionar el CSS (, , ) del componente de dropdown y sus contenedores.
-    -   **Why to solve**: Mejora la usabilidad de una función clave.
-    -   **Should Test**: frontend
-    -   **Is recurring issue**: Y
-
--   **Issue 3: Warnings de **
-    -   **Debug checklist**: Usar el linter para identificar los componentes afectados y añadir las dependencias que faltan a los arrays de , , etc.
-    -   **Why to solve**: Evita bugs de estado obsoleto y mejora la calidad del código.
-    -   **Should Test**: frontend
-    -   **Is recurring issue**: Y
+-   **Issue 1: 403 vs 401**: El backend devuelve 403 en lugar de 401 para accesos no autorizados.
+-   **Issue 2: Visibilidad del Dropdown**: Un menú desplegable de categorías se oculta detrás de otros elementos.
+-   **Issue 3: Warnings de **: Siguen existiendo advertencias del linter en varios componentes.
 
 **Known issue recurrence from previous fork**
--   Las advertencias de  siguen apareciendo en los logs del linter.
 -   El problema de 403 vs 401 y la visibilidad del dropdown no se han abordado.
+-   Las advertencias de  siguen apareciendo.
 
 **Code Architecture**
 
@@ -134,83 +165,143 @@ Se han implementado las siguientes funcionalidades:
 **Key Technical Concepts**
 -   **Backend**: FastAPI, Python
 -   **Frontend**: React.js
--   **Database**: MongoDB
+-   **Database**: **MongoDB Atlas (Persistente)**
 -   **Authentication**: JWT con RBAC (basado en roles)
 -   **Styling**: Tailwind CSS, shadcn/ui
--   **IA**:  para interactuar con OpenAI (Chatbot) y Gemini (OCR).
+-   **IA**:  para OpenAI y Gemini.
+-   **PDF Processing**: usage: pdfplumber [-h] [--structure | --structure-text]
+                  [--format {csv,json,text}] [--types TYPES [TYPES ...]]
+                  [--include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]]
+                  [--exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]]
+                  [--laparams LAPARAMS] [--precision PRECISION]
+                  [--pages PAGES [PAGES ...]] [--indent INDENT]
+                  [infile]
+
+positional arguments:
+  infile
+
+options:
+  -h, --help            show this help message and exit
+  --structure           Write the structure tree as JSON. All other arguments
+                        except --pages, --laparams, and --indent will be
+                        ignored
+  --structure-text      Write the structure tree as JSON including text
+                        contents. All other arguments except --pages,
+                        --laparams, and --indent will be ignored
+  --format {csv,json,text}
+  --types TYPES [TYPES ...]
+  --include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]
+                        Include *only* these object attributes in output.
+  --exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]
+                        Exclude these object attributes from output.
+  --laparams LAPARAMS
+  --precision PRECISION
+  --pages PAGES [PAGES ...]
+  --indent INDENT       Indent level for JSON pretty-printing. y .
 
 **key DB schema**
 -   **users**: 
+-   **credit_cards**: 
 -   **transactions**: 
--   **personal_budgets**:  (New editable structure)
--   **deferred_payments**:  (New)
+-   **deferred_payments**: 
+-   **personal_budgets**: 
+-   **ExpectedIncome (New)**: 
+-   **AccountReceivable (New)**: 
+-   **TravelGoal (New, to be implemented)**: 
 
 **changes in tech stack**
--    se instaló para la integración con OpenAI.
+-   **Base de datos movida de local a MongoDB Atlas** para persistencia de datos.
+-   Se añadieron las librerías usage: pdfplumber [-h] [--structure | --structure-text]
+                  [--format {csv,json,text}] [--types TYPES [TYPES ...]]
+                  [--include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]]
+                  [--exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]]
+                  [--laparams LAPARAMS] [--precision PRECISION]
+                  [--pages PAGES [PAGES ...]] [--indent INDENT]
+                  [infile]
+
+positional arguments:
+  infile
+
+options:
+  -h, --help            show this help message and exit
+  --structure           Write the structure tree as JSON. All other arguments
+                        except --pages, --laparams, and --indent will be
+                        ignored
+  --structure-text      Write the structure tree as JSON including text
+                        contents. All other arguments except --pages,
+                        --laparams, and --indent will be ignored
+  --format {csv,json,text}
+  --types TYPES [TYPES ...]
+  --include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]
+                        Include *only* these object attributes in output.
+  --exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]
+                        Exclude these object attributes from output.
+  --laparams LAPARAMS
+  --precision PRECISION
+  --pages PAGES [PAGES ...]
+  --indent INDENT       Indent level for JSON pretty-printing. y  para el procesamiento robusto de PDFs.
 
 **All files of reference**
 -   **Creados**:
-    -   : Nueva página que fusiona la carga de archivos y la validación de transacciones.
-    -   : Componente para el chatbot flotante de OpenAI.
-    -   : Nueva página para que el usuario gestione su presupuesto de forma manual.
+    -   : Script para inicializar la base de datos persistente con datos de usuarios, tarjetas y diferidos.
+    -   : Componente para el botón de acción flotante.
 -   **Modificados significativamente**:
-    -   : Se añadieron endpoints para el chatbot, presupuesto editable, procesamiento de estados de cuenta y gestión de diferidos. Se corrigió un error crítico de autenticación.
-    -   : Se añadió una nueva pestaña y lógica para mostrar y gestionar (CRUD) los pagos diferidos.
-    -   : Creado para ser una interfaz de presupuesto totalmente editable.
-    -   : Se actualizaron las rutas para reflejar las nuevas páginas (, ) y eliminar las antiguas.
-    -   : Se actualizó la navegación para enlazar a las nuevas páginas.
-    -   : Se empezó a refactorizar para mostrar una vista lineal en lugar de un grid.
-
-**Areas that need refactoring**:
--    necesita que se complete su refactorización para eliminar el código del antiguo diseño en grid.
--   Los componentes con advertencias de  deben corregirse.
+    -   : Se mejoró drásticamente el procesamiento de PDF, se añadió la lógica para ejecutar el , se corrigió la conexión a MongoDB Atlas y se añadieron los nuevos modelos y endpoints para Ingresos/Cuentas por Cobrar.
+    -   : Actualizado con la URL de conexión a MongoDB Atlas.
+    -   : Se añadió el componente .
+    -   : Se implementó el filtro de búsqueda y las acciones en lote.
+    -   : Se añadió el botón para cerrar recordatorios y la vista simplificada para el rol Familiar.
+    -   : Se corrigió un bug de crash al editar tarjetas.
+    -   : Se actualizaron los permisos de navegación para los roles.
+    -   : Actualizado con el progreso.
 
 **key api endpoints**
--   **/api/chatbot**: (POST) Para interactuar con el asistente de IA.
--   **/api/process/bank-statement**: (POST) Endpoint especializado para procesar PDFs de estados de cuenta.
--   **/api/budget/config**: (GET, POST) Para obtener y guardar la configuración del presupuesto editable.
--   **/api/deferred-payments**: (GET, POST, PUT, DELETE) CRUD completo para los pagos diferidos.
--   **/api/auth/login**: (POST) Corregido para usar .
+-   **/api/process/bank-statement**: (POST) Endpoint mejorado para procesar PDFs de estados de cuenta.
+-   **/api/expected-incomes**: (GET, POST, PUT, DELETE) CRUD para ingresos previstos. (Nuevo)
+-   **/api/accounts-receivable**: (GET, POST, PUT, DELETE) CRUD para cuentas por cobrar. (Nuevo)
 
 **Critical Info for New Agent**
--   **Fallo en Procesamiento de PDF**: El problema más crítico y sin resolver es la incapacidad del sistema para procesar de manera fiable los estados de cuenta en PDF, especialmente el de Pacificard. El agente tuvo que recurrir a la entrada manual de datos. La investigación de este problema es de máxima prioridad.
--   **Pérdida de Datos en Preview**: La base de datos () apareció vacía en un punto, lo que causó el problema de login. Esto parece ser un comportamiento del entorno de vista previa, pero es importante tenerlo en cuenta si los datos desaparecen. El nombre de la DB en uso es , no .
--   **Arreglo del Login**: El problema de login del usuario  se resolvió corrigiendo una referencia de campo ( -> ) en la función de login en .
--   **Categorización Dual**: Las transacciones ahora tienen una doble categorización: una para el presupuesto personal del usuario y otra para la contadora (basada en las categorías del SRI). Esta lógica ya está en  y debe replicarse en .
+-   **PERSISTENT DATABASE**: La aplicación está conectada a una base de datos **MongoDB Atlas** externa. La URL de conexión está en . Los datos ahora persisten entre deploys. ¡No más pérdida de datos!
+-   **SEED SCRIPT**: El archivo  se ejecuta al iniciar el servidor para crear 3 usuarios, 4 tarjetas y 6 diferidos si la base de datos está vacía. Las credenciales actualizadas están en este script.
+-   **IN-PROGRESS FEATURE IMPLEMENTATION**: El agente está a mitad de implementar un gran conjunto de características solicitadas por el usuario. Revisa la sección **In progress Task List** para saber exactamente dónde continuar. La prioridad es terminar la implementación de las Fases 1, 2 y 3.
+-   **PDF PROCESSING SOLVED**: El problema principal del procesamiento de PDF que fallaba con Pacificard ha sido resuelto. El sistema ahora es mucho más robusto.
 
 **documents and test reports created in this job**
 -    (actualizado)
--   
--   
--   Archivos PDF subidos por el usuario para análisis (Pichincha y Pacificard).
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User**: Pide que los diferidos se muestren en la UI y que en la página de presupuesto se puedan ver las subcategorías expandidas. Sube el estado de cuenta de Pacificard para análisis.
-2.  **User**: Informa que los datos de Comandato están mal, pero pide que se priorice añadir una opción de edición para todos los datos extraídos. Pregunta cómo hacer deploy y guardar en GitHub, y si los datos se pierden después del deploy.
-3.  **User**: Solicita que las categorías al editar transacciones sean las de su presupuesto personal (con subcategorías) y que haya una sección separada para las categorías del SRI (para la contadora).
-4.  **User**: Reporta un problema de login con , que la carga de estados de cuenta no está guardando los datos, que quiere ver la planificación de flujo de forma lineal (lista) y que la página de Transacciones debe ser similar a la de Cargar y Validar en cuanto a categorías.
+1.  **User**: Pide ayuda para integrar una base de datos persistente, sugiriendo Supabase.
+2.  **Agent**: Recomienda MongoDB Atlas ya que la app ya usa MongoDB, y guía al usuario sobre cómo crear una cuenta y obtener la URL de conexión.
+3.  **User**: Proporciona las credenciales y la URL de conexión de MongoDB Atlas.
+4.  **Agent**: Integra MongoDB Atlas, crea un script de  para los datos iniciales, y soluciona un problema de conexión SSL. Confirma la conexión exitosa y la persistencia de los datos.
+5.  **User**: Pide cambiar las credenciales de los 3 usuarios (admin, esposa, contadora).
+6.  **Agent**: Actualiza las credenciales en la base de datos y en el script de , y confirma que el login funciona.
+7.  **User**: Informa de un error (crash) al editar el límite de una tarjeta.
+8.  **Agent**: Diagnostica un problema de validación y datos faltantes. Arregla el manejo de errores en el frontend y actualiza los datos del seed y la base de datos con los campos que faltaban.
+9.  **User**: Solicita nuevas funcionalidades: filtro y acciones en bulk en la página de validación, un botón 'X' en los recordatorios, y una sugerencia para una vista más simple para su esposa (KP).
+10. **User**: Proporciona un prompt detallado con una lista completa de mejoras deseadas (Metas de Viaje, Ingresos Previstos, FAB, etc.) y pide un análisis de viabilidad y un plan de implementación.
+11. **User**: Aprueba el plan de implementación (Fase 1, 2 y 3) y pide que se inicie el trabajo antes del deploy.
 
 **Project Health Check:**
--   **Broken**: El procesamiento automatizado de estados de cuenta en PDF es poco fiable y falla con archivos complejos.
+-   **Broken**: Ninguno.
 -   **Mocked**: Ninguno.
 
 **3rd Party Integrations**
--   **OpenAI GPT-5.2**: Integrado para el chatbot financiero. Usa Emergent LLM Key.
+-   **OpenAI GPT**: Usado para el chatbot. Usa Emergent LLM Key.
 -   **Gemini**: Usado para el OCR de documentos. Usa Emergent LLM Key.
--   **Apple Card**: El usuario solicitó una integración, pero la investigación está pendiente.
+-   **MongoDB Atlas**: Base de datos como servicio, persistente. Requiere URL de conexión del usuario.
 
 **Testing status**
--   **Testing agent used after significant changes**: YES, se usó para verificar un gran lote de cambios iniciales ( y ).
+-   **Testing agent used after significant changes**: NO
 -   **Troubleshoot agent used after agent stuck in loop**: NO
 -   **Test files created**: None.
--   **Known regressions**: El procesamiento de estados de cuenta parece haber empeorado o fallado con el PDF de Pacificard después de haber funcionado con el de Pichincha.
+-   **Known regressions**: None.
 
 **Credentials to test flow:**
--   **Email**: 
--   **Password**: 
--   **Rol**: 
+-   **Admin (Emilio)**:  / 
+-   **Familiar (KP)**:  / 
+-   **Contadora (María)**:  / 
 
 **What agent forgot to execute**
--   La investigación de viabilidad para la integración con Apple Card no se realizó.
--   No se solucionó el problema raíz del fallo en el procesamiento de estados de cuenta en PDF, recurriendo a una solución manual temporal.
--   Los problemas menores recurrentes (403 vs 401, visibilidad del dropdown, warnings de ) no se abordaron.</analysis>
+-   El agente comenzó la implementación de las Fases 1, 2 y 3 pero no las completó. El trabajo está a mitad de camino y necesita ser continuado.
+-   No se ha llamado al  después de los cambios masivos (integración de DB externa, nuevas funcionalidades, etc.), lo cual sería recomendable antes de un deploy final.</analysis>
