@@ -69,7 +69,7 @@ export default function MetasViaje() {
   const fetchGoals = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() });
-      setGoals(response.data);
+      setGoals(response.data?.goals || []);
     } catch (error) {
       toast.error("Error al cargar metas de viaje");
     } finally {
