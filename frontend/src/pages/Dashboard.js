@@ -82,14 +82,15 @@ export default function Dashboard() {
         axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers: getAuthHeaders() }),
         axios.get(`${API}/reminders`, { headers: getAuthHeaders() }).catch(() => ({ data: [] })),
         axios.get(`${API}/cashflow/projection`, { headers: getAuthHeaders() }).catch(() => ({ data: null })),
-        axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() }).catch(() => ({ data: [] }))
+        axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() }).catch(() => ({ data: { goals: [] } }))
       ]);
       
       setStats(statsRes.data);
       setChartData(chartRes.data.data);
       setReminders(remindersRes.data);
       setCashflowProjection(cashflowRes.data);
-      setTravelGoals(goalsRes.data.filter(g => g.status === "active").slice(0, 2));
+      const goalsData = goalsRes.data?.goals || [];
+      setTravelGoals(goalsData.filter(g => g.status === "active").slice(0, 2));
       
       // Transform category data to match Flujo categories with budgets
       const byCategory = statsRes.data?.by_category || {};
