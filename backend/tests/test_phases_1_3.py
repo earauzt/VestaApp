@@ -42,7 +42,6 @@ class TestAuthentication:
 @pytest.fixture
 def auth_token():
     """Get authentication token"""
-    # Try primary credentials first
     response = requests.post(f"{BASE_URL}/api/auth/login", json={
         "email": TEST_EMAIL,
         "password": TEST_PASSWORD
@@ -50,15 +49,7 @@ def auth_token():
     if response.status_code == 200:
         return response.json().get("access_token")
     
-    # Fallback to alternative credentials
-    response = requests.post(f"{BASE_URL}/api/auth/login", json={
-        "email": ALT_EMAIL,
-        "password": ALT_PASSWORD
-    })
-    if response.status_code == 200:
-        return response.json().get("access_token")
-    
-    pytest.skip("Authentication failed with all credentials")
+    pytest.skip("Authentication failed")
 
 
 @pytest.fixture
