@@ -545,6 +545,168 @@ export default function Dashboard() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Cashflow Projection & Travel Goals Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
+        {/* Cashflow Projection Widget */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.4 }}
+        >
+          <Card className="bento-card h-full bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 border-blue-200 dark:border-blue-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <TrendUp size={20} className="text-blue-600" weight="duotone" />
+                Flujo Proyectado (30 días)
+              </CardTitle>
+              <CardDescription>Proyección de ingresos y gastos</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {cashflowProjection ? (
+                <div className="space-y-4">
+                  {/* Summary */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
+                      <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <ArrowUp size={12} className="text-emerald-500" />
+                        Ingresos
+                      </p>
+                      <p className="text-lg font-bold text-emerald-600">
+                        {formatCurrency(cashflowProjection.total_expected_income || 0)}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
+                      <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <ArrowDown size={12} className="text-red-500" />
+                        Gastos
+                      </p>
+                      <p className="text-lg font-bold text-red-600">
+                        {formatCurrency(cashflowProjection.total_scheduled_payments || 0)}
+                      </p>
+                    </div>
+                    <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
+                      <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                        <Wallet size={12} className="text-blue-500" />
+                        Neto
+                      </p>
+                      <p className={`text-lg font-bold ${
+                        (cashflowProjection.net_projection || 0) >= 0 
+                          ? "text-emerald-600" 
+                          : "text-red-600"
+                      }`}>
+                        {formatCurrency(cashflowProjection.net_projection || 0)}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Upcoming Items */}
+                  {cashflowProjection.upcoming_items?.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-xs font-medium text-muted-foreground">Próximos movimientos:</p>
+                      {cashflowProjection.upcoming_items.slice(0, 3).map((item, idx) => (
+                        <div 
+                          key={idx} 
+                          className="flex items-center justify-between p-2 rounded-lg bg-white/40 dark:bg-black/10"
+                        >
+                          <div className="flex items-center gap-2">
+                            {item.type === "income" ? (
+                              <ArrowUp size={14} className="text-emerald-500" />
+                            ) : (
+                              <ArrowDown size={14} className="text-red-500" />
+                            )}
+                            <span className="text-sm truncate max-w-[150px]">{item.description}</span>
+                          </div>
+                          <div className="text-right">
+                            <span className={`text-sm font-semibold ${
+                              item.type === "income" ? "text-emerald-600" : "text-red-600"
+                            }`}>
+                              {item.type === "income" ? "+" : "-"}{formatCurrency(item.amount)}
+                            </span>
+                            <p className="text-xs text-muted-foreground">{item.date}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  <Link to="/flujo">
+                    <Button variant="outline" size="sm" className="w-full mt-2">
+                      Ver Planificación Completa
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Clock size={32} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No hay proyección disponible</p>
+                  <Link to="/flujo">
+                    <Button variant="outline" size="sm" className="mt-3">
+                      Configurar Flujo
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Travel Goals Widget */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.5 }}
+        >
+          <Card className="bento-card h-full bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30 border-violet-200 dark:border-violet-800">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Airplane size={20} className="text-violet-600" weight="duotone" />
+                Metas de Viaje
+              </CardTitle>
+              <CardDescription>Progreso de ahorro para viajes</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {travelGoals.length > 0 ? (
+                <div className="space-y-4">
+                  {travelGoals.map((goal) => {
+                    const progress = goal.target_amount > 0 
+                      ? ((goal.saved_amount || 0) / goal.target_amount) * 100 
+                      : 0;
+                    return (
+                      <div key={goal.id} className="p-3 rounded-lg bg-white/60 dark:bg-black/20">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-medium">{goal.destination}</span>
+                          <Badge variant="secondary">{progress.toFixed(0)}%</Badge>
+                        </div>
+                        <Progress value={Math.min(progress, 100)} className="h-2 mb-2" />
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{formatCurrency(goal.saved_amount || 0)} ahorrado</span>
+                          <span>Meta: {formatCurrency(goal.target_amount)}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  <Link to="/metas-viaje">
+                    <Button variant="outline" size="sm" className="w-full">
+                      Ver Todas las Metas
+                    </Button>
+                  </Link>
+                </div>
+              ) : (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Airplane size={32} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No tienes metas de viaje activas</p>
+                  <Link to="/metas-viaje">
+                    <Button variant="outline" size="sm" className="mt-3">
+                      Crear Primera Meta
+                    </Button>
+                  </Link>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
     </div>
   );
 }
