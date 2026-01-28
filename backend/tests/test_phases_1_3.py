@@ -13,9 +13,8 @@ BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 TEST_EMAIL = "earauzt@gmail.com"
 TEST_PASSWORD = "Realmadrid2011"
 
-# Alternative test user
-ALT_EMAIL = "test@finanzas.com"
-ALT_PASSWORD = "test1234"
+# Note: test@finanzas.com user does not exist in the database
+# Use the admin credentials for all tests
 
 
 class TestAuthentication:
