@@ -688,6 +688,73 @@ class ScheduledPaymentResponse(BaseModel):
     next_due_date: str
     created_at: str
 
+# ================= EXPECTED INCOME & RECEIVABLES MODELS =================
+
+class ExpectedIncomeCreate(BaseModel):
+    description: str
+    amount: float
+    expected_date: str
+    source: str = "personal"  # personal, apx, usa
+    recurring: bool = False
+    recurring_frequency: Optional[str] = None  # monthly, biweekly
+    notes: Optional[str] = None
+
+class ExpectedIncomeResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    user_id: str
+    description: str
+    amount: float
+    expected_date: str
+    source: str
+    status: str  # pending, received, cancelled
+    recurring: bool
+    recurring_frequency: Optional[str] = None
+    linked_transaction_id: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: str
+
+class AccountReceivableCreate(BaseModel):
+    client_name: str
+    invoice_number: Optional[str] = None
+    amount: float
+    invoice_date: str
+    due_date: str
+    notes: Optional[str] = None
+
+class AccountReceivableResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    user_id: str
+    client_name: str
+    invoice_number: Optional[str] = None
+    amount: float
+    amount_paid: float
+    invoice_date: str
+    due_date: str
+    status: str  # pending, overdue, paid, partial
+    notes: Optional[str] = None
+    payment_history: List[dict] = []
+    created_at: str
+
+class TravelGoalCreate(BaseModel):
+    destination: str
+    target_amount: float
+    target_date: str
+    notes: Optional[str] = None
+
+class TravelGoalResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    user_id: str
+    destination: str
+    target_amount: float
+    saved_amount: float
+    target_date: str
+    status: str  # active, completed, cancelled
+    notes: Optional[str] = None
+    created_at: str
+
 class DocumentUpload(BaseModel):
     document_type: str  # email, receipt, statement, excel
     content: Optional[str] = None
