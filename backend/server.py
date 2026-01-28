@@ -3927,6 +3927,362 @@ async def mark_payment_paid(payment_id: str, user: dict = Depends(get_current_us
     
     return {"message": "Marcado como pagado"}
 
+# ================= EXPECTED INCOME ENDPOINTS =================
+
+@api_router.get("/expected-income")
+async def get_expected_income(user: dict = Depends(get_current_user)):
+    """Get all expected income for the user"""
+    items = await db.expected_income.find(
+        {"user_id": user["id"]}
+    ).sort("expected_date", 1).to_list(100)
+    
+    # Update overdue status
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    for item in items:
+        if item.get("status") == "pending" and item.get("expected_date", "") < today:
+            item["status"] = "overdue"
+    
+    total_pending = sum(i.get("amount", 0) for i in items if i.get("status") in ["pending", "overdue"])
+    
+    return {
+        "items": [{k: v for k, v in item.items() if k != "_id"} for item in items],
+        "total_pending": total_pending,
+        "count": len(items)
+    }
+
+@api_router.post("/expected-income")
+async def create_expected_income(
+    income: ExpectedIncomeCreate,
+    user: dict = Depends(get_current_user)
+):
+    """Create a new expected income entry"""
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        **income.model_dump(),
+        "status": "pending",
+        "linked_transaction_id": None,
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.expected_income.insert_one(doc)
+    return {k: v for k, v in doc.items() if k != "_id"}
+
+@api_router.put("/expected-income/{income_id}")
+async def update_expected_income(
+    income_id: str,
+    updates: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Update an expected income entry"""
+    result = await db.expected_income.update_one(
+        {"id": income_id, "user_id": user["id"]},
+        {"$set": updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Ingreso no encontrado")
+    return {"message": "Actualizado"}
+
+@api_router.put("/expected-income/{income_id}/mark-received")
+async def mark_income_received(
+    income_id: str,
+    user: dict = Depends(get_current_user)
+):
+    """Mark expected income as received and create actual income transaction"""
+    income = await db.expected_income.find_one({"id": income_id, "user_id": user["id"]})
+    if not income:
+        raise HTTPException(status_code=404, detail="Ingreso no encontrado")
+    
+    # Create actual income transaction
+    transaction_id = str(uuid.uuid4())
+    transaction_doc = {
+        "id": transaction_id,
+        "user_id": user["id"],
+        "amount": income["amount"],
+        "description": income["description"],
+        "category": "ingreso",
+        "date": datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "transaction_type": "income",
+        "source": income.get("source", "personal"),
+        "status": "approved",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.transactions.insert_one(transaction_doc)
+    
+    # Update expected income status
+    await db.expected_income.update_one(
+        {"id": income_id},
+        {"$set": {
+            "status": "received",
+            "linked_transaction_id": transaction_id,
+            "received_at": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    return {"message": "Ingreso recibido", "transaction_id": transaction_id}
+
+@api_router.delete("/expected-income/{income_id}")
+async def delete_expected_income(
+    income_id: str,
+    user: dict = Depends(get_current_user)
+):
+    result = await db.expected_income.delete_one({"id": income_id, "user_id": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Ingreso no encontrado")
+    return {"message": "Eliminado"}
+
+# ================= ACCOUNTS RECEIVABLE ENDPOINTS =================
+
+@api_router.get("/accounts-receivable")
+async def get_accounts_receivable(user: dict = Depends(get_current_user)):
+    """Get all accounts receivable"""
+    items = await db.accounts_receivable.find(
+        {"user_id": user["id"]}
+    ).sort("due_date", 1).to_list(100)
+    
+    # Update status based on due date
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    for item in items:
+        if item.get("status") == "pending" and item.get("due_date", "") < today:
+            item["status"] = "overdue"
+    
+    total_pending = sum(i.get("amount", 0) - i.get("amount_paid", 0) for i in items if i.get("status") in ["pending", "overdue", "partial"])
+    
+    return {
+        "items": [{k: v for k, v in item.items() if k != "_id"} for item in items],
+        "total_pending": total_pending,
+        "count": len(items)
+    }
+
+@api_router.post("/accounts-receivable")
+async def create_account_receivable(
+    account: AccountReceivableCreate,
+    user: dict = Depends(get_current_user)
+):
+    """Create a new account receivable"""
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        **account.model_dump(),
+        "amount_paid": 0,
+        "status": "pending",
+        "payment_history": [],
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.accounts_receivable.insert_one(doc)
+    return {k: v for k, v in doc.items() if k != "_id"}
+
+@api_router.put("/accounts-receivable/{account_id}/payment")
+async def record_receivable_payment(
+    account_id: str,
+    amount: float,
+    user: dict = Depends(get_current_user)
+):
+    """Record a payment for an account receivable"""
+    account = await db.accounts_receivable.find_one({"id": account_id, "user_id": user["id"]})
+    if not account:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    
+    new_amount_paid = account.get("amount_paid", 0) + amount
+    new_status = "paid" if new_amount_paid >= account["amount"] else "partial"
+    
+    payment_record = {
+        "amount": amount,
+        "date": datetime.now(timezone.utc).isoformat(),
+        "id": str(uuid.uuid4())
+    }
+    
+    await db.accounts_receivable.update_one(
+        {"id": account_id},
+        {
+            "$set": {"amount_paid": new_amount_paid, "status": new_status},
+            "$push": {"payment_history": payment_record}
+        }
+    )
+    
+    return {"message": "Pago registrado", "new_status": new_status}
+
+@api_router.delete("/accounts-receivable/{account_id}")
+async def delete_account_receivable(
+    account_id: str,
+    user: dict = Depends(get_current_user)
+):
+    result = await db.accounts_receivable.delete_one({"id": account_id, "user_id": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    return {"message": "Eliminado"}
+
+# ================= TRAVEL GOALS ENDPOINTS =================
+
+@api_router.get("/travel-goals")
+async def get_travel_goals(user: dict = Depends(get_current_user)):
+    """Get all travel goals"""
+    goals = await db.travel_goals.find({"user_id": user["id"]}).to_list(50)
+    
+    today = datetime.now(timezone.utc)
+    result = []
+    for goal in goals:
+        goal_data = {k: v for k, v in goal.items() if k != "_id"}
+        # Calculate days remaining
+        try:
+            target = datetime.fromisoformat(goal["target_date"].replace("Z", "+00:00"))
+            goal_data["days_remaining"] = max(0, (target - today).days)
+        except:
+            goal_data["days_remaining"] = 0
+        # Calculate progress
+        goal_data["progress_percent"] = min(100, round((goal.get("saved_amount", 0) / goal["target_amount"]) * 100))
+        # Calculate monthly needed
+        if goal_data["days_remaining"] > 0:
+            remaining = goal["target_amount"] - goal.get("saved_amount", 0)
+            months_remaining = max(1, goal_data["days_remaining"] / 30)
+            goal_data["monthly_needed"] = round(remaining / months_remaining, 2)
+        else:
+            goal_data["monthly_needed"] = 0
+        result.append(goal_data)
+    
+    return {"goals": result, "count": len(result)}
+
+@api_router.post("/travel-goals")
+async def create_travel_goal(
+    goal: TravelGoalCreate,
+    user: dict = Depends(get_current_user)
+):
+    """Create a new travel goal"""
+    doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        **goal.model_dump(),
+        "saved_amount": 0,
+        "status": "active",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.travel_goals.insert_one(doc)
+    return {k: v for k, v in doc.items() if k != "_id"}
+
+@api_router.put("/travel-goals/{goal_id}")
+async def update_travel_goal(
+    goal_id: str,
+    updates: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Update a travel goal"""
+    result = await db.travel_goals.update_one(
+        {"id": goal_id, "user_id": user["id"]},
+        {"$set": updates}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Meta no encontrada")
+    return {"message": "Actualizado"}
+
+@api_router.put("/travel-goals/{goal_id}/add-savings")
+async def add_travel_savings(
+    goal_id: str,
+    amount: float,
+    user: dict = Depends(get_current_user)
+):
+    """Add savings to a travel goal"""
+    goal = await db.travel_goals.find_one({"id": goal_id, "user_id": user["id"]})
+    if not goal:
+        raise HTTPException(status_code=404, detail="Meta no encontrada")
+    
+    new_saved = goal.get("saved_amount", 0) + amount
+    new_status = "completed" if new_saved >= goal["target_amount"] else "active"
+    
+    await db.travel_goals.update_one(
+        {"id": goal_id},
+        {"$set": {"saved_amount": new_saved, "status": new_status}}
+    )
+    
+    return {"message": "Ahorro agregado", "new_saved": new_saved, "status": new_status}
+
+@api_router.delete("/travel-goals/{goal_id}")
+async def delete_travel_goal(
+    goal_id: str,
+    user: dict = Depends(get_current_user)
+):
+    result = await db.travel_goals.delete_one({"id": goal_id, "user_id": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Meta no encontrada")
+    return {"message": "Eliminado"}
+
+# ================= CASH FLOW PROJECTION =================
+
+@api_router.get("/cashflow/projection")
+async def get_cashflow_projection(user: dict = Depends(get_current_user)):
+    """Get 30-day cash flow projection"""
+    today = datetime.now(timezone.utc)
+    thirty_days = today + timedelta(days=30)
+    today_str = today.strftime("%Y-%m-%d")
+    thirty_str = thirty_days.strftime("%Y-%m-%d")
+    
+    # Get expected income
+    expected_income = await db.expected_income.find({
+        "user_id": user["id"],
+        "status": "pending",
+        "expected_date": {"$lte": thirty_str}
+    }).to_list(100)
+    total_expected_income = sum(i.get("amount", 0) for i in expected_income)
+    
+    # Get accounts receivable
+    receivables = await db.accounts_receivable.find({
+        "user_id": user["id"],
+        "status": {"$in": ["pending", "overdue", "partial"]},
+        "due_date": {"$lte": thirty_str}
+    }).to_list(100)
+    total_receivables = sum(r.get("amount", 0) - r.get("amount_paid", 0) for r in receivables)
+    
+    # Get scheduled payments
+    scheduled = await db.scheduled_payments.find({"user_id": user["id"]}).to_list(100)
+    total_scheduled = sum(s.get("amount", 0) for s in scheduled)
+    
+    # Get credit card minimums
+    cards = await db.credit_cards.find({"user_id": user["id"]}).to_list(10)
+    total_card_minimums = sum(c.get("minimum_payment", 0) for c in cards)
+    
+    # Get deferred payments
+    deferred = await db.deferred_payments.find({
+        "user_id": user["id"],
+        "remaining_installments": {"$gt": 0}
+    }).to_list(50)
+    total_deferred = sum(d.get("monthly_payment", 0) for d in deferred)
+    
+    # Calculate projection
+    total_outflow = total_scheduled + total_card_minimums + total_deferred
+    total_inflow = total_expected_income + total_receivables
+    projected_balance = total_inflow - total_outflow
+    
+    # Determine status
+    if projected_balance < 0:
+        status = "critical"
+        message = f"⚠️ Déficit proyectado de ${abs(projected_balance):,.2f} en 30 días"
+    elif projected_balance < total_outflow * 0.2:
+        status = "warning"
+        message = "⚡ Flujo ajustado - considera postergar gastos no esenciales"
+    else:
+        status = "healthy"
+        message = "✅ Flujo de caja saludable para los próximos 30 días"
+    
+    return {
+        "projection": {
+            "expected_income": total_expected_income,
+            "receivables": total_receivables,
+            "total_inflow": total_inflow,
+            "scheduled_payments": total_scheduled,
+            "card_minimums": total_card_minimums,
+            "deferred_payments": total_deferred,
+            "total_outflow": total_outflow,
+            "projected_balance": projected_balance
+        },
+        "status": status,
+        "message": message,
+        "details": {
+            "expected_income_count": len(expected_income),
+            "receivables_count": len(receivables),
+            "scheduled_count": len(scheduled),
+            "cards_count": len(cards),
+            "deferred_count": len(deferred)
+        }
+    }
+
 @api_router.get("/reminders")
 async def get_reminders(user: dict = Depends(get_current_user)):
     """Get smart reminders for dashboard"""
