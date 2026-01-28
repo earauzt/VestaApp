@@ -162,4 +162,11 @@ function ChatBotWrapper() {
   return <ChatBot />;
 }
 
+// FAB solo se muestra cuando el usuario está logueado
+function FABWrapper() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return <FAB />;
+}
+
 export default App;
