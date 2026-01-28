@@ -153,7 +153,7 @@ export default function FAB() {
       />
 
       {/* FAB Button */}
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-20 right-6 z-[60]">
         <AnimatePresence>
           {isOpen && (
             <motion.div
