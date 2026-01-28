@@ -62,6 +62,8 @@ export default function Dashboard() {
   const [reminders, setReminders] = useState([]);
   const [dismissedReminders, setDismissedReminders] = useState([]);
   const [categoryData, setCategoryData] = useState([]);
+  const [cashflowProjection, setCashflowProjection] = useState(null);
+  const [travelGoals, setTravelGoals] = useState([]);
   const [period, setPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
 
@@ -73,21 +75,21 @@ export default function Dashboard() {
   // Filter out dismissed reminders
   const visibleReminders = reminders.filter((_, index) => !dismissedReminders.includes(index));
 
-  useEffect(() => {
-    fetchData();
-  }, [period]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
-      const [statsRes, chartRes, remindersRes] = await Promise.all([
+      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes] = await Promise.all([
         axios.get(`${API}/dashboard/stats`, { headers: getAuthHeaders() }),
         axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/reminders`, { headers: getAuthHeaders() }).catch(() => ({ data: [] }))
+        axios.get(`${API}/reminders`, { headers: getAuthHeaders() }).catch(() => ({ data: [] })),
+        axios.get(`${API}/cashflow/projection`, { headers: getAuthHeaders() }).catch(() => ({ data: null })),
+        axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() }).catch(() => ({ data: [] }))
       ]);
       
       setStats(statsRes.data);
       setChartData(chartRes.data.data);
       setReminders(remindersRes.data);
+      setCashflowProjection(cashflowRes.data);
+      setTravelGoals(goalsRes.data.filter(g => g.status === "active").slice(0, 2));
       
       // Transform category data to match Flujo categories with budgets
       const byCategory = statsRes.data?.by_category || {};
@@ -111,7 +113,11 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [period, getAuthHeaders]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-EC', {
