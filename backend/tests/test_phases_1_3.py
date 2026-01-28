@@ -134,10 +134,9 @@ class TestTravelGoals:
         assert create_response.status_code == 200
         goal_id = create_response.json()["id"]
         
-        # Add savings
+        # Add savings - amount is a query parameter
         response = requests.put(
-            f"{BASE_URL}/api/travel-goals/{goal_id}/add-savings",
-            json={"amount": 250.00},
+            f"{BASE_URL}/api/travel-goals/{goal_id}/add-savings?amount=250.00",
             headers=auth_headers
         )
         assert response.status_code == 200, f"Failed: {response.text}"
@@ -386,10 +385,9 @@ class TestAccountsReceivable:
         assert create_response.status_code == 200
         account_id = create_response.json()["id"]
         
-        # Record partial payment
+        # Record partial payment - amount is a query parameter
         response = requests.put(
-            f"{BASE_URL}/api/accounts-receivable/{account_id}/payment",
-            json={"amount": 400.00},
+            f"{BASE_URL}/api/accounts-receivable/{account_id}/payment?amount=400.00",
             headers=auth_headers
         )
         assert response.status_code == 200, f"Failed: {response.text}"
@@ -398,10 +396,9 @@ class TestAccountsReceivable:
         assert data["new_status"] == "partial"
         print(f"Recorded $400 payment for account {account_id}, status: {data['new_status']}")
         
-        # Record full payment
+        # Record full payment - amount is a query parameter
         response = requests.put(
-            f"{BASE_URL}/api/accounts-receivable/{account_id}/payment",
-            json={"amount": 600.00},
+            f"{BASE_URL}/api/accounts-receivable/{account_id}/payment?amount=600.00",
             headers=auth_headers
         )
         assert response.status_code == 200
@@ -506,6 +503,7 @@ class TestTransactions:
         payload = {
             "amount": 25.50,
             "category": "comida",
+            "subcategory": "supermercado",  # Required field
             "description": "TEST_Quick expense from FAB",
             "date": today,
             "transaction_type": "expense",
