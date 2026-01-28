@@ -117,13 +117,13 @@ export default function Ingresos() {
       const [incomesRes, summaryRes, expectedRes, receivableRes] = await Promise.all([
         axios.get(`${API}/income?year=${selectedYear}`, { headers: getAuthHeaders() }),
         axios.get(`${API}/income/summary?year=${selectedYear}`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/expected-income`, { headers: getAuthHeaders() }).catch(() => ({ data: [] })),
-        axios.get(`${API}/accounts-receivable`, { headers: getAuthHeaders() }).catch(() => ({ data: [] }))
+        axios.get(`${API}/expected-income`, { headers: getAuthHeaders() }).catch(() => ({ data: { items: [] } })),
+        axios.get(`${API}/accounts-receivable`, { headers: getAuthHeaders() }).catch(() => ({ data: { items: [] } }))
       ]);
       setIncomes(incomesRes.data);
       setSummary(summaryRes.data);
-      setExpectedIncomes(expectedRes.data);
-      setAccountsReceivable(receivableRes.data);
+      setExpectedIncomes(expectedRes.data?.items || []);
+      setAccountsReceivable(receivableRes.data?.items || []);
     } catch (error) {
       toast.error("Error al cargar datos");
     } finally {
