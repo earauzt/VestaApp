@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
@@ -16,12 +17,14 @@ import {
   Bell,
   Warning,
   CheckCircle,
-  Heart,
-  Lightning,
   CreditCard,
   FirstAid,
   Sparkle,
-  X
+  X,
+  TrendUp,
+  Clock,
+  Airplane,
+  Receipt
 } from "@phosphor-icons/react";
 import { 
   AreaChart, 
