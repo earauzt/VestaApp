@@ -15,6 +15,7 @@ import SRILimits from "./pages/SRILimits";
 import Ingresos from "./pages/Ingresos";
 import Deudas from "./pages/Deudas";
 import Flujo from "./pages/Flujo";
+import MetasViaje from "./pages/MetasViaje";
 import Layout from "./components/Layout";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -133,6 +134,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse"]}>
             <Flujo />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/metas-viaje" 
+        element={
+          <ProtectedRoute allowedRoles={["admin", "spouse"]}>
+            <MetasViaje />
           </ProtectedRoute>
         } 
       />
