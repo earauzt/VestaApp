@@ -148,6 +148,7 @@ function App() {
       <AuthProvider>
         <AppRoutes />
         <ChatBotWrapper />
+        <FABWrapper />
         <Toaster richColors position="top-right" />
       </AuthProvider>
     </BrowserRouter>
