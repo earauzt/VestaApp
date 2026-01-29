@@ -77,6 +77,10 @@ export default function Dashboard() {
   const [period, setPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
 
+  // Select categories based on user type
+  const isDemo = user?.role === "demo" || user?.email === "demo@fintrack.ec";
+  const FLUJO_CATEGORIES = isDemo ? DEMO_FLUJO_CATEGORIES : DEFAULT_FLUJO_CATEGORIES;
+
   // Function to dismiss a reminder
   const dismissReminder = (index) => {
     setDismissedReminders([...dismissedReminders, index]);
