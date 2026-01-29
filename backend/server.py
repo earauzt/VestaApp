@@ -3483,9 +3483,9 @@ async def get_budget_config(
     return {
         "year": current_year,
         "categories": merged_categories,
-        "income_projection": saved.get("income_projection", INCOME_STRUCTURE) if saved else INCOME_STRUCTURE,
-        "savings_goal": saved.get("savings_goal", BUDGET_SUMMARY["ahorro_esperado"]) if saved else BUDGET_SUMMARY["ahorro_esperado"],
-        "investment_goal": saved.get("investment_goal", BUDGET_SUMMARY["inversion_esperada"]) if saved else BUDGET_SUMMARY["inversion_esperada"],
+        "income_projection": saved.get("income_projection", get_income_structure(user)) if saved else get_income_structure(user),
+        "savings_goal": saved.get("savings_goal", get_budget_summary(user)["ahorro_esperado"]) if saved else get_budget_summary(user)["ahorro_esperado"],
+        "investment_goal": saved.get("investment_goal", get_budget_summary(user)["inversion_esperada"]) if saved else get_budget_summary(user)["inversion_esperada"],
         "is_custom": saved is not None
     }
 
