@@ -499,7 +499,7 @@ export default function MetasViaje() {
                           )}
 
                           {goal.notes && (
-                            <p className="text-sm text-muted-foreground mb-4 italic">"{goal.notes}"</p>
+                            <p className="text-sm text-muted-foreground mb-4 italic">&quot;{goal.notes}&quot;</p>
                           )}
 
                           {/* Actions */}
@@ -722,7 +722,7 @@ export default function MetasViaje() {
               Agregar Ahorro al Fondo
             </DialogTitle>
             <DialogDescription>
-              Agrega dinero extra a tu fondo de viajes anual. Este monto se suma a tu presupuesto de "Viajes y Entretenimiento".
+              Agrega dinero extra a tu fondo de viajes anual. Este monto se suma a tu presupuesto de &quot;Viajes y Entretenimiento&quot;.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
