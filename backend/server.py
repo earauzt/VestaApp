@@ -3755,16 +3755,29 @@ async def create_credit_card(card: CreditCard, user: dict = Depends(get_current_
     return card_doc
 
 @api_router.put("/credit-cards/{card_id}")
-async def update_credit_card(card_id: str, card: CreditCard, user: dict = Depends(get_current_user)):
-    """Update credit card details"""
+async def update_credit_card(card_id: str, card: CreditCardUpdate, user: dict = Depends(get_current_user)):
+    """Update credit card details (partial update supported)"""
     if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
         raise HTTPException(status_code=403, detail="No autorizado")
     
-    update_data = {
-        **card.model_dump(),
-        "available_credit": card.credit_limit - card.current_balance,
-        "updated_at": datetime.now(timezone.utc).isoformat()
-    }
+    # Get current card data
+    existing_card = await db.credit_cards.find_one({"id": card_id, "user_id": user["id"]}, {"_id": 0})
+    if not existing_card:
+        raise HTTPException(status_code=404, detail="Tarjeta no encontrada")
+    
+    # Only update fields that were provided (not None)
+    update_data = {}
+    card_dict = card.model_dump(exclude_none=True)
+    
+    for key, value in card_dict.items():
+        if value is not None:
+            update_data[key] = value
+    
+    # Recalculate available_credit if credit_limit or current_balance changed
+    new_limit = update_data.get("credit_limit", existing_card.get("credit_limit", 0))
+    new_balance = update_data.get("current_balance", existing_card.get("current_balance", 0))
+    update_data["available_credit"] = new_limit - new_balance
+    update_data["updated_at"] = datetime.now(timezone.utc).isoformat()
     
     result = await db.credit_cards.update_one(
         {"id": card_id, "user_id": user["id"]},
