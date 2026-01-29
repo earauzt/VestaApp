@@ -126,7 +126,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [period, getAuthHeaders]);
+  }, [period, getAuthHeaders, user?.email]);
 
   useEffect(() => {
     fetchData();
