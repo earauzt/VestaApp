@@ -265,7 +265,7 @@ export default function MetasViaje() {
                     className="gap-1"
                   >
                     <Pencil size={14} />
-                    Editar
+                    Editar Meta
                   </Button>
                   <Button 
                     size="sm" 
@@ -273,58 +273,69 @@ export default function MetasViaje() {
                     className="gap-1 bg-amber-600 hover:bg-amber-700"
                   >
                     <Plus size={14} />
-                    Agregar Ahorro
+                    Registrar Ahorro
                   </Button>
                 </div>
               )}
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-4">
+            {/* Progress de ahorro hacia la meta */}
+            <div className="mb-4 p-3 rounded-lg bg-white/60 dark:bg-black/20">
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-sm font-medium">Progreso de Ahorro</span>
+                <span className="text-sm font-bold text-amber-700">
+                  {formatCurrency(travelFund.total_saved || travelFund.total_deposited || 0)} / {formatCurrency(travelFund.annual_budget)}
+                </span>
+              </div>
+              <Progress 
+                value={travelFund.savings_progress || 0} 
+                className="h-3 mb-2"
+              />
+              <div className="flex justify-between text-xs text-muted-foreground">
+                <span>{(travelFund.savings_progress || 0).toFixed(0)}% ahorrado</span>
+                <span>Falta: {formatCurrency(travelFund.pending_to_save || 0)}</span>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
               <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
-                <p className="text-xs text-muted-foreground">Presupuesto Anual</p>
+                <p className="text-xs text-muted-foreground">Meta Anual</p>
                 <p className="text-lg font-bold text-amber-700">{formatCurrency(travelFund.annual_budget)}</p>
               </div>
-              <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
-                <p className="text-xs text-muted-foreground">Ahorros Extra</p>
-                <p className="text-lg font-bold text-emerald-600">+{formatCurrency(travelFund.total_deposited)}</p>
+              <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 text-center border border-emerald-200 dark:border-emerald-800">
+                <p className="text-xs text-emerald-700 dark:text-emerald-400">Ya Ahorrado</p>
+                <p className="text-lg font-bold text-emerald-600">{formatCurrency(travelFund.total_saved || travelFund.total_deposited || 0)}</p>
               </div>
               <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
                 <p className="text-xs text-muted-foreground">Gastado</p>
                 <p className="text-lg font-bold text-red-600">-{formatCurrency(travelFund.total_spent)}</p>
               </div>
-              <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
-                <p className="text-xs text-muted-foreground">En Tarjeta</p>
-                <p className="text-lg font-bold text-orange-600">{formatCurrency(travelFund.pending_card_payments)}</p>
-              </div>
-              <div className="p-3 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 text-center">
-                <p className="text-xs text-emerald-700 dark:text-emerald-400">Disponible</p>
-                <p className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{formatCurrency(travelFund.available)}</p>
+              <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-center border border-blue-200 dark:border-blue-800">
+                <p className="text-xs text-blue-700 dark:text-blue-400">Disponible para Gastar</p>
+                <p className="text-xl font-bold text-blue-700 dark:text-blue-400">{formatCurrency(travelFund.available)}</p>
               </div>
             </div>
             
-            {/* Progress bar */}
-            <div className="mb-2">
-              <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                <span>Uso del presupuesto</span>
-                <span>{((travelFund.total_spent / travelFund.annual_budget) * 100).toFixed(0)}%</span>
+            {/* Info de tarjeta si hay */}
+            {travelFund.pending_card_payments > 0 && (
+              <div className="p-2 rounded bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 mb-3">
+                <p className="text-xs text-orange-700 dark:text-orange-400">
+                  ⚠️ Pagos pendientes en tarjeta: <strong>{formatCurrency(travelFund.pending_card_payments)}</strong>
+                </p>
               </div>
-              <Progress 
-                value={Math.min((travelFund.total_spent / travelFund.annual_budget) * 100, 100)} 
-                className="h-2"
-              />
-            </div>
+            )}
             
             {travelFund.monthly_suggested_saving > 0 && (
-              <p className="text-sm text-amber-700 dark:text-amber-400 mt-2">
-                💡 Ahorro mensual sugerido: <strong>{formatCurrency(travelFund.monthly_suggested_saving)}</strong> para alcanzar tu presupuesto anual
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                💡 Para completar tu meta, ahorra <strong>{formatCurrency(travelFund.monthly_suggested_saving)}</strong>/mes
               </p>
             )}
             
             {/* Recent deposits */}
             {travelFund.deposits && travelFund.deposits.length > 0 && (
               <div className="mt-4 pt-3 border-t border-amber-200 dark:border-amber-800">
-                <p className="text-xs font-medium text-muted-foreground mb-2">Últimos depósitos:</p>
+                <p className="text-xs font-medium text-muted-foreground mb-2">Últimos ahorros registrados:</p>
                 <div className="flex flex-wrap gap-2">
                   {travelFund.deposits.slice(-3).map((d, i) => (
                     <Badge key={i} variant="secondary" className="text-xs">
