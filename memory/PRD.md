@@ -216,9 +216,13 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
 
 ### 29 Enero 2026 - Fondo de Viajes Completado ✅
 1. **Fondo de Viajes (Travel Fund)**:
-   - Widget en /metas-viaje muestra: Presupuesto Anual, Ahorros Extra, Gastado, En Tarjeta, Disponible
-   - Botón "Agregar Ahorro" abre diálogo para depositar dinero extra al fondo
-   - Botón "Editar" abre diálogo para modificar el presupuesto anual
+   - Widget en /metas-viaje con nueva lógica de ahorro:
+     - **Meta Anual**: Cuánto planeas destinar a viajes
+     - **Ya Ahorrado**: Dinero que has apartado físicamente
+     - **Gastado**: Transacciones de categoría "viajes_entretenimiento"
+     - **Disponible para Gastar**: Ya Ahorrado - Gastado
+     - **Progreso de Ahorro**: Barra visual del % ahorrado vs meta
+   - Conexión automática: Los gastos de "Viajes y Entretenimiento" se descuentan del fondo
    - Backend endpoints: GET /api/travel-fund, POST /api/travel-fund/deposit, PUT /api/travel-fund/settings
 
 2. **Corrección de Issues**:
