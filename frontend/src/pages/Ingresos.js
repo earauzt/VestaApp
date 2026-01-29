@@ -793,7 +793,7 @@ export default function Ingresos() {
                       {format(formData.date, "d MMM", { locale: es })}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[200]" align="start">
                     <Calendar
                       mode="single"
                       selected={formData.date}
@@ -917,7 +917,7 @@ export default function Ingresos() {
                       {format(expectedForm.expected_date, "d MMM", { locale: es })}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[200]" align="start">
                     <Calendar
                       mode="single"
                       selected={expectedForm.expected_date}
@@ -1044,7 +1044,7 @@ export default function Ingresos() {
                       {format(receivableForm.invoice_date, "d MMM", { locale: es })}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[200]" align="start">
                     <Calendar
                       mode="single"
                       selected={receivableForm.invoice_date}
@@ -1063,7 +1063,7 @@ export default function Ingresos() {
                       {format(receivableForm.due_date, "d MMM", { locale: es })}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[200]" align="start">
                     <Calendar
                       mode="single"
                       selected={receivableForm.due_date}
