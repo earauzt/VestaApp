@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -42,28 +42,40 @@ import { CategoryRulesManager } from "../components/CategoryRulesManager";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// Default category colors
 const CATEGORY_COLORS = {
+  servicios_basicos: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",
+  empleados: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
+  colegio_actividades: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  seguros: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400",
+  comida: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
+  restaurantes: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  carros: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  usa: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+  viajes_entretenimiento: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
+  gastos_libres: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
+  // Demo categories
+  transporte: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  entretenimiento: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
+  // Legacy categories for compatibility
   alimentacion: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   salud: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400",
   educacion: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",
   vivienda: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
   vestimenta: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   turismo: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
-  transporte: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
   viajes_internacionales: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
+  ingreso: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
   otros: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
 };
 
-const CATEGORIES = {
-  alimentacion: { name: "Alimentación", subcategories: ["Comida", "Restaurantes", "Supermercado", "Mercado"], deductible: true },
-  salud: { name: "Salud", subcategories: ["Seguros", "Medicina", "Consultas", "Hospitalización", "Laboratorio"], deductible: true },
-  educacion: { name: "Educación", subcategories: ["Colegio y actividades", "Cursos", "Materiales", "Universidad", "Maestría"], deductible: true },
-  vivienda: { name: "Vivienda", subcategories: ["Servicios básicos", "Arriendo", "Intereses hipoteca", "Mantenimiento"], deductible: true },
-  vestimenta: { name: "Vestimenta", subcategories: ["Ropa", "Calzado", "Accesorios"], deductible: true },
-  turismo: { name: "Turismo Nacional", subcategories: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"], deductible: true },
-  transporte: { name: "Transporte", subcategories: ["Carros", "Combustible", "Mantenimiento vehicular", "Taxi", "Bus"], deductible: false },
-  viajes_internacionales: { name: "Viajes Internacionales", subcategories: ["USA", "Europa", "Otros países"], deductible: false },
-  otros: { name: "Otros", subcategories: ["Empleados", "Entretenimiento", "Varios"], deductible: false }
+// Fallback categories (will be replaced by backend data)
+const FALLBACK_CATEGORIES = {
+  servicios_basicos: { name: "Servicios Básicos", subcategories: ["Luz", "Agua", "Internet", "Gas", "Teléfono"] },
+  comida: { name: "Comida", subcategories: ["Supermercado", "Mercado"] },
+  restaurantes: { name: "Restaurantes", subcategories: ["Restaurantes", "Delivery", "Cafetería"] },
+  carros: { name: "Carros", subcategories: ["Gasolina", "Mantenimiento", "Seguro vehicular"] },
+  otros: { name: "Otros", subcategories: ["Varios", "Entretenimiento"] }
 };
 
 const INCOME_SOURCES = ["Personal", "APX", "USA"];
