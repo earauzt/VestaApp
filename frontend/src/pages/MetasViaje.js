@@ -36,18 +36,6 @@ const STATUS_CONFIG = {
   cancelled: { label: "Cancelada", color: "bg-red-100 text-red-800", icon: Clock }
 };
 
-// Preset destinations with estimated costs
-const PRESET_DESTINATIONS = [
-  { name: "Miami, USA", estimatedCost: 3500 },
-  { name: "Nueva York, USA", estimatedCost: 4500 },
-  { name: "Orlando, USA", estimatedCost: 4000 },
-  { name: "Cancún, México", estimatedCost: 2500 },
-  { name: "Galápagos, Ecuador", estimatedCost: 2000 },
-  { name: "Europa (España)", estimatedCost: 6000 },
-  { name: "Colombia (Cartagena)", estimatedCost: 1500 },
-  { name: "Perú (Cusco)", estimatedCost: 1800 },
-];
-
 export default function MetasViaje() {
   const { getAuthHeaders, user } = useAuth();
   const [goals, setGoals] = useState([]);
