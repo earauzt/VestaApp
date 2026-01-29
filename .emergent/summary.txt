@@ -8,73 +8,47 @@ El usuario quiere una aplicación de finanzas personales para él, su esposa y s
 4.  **Banner de Notificaciones Inteligentes**: Un banner en el dashboard para mostrar advertencias de flujo de caja, límites del SRI, recordatorios de facturas, etc.
 5.  **Botón de Acción Flotante (FAB)**: Un botón en la esquina inferior derecha para capturar transacciones rápidamente (tomar foto, subir de galería, gasto rápido manual).
 6.  **Mejoras en el Dashboard**: Optimización de la densidad, mini-gráficos de tendencia, y un widget de Próximas Acciones.
+7.  **Fondo de Viajes (Nueva Idea)**: Un fondo o bote donde el usuario puede asignar dinero de su categoría de Viajes y Entretenimiento y también hacer depósitos manuales. El saldo del fondo se usa para pagar los viajes.
 
 **User's preferred language**: Spanish. The next agent MUST respond in Spanish.
 
 **what currently exists?**
-Una aplicación full-stack (FastAPI, React) de finanzas personales conectada a una base de datos **MongoDB Atlas persistente**, lo que resuelve el problema de pérdida de datos en cada redeploy.
-
-La aplicación incluye:
--   **Autenticación y Roles**: Tres roles definidos (Admin, Familiar, Contadora) con permisos específicos en el frontend.
--   **Seeding de Datos**: Un script () que se ejecuta al inicio para poblar la base de datos con 3 usuarios, 4 tarjetas de crédito y 6 pagos diferidos, asegurando que los datos base persistan.
--   **Procesamiento de Estados de Cuenta**: Se ha mejorado significativamente el procesamiento de PDFs, que ahora extrae con éxito la información de la tarjeta, transacciones y diferidos de los 4 estados de cuenta del usuario (Pacificard, Pichincha, Diners, Apple Card). Utiliza usage: pdfplumber [-h] [--structure | --structure-text]
-                  [--format {csv,json,text}] [--types TYPES [TYPES ...]]
-                  [--include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]]
-                  [--exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]]
-                  [--laparams LAPARAMS] [--precision PRECISION]
-                  [--pages PAGES [PAGES ...]] [--indent INDENT]
-                  [infile]
-
-positional arguments:
-  infile
-
-options:
-  -h, --help            show this help message and exit
-  --structure           Write the structure tree as JSON. All other arguments
-                        except --pages, --laparams, and --indent will be
-                        ignored
-  --structure-text      Write the structure tree as JSON including text
-                        contents. All other arguments except --pages,
-                        --laparams, and --indent will be ignored
-  --format {csv,json,text}
-  --types TYPES [TYPES ...]
-  --include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]
-                        Include *only* these object attributes in output.
-  --exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]
-                        Exclude these object attributes from output.
-  --laparams LAPARAMS
-  --precision PRECISION
-  --pages PAGES [PAGES ...]
-  --indent INDENT       Indent level for JSON pretty-printing. y un fallback a OCR de Gemini para PDFs basados en imágenes.
--   **Dashboard**: Muestra resúmenes financieros, recordatorios inteligentes (ahora con un botón para cerrarlos) y una vista simplificada para el rol Familiar (KP) con un resumen de gastos por categoría.
--   **Cargar y Validar**: Página para subir estados de cuenta y validar transacciones. Ahora incluye un **filtro de búsqueda** y **acciones en lote** (seleccionar múltiples transacciones para categorizarlas o aprobarlas).
--   **Gestión de Deudas**: Página para ver un resumen de las tarjetas de crédito y los pagos diferidos. Se corrigió un error que ocurría al editar los límites de las tarjetas.
+Una aplicación full-stack (FastAPI, React, MongoDB Atlas) de finanzas personales con datos persistentes. La aplicación incluye:
+-   **Autenticación y Roles**: Roles de Admin, Familiar, Contadora y un nuevo rol **Demo** con datos ficticios y aislados para compartir previews de forma segura.
+-   **Dashboard**: Muestra resúmenes financieros, recordatorios, widgets de flujo proyectado, y se adapta dinámicamente para el usuario Demo.
+-   **Gestión de Datos**:
+    -   Página de **Transacciones** con categorización dual (presupuesto personal y SRI).
+    -   Página de **Ingresos** con pestañas para ingresos registrados, previstos y cuentas por cobrar.
+    -   Página de **Metas de Viaje** para crear y seguir metas de ahorro.
+    -   Página de **Deudas** para gestionar tarjetas de crédito.
+    -   Página de **Cargar y Validar** para conciliar transacciones de estados de cuenta.
+-   **Componentes UI**: Incluye un Botón de Acción Flotante (FAB) para creación rápida de transacciones. Los formularios de fecha ahora usan un selector de calendario funcional.
 
 **Last working item**:
--   **Last item agent was working**: El agente estaba en medio de la implementación de un gran conjunto de nuevas funcionalidades solicitadas por el usuario, divididas en fases. Se completó parte de la Fase 1 y la Fase 2 del backend. Específicamente, se crearon el componente FAB en el frontend y los modelos/endpoints para Ingresos Previstos y Cuentas por Cobrar en el backend.
+-   **Last item agent was working**: Implementación del Fondo de Viajes. El agente creó los endpoints del backend () y los componentes básicos del frontend en la página  para mostrar el saldo del fondo y permitir depósitos. Esto fue en respuesta a la solicitud del usuario de implementar la Opción A que el agente había propuesto.
 -   **Status**: IN PROGRESS
--   **Agent Testing Done**: Y (manual, a través de scripts y screenshots para verificar la persistencia de datos y las nuevas funcionalidades a nivel superficial).
--   **Which testing method agent to use?**: frontend testing agent (para verificar las nuevas funcionalidades de FAB, Ingresos y Metas de Viaje una vez que se completen).
+-   **Agent Testing Done**: N (La funcionalidad no está completamente conectada para ser probada).
+-   **Which testing method agent to use?**: frontend testing agent
 -   **User Testing Done**: N
 
 **All Pending/In progress Issue list**:
 -   **Issue 1 (P1)**: El backend devuelve HTTP 403 en lugar de 401 para accesos no autorizados.
--   **Issue 2 (P1)**: Hay un problema de visibilidad con el menú desplegable de categorías en el frontend que hace que se oculte detrás de otros elementos.
--   **Issue 3 (P2)**: Múltiples advertencias de  en varios componentes de React.
+-   **Issue 2 (P1)**: A pesar de que se arregló el z-index de los calendarios, hay un problema general de visibilidad con el menú desplegable de categorías en la página de Transacciones que a veces se oculta.
+-   **Issue 3 (P2)**: Múltiples advertencias de  en varios componentes de React que pueden causar bugs de estado obsoleto.
 
 **Issues Detail**:
 -   **Issue 1: 403 vs 401**
-    -   **Attempted fixes**: Ninguno en esta sesión.
-    -   **Next debug checklist**: Revisar el middleware de autenticación en  para lanzar  en lugar de 403 en fallos de autenticación.
-    -   **Why fix this issue and what will be achieved with the fix?**: Cumplir con los estándares HTTP para un manejo de errores predecible.
+    -   **Attempted fixes**: Ninguno.
+    -   **Next debug checklist**: Revisar el middleware de autenticación en  () para asegurar que se lance  en fallos de token.
+    -   **Why fix this issue and what will be achieved with the fix?**: Cumplir con los estándares HTTP para un manejo de errores predecible en el frontend.
     -   **Status**: NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?**: backend
     -   **Blocked on other issue**: None
 
--   **Issue 2: Visibilidad del Dropdown**
-    -   **Attempted fixes**: Ninguno en esta sesión.
-    -   **Next debug checklist**: Inspeccionar el CSS (, , ) del componente de dropdown y sus contenedores.
+-   **Issue 2: Visibilidad del Dropdown de Categorías**
+    -   **Attempted fixes**: Ninguno directamente, aunque se aplicaron arreglos de  a los calendarios.
+    -   **Next debug checklist**: En , inspeccionar el CSS del  de categorías y sus contenedores (). Probablemente necesita un  más alto o el  de  sería una mejor opción que el  nativo dentro de un diálogo.
     -   **Why to solve**: Mejora la usabilidad de una función clave.
     -   **Status**: NOT STARTED
     -   **Is recurring issue?** Y
@@ -82,73 +56,47 @@ options:
     -   **Blocked on other issue**: None
 
 -   **Issue 3: Warnings de **
-    -   **Attempted fixes**: Se solucionó uno en , pero quedan más.
-    -   **Next debug checklist**: Usar el linter para identificar los componentes afectados y añadir las dependencias que faltan a los arrays de , , etc.
-    -   **Why to solve**: Evita bugs de estado obsoleto y mejora la calidad del código.
-    -   **Status**: IN PROGRESS
+    -   **Attempted fixes**: Ninguno en esta sesión.
+    -   **Next debug checklist**: Ejecutar yarn run v1.22.22
+info Visit https://yarnpkg.com/en/docs/cli/run for documentation about this command. en el frontend, identificar todos los componentes con advertencias en la consola y añadir las dependencias que faltan a los arrays de ,  y .
+    -   **Why to solve**: Evita bugs de estado obsoleto y mejora la mantenibilidad del código.
+    -   **Status**: NOT STARTED
     -   **Is recurring issue?** Y
     -   **Should Test frontend/backend/both after fix?**: frontend
     -   **Blocked on other issue**: None
 
 **In progress Task List**:
--   **Task 1: Implementar nuevas funcionalidades (Fases 1-3) (P0)**
+-   **Task 1: Finalizar implementación del Fondo de Viajes (P0)**
     -   **Where to resume**:
-        1.  **Fase 1 (FAB)**: En , finalizar la lógica de los modales para Tomar Foto, Subir de Galería y Gasto Rápido Manual. El backend endpoint  ya existe y es funcional.
-        2.  **Fase 1 (OCR Fallback)**: En , implementar la lógica para mostrar un modal de entrada manual cuando el endpoint de procesamiento de archivos falle.
-        3.  **Fase 2 (Ingresos/Cuentas por Cobrar)**: En el frontend, crear las nuevas pestañas en la página de Ingresos para Ingresos Previstos y Cuentas por Cobrar, conectándolas a los endpoints ya creados en  (, ). Implementar la lógica de Flujo Proyectado en el Dashboard.
-        4.  **Fase 3 (Metas de Viaje)**: Crear el backend (modelo y endpoints) y el frontend (nueva página y widget en el dashboard) para las metas de viaje.
-    -   **What will be achieved with this?**: Entregar el conjunto completo de funcionalidades solicitadas por el usuario para llevar la app a un estado operativo y listo para producción.
+        1.  En , conectar los botones del nuevo componente  (Depositar, Editar) a los diálogos correspondientes y a los endpoints del backend ().
+        2.  Implementar la lógica para que al crear un gasto desde la categoría Viajes y Entretenimiento, se ofrezca la opción de pagarlo desde el fondo.
+        3.  Asegurarse de que el saldo del fondo se actualice correctamente en la UI después de cada operación.
+    -   **What will be achieved with this?**: Completar la funcionalidad solicitada por el usuario para gestionar un fondo de ahorro específico para viajes.
     -   **Status**: IN PROGRESS
     -   **Should Test frontend/backend/both after fix?**: both
     -   **Blocked on something**: No
 
 **Upcoming and Future Tasks**
 -   **Upcoming Tasks**:
-    -   (P1) Implementar la lógica del Banner de Notificaciones Inteligentes con las nuevas alertas.
-    -   (P2) Implementar las mejoras de densidad y el widget de Próximas Acciones en el Dashboard.
+    -   (P1) Implementar el Banner de Notificaciones Inteligentes con alertas de flujo de caja, límites del SRI, recordatorios, etc.
+    -   (P2) Mejorar la densidad del Dashboard y añadir el widget de Próximas Acciones.
 -   **Future Tasks**:
-    -   (P2) Investigar e implementar una conexión directa con Apple Card.
+    -   (P2) Investigar una conexión directa con Apple Card.
     -   (P2) Añadir notificaciones push cuando una categoría de gasto se acerque a su límite de deducción del SRI.
 
 **Completed work in this session**
--   **Integración con MongoDB Atlas**: Se conectó la aplicación a una base de datos MongoDB Atlas externa y persistente, solucionando el problema crítico de la pérdida de datos en cada .
--   **Script de Seeding de Datos**: Se creó  que se ejecuta al inicio y puebla la base de datos con 3 usuarios (con roles y credenciales actualizadas), 4 tarjetas de crédito y 6 pagos diferidos.
--   **Solución al Procesamiento de PDFs**: Se arregló el fallo recurrente en el procesamiento de estados de cuenta. El sistema ahora procesa con éxito los 4 PDFs del usuario (Pacificard, Pichincha, Diners, Apple Card) usando usage: pdfplumber [-h] [--structure | --structure-text]
-                  [--format {csv,json,text}] [--types TYPES [TYPES ...]]
-                  [--include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]]
-                  [--exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]]
-                  [--laparams LAPARAMS] [--precision PRECISION]
-                  [--pages PAGES [PAGES ...]] [--indent INDENT]
-                  [infile]
-
-positional arguments:
-  infile
-
-options:
-  -h, --help            show this help message and exit
-  --structure           Write the structure tree as JSON. All other arguments
-                        except --pages, --laparams, and --indent will be
-                        ignored
-  --structure-text      Write the structure tree as JSON including text
-                        contents. All other arguments except --pages,
-                        --laparams, and --indent will be ignored
-  --format {csv,json,text}
-  --types TYPES [TYPES ...]
-  --include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]
-                        Include *only* these object attributes in output.
-  --exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]
-                        Exclude these object attributes from output.
-  --laparams LAPARAMS
-  --precision PRECISION
-  --pages PAGES [PAGES ...]
-  --indent INDENT       Indent level for JSON pretty-printing. con un fallback a OCR de Gemini.
--   **Limpieza y Carga de Datos**: Se eliminaron las tarjetas duplicadas y se cargó la información correcta de las 4 tarjetas y sus transacciones/diferidos a la base de datos.
--   **Solución al Problema de **: Se diagnosticó y corrigió un error crítico por el cual los datos no se mostraban en el frontend después de un  debido a s inconsistentes.
--   **Mejoras en Cargar y Validar**: Se añadió un filtro de búsqueda y la capacidad de realizar acciones en lote (seleccionar todo, categorizar en masa).
--   **Ajuste de Permisos de Rol**: Se modificaron los permisos para el rol Familiar (esposa) para limitar su acceso a ciertas secciones, según lo solicitado.
--   **Mejoras en el Dashboard**: Se añadió un botón de 'X' para descartar los recordatorios y se implementó una vista de resumen de gastos simplificada para el rol Familiar.
--   **Corrección de Bug en Edición de Tarjetas**: Se solucionó un crash en el frontend que ocurría al intentar editar el límite de una tarjeta, mejorando el manejo de errores y asegurando que los datos del seed estuvieran completos.
--   **Inicio de Nuevas Funcionalidades**: Se comenzó la implementación de las Fases 1 y 2 del nuevo plan del usuario (creación de componente FAB y endpoints de backend para ingresos).
+-   **Fases 1-3 Implementadas**: Se completó el desarrollo del frontend para las funcionalidades de **Ingresos Previstos**, **Cuentas por Cobrar** y **Metas de Viaje**, conectándolas a los endpoints del backend existentes. Se verificó el funcionamiento del **FAB**.
+-   **Creación de Usuario Demo**: Se implementó un modo Demo con un usuario () que ve datos ficticios y aislados (transacciones, tarjetas, presupuesto), permitiendo compartir previews de forma segura. Se añadió un banner visual para indicar este modo.
+-   **Doble Categorización de Transacciones**: Se modificó el formulario de transacciones para permitir una doble categorización: una para el presupuesto personal del usuario (cargada dinámicamente) y otra para las deducciones fiscales del SRI (con categorías fijas).
+-   **Corrección de Bugs Críticos**:
+    -   **Pagos Parciales**: Se arregló un error que impedía registrar pagos parciales en las Cuentas por Cobrar (el endpoint esperaba un query param en lugar de un body).
+    -   **Edición de Tarjetas**: Se solucionó un crash al editar el límite de una tarjeta. Ahora se usa un endpoint -like que no requiere enviar todos los campos.
+    -   **Acciones en Lote**: Se corrigió un error en el modal de Acción en Lote en Cargar y Validar que impedía su funcionamiento ( no aceptaba valor vacío). También se arregló la lógica de la acción en el frontend.
+    -   **Carga de Transacciones**: Se solucionó un error de validación en el backend que ocurría cuando una transacción no tenía el campo , haciéndolo opcional.
+    -   **Calendarios No Visibles**: Se arregló un bug por el cual los calendarios no aparecían dentro de los modales (diálogos) al agregar una clase  al .
+-   **Mejoras de UI/UX**:
+    -   Se eliminaron las sugerencias de ciudades predefinidas del formulario de Metas de Viaje.
+    -   Las categorías en la página de Transacciones ahora se cargan dinámicamente desde el presupuesto del usuario en lugar de estar hardcodeadas.
 
 **Earlier issues found/mentioned but not fixed**
 -   **Issue 1: 403 vs 401**: El backend devuelve 403 en lugar de 401 para accesos no autorizados.
@@ -156,7 +104,7 @@ options:
 -   **Issue 3: Warnings de **: Siguen existiendo advertencias del linter en varios componentes.
 
 **Known issue recurrence from previous fork**
--   El problema de 403 vs 401 y la visibilidad del dropdown no se han abordado.
+-   El problema de 403 vs 401 y la visibilidad del dropdown no se han abordado en múltiples sesiones.
 -   Las advertencias de  siguen apareciendo.
 
 **Code Architecture**
@@ -165,134 +113,91 @@ options:
 **Key Technical Concepts**
 -   **Backend**: FastAPI, Python
 -   **Frontend**: React.js
--   **Database**: **MongoDB Atlas (Persistente)**
--   **Authentication**: JWT con RBAC (basado en roles)
+-   **Database**: MongoDB Atlas (Persistente)
+-   **Authentication**: JWT con RBAC (basado en roles), incluyendo un rol demo para aislamiento de datos.
 -   **Styling**: Tailwind CSS, shadcn/ui
--   **IA**:  para OpenAI y Gemini.
--   **PDF Processing**: usage: pdfplumber [-h] [--structure | --structure-text]
-                  [--format {csv,json,text}] [--types TYPES [TYPES ...]]
-                  [--include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]]
-                  [--exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]]
-                  [--laparams LAPARAMS] [--precision PRECISION]
-                  [--pages PAGES [PAGES ...]] [--indent INDENT]
-                  [infile]
-
-positional arguments:
-  infile
-
-options:
-  -h, --help            show this help message and exit
-  --structure           Write the structure tree as JSON. All other arguments
-                        except --pages, --laparams, and --indent will be
-                        ignored
-  --structure-text      Write the structure tree as JSON including text
-                        contents. All other arguments except --pages,
-                        --laparams, and --indent will be ignored
-  --format {csv,json,text}
-  --types TYPES [TYPES ...]
-  --include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]
-                        Include *only* these object attributes in output.
-  --exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]
-                        Exclude these object attributes from output.
-  --laparams LAPARAMS
-  --precision PRECISION
-  --pages PAGES [PAGES ...]
-  --indent INDENT       Indent level for JSON pretty-printing. y .
+-   **State Management**: React Hooks (, , )
 
 **key DB schema**
--   **users**: 
+-   **users**:  (rol demo añadido)
 -   **credit_cards**: 
--   **transactions**: 
--   **deferred_payments**: 
--   **personal_budgets**: 
--   **ExpectedIncome (New)**: 
--   **AccountReceivable (New)**: 
--   **TravelGoal (New, to be implemented)**: 
+-   **transactions**:  (subcategory ahora es opcional, se añadió )
+-   **personal_budgets**:  (se usa para poblar categorías dinámicamente)
+-   **ExpectedIncome**: 
+-   **AccountReceivable**: 
+-   **TravelGoal**: 
+-   **TravelFundEntry (New)**: 
 
 **changes in tech stack**
--   **Base de datos movida de local a MongoDB Atlas** para persistencia de datos.
--   Se añadieron las librerías usage: pdfplumber [-h] [--structure | --structure-text]
-                  [--format {csv,json,text}] [--types TYPES [TYPES ...]]
-                  [--include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]]
-                  [--exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]]
-                  [--laparams LAPARAMS] [--precision PRECISION]
-                  [--pages PAGES [PAGES ...]] [--indent INDENT]
-                  [infile]
-
-positional arguments:
-  infile
-
-options:
-  -h, --help            show this help message and exit
-  --structure           Write the structure tree as JSON. All other arguments
-                        except --pages, --laparams, and --indent will be
-                        ignored
-  --structure-text      Write the structure tree as JSON including text
-                        contents. All other arguments except --pages,
-                        --laparams, and --indent will be ignored
-  --format {csv,json,text}
-  --types TYPES [TYPES ...]
-  --include-attrs INCLUDE_ATTRS [INCLUDE_ATTRS ...]
-                        Include *only* these object attributes in output.
-  --exclude-attrs EXCLUDE_ATTRS [EXCLUDE_ATTRS ...]
-                        Exclude these object attributes from output.
-  --laparams LAPARAMS
-  --precision PRECISION
-  --pages PAGES [PAGES ...]
-  --indent INDENT       Indent level for JSON pretty-printing. y  para el procesamiento robusto de PDFs.
+-   Ninguno. El stack tecnológico sigue siendo FastAPI, React y MongoDB.
 
 **All files of reference**
 -   **Creados**:
-    -   : Script para inicializar la base de datos persistente con datos de usuarios, tarjetas y diferidos.
-    -   : Componente para el botón de acción flotante.
+    -   : Página para la gestión de metas de viaje.
 -   **Modificados significativamente**:
-    -   : Se mejoró drásticamente el procesamiento de PDF, se añadió la lógica para ejecutar el , se corrigió la conexión a MongoDB Atlas y se añadieron los nuevos modelos y endpoints para Ingresos/Cuentas por Cobrar.
-    -   : Actualizado con la URL de conexión a MongoDB Atlas.
-    -   : Se añadió el componente .
-    -   : Se implementó el filtro de búsqueda y las acciones en lote.
-    -   : Se añadió el botón para cerrar recordatorios y la vista simplificada para el rol Familiar.
-    -   : Se corrigió un bug de crash al editar tarjetas.
-    -   : Se actualizaron los permisos de navegación para los roles.
-    -   : Actualizado con el progreso.
+    -   : Se añadieron endpoints para el Fondo de Viajes. Se implementó lógica condicional para servir datos ficticios al rol demo. Se corrigieron múltiples bugs en endpoints de Cuentas por Cobrar, Tarjetas de Crédito y Transacciones.
+    -   : Se añadió la lógica para crear el usuario demo y todos sus datos ficticios asociados (transacciones, tarjetas, metas).
+    -   : Se implementaron las pestañas para Previstos y Por Cobrar y se corrigió el bug del calendario.
+    -   : Se añadieron los widgets de Flujo Proyectado y Metas de Viaje, y se adaptó para mostrar datos demo.
+    -   : Se implementó la categorización dual (Presupuesto y SRI) y se cargan las categorías del presupuesto dinámicamente.
+    -   : Se corrigió el bug de las acciones en lote.
+    -   : Se adaptó para mostrar tarjetas demo y se corrigió el bug de edición.
+    -    & : Se añadieron permisos y elementos de UI para el nuevo rol demo.
+
+**Areas that need refactoring**:
+-   **Token de Sesión**: La sesión del usuario expira muy rápidamente (observado en múltiples  calls que resultan en la página de login). Se debería revisar la configuración de expiración del token JWT en  para extender su duración a un tiempo razonable (e.g., 1 hora o más) para mejorar la experiencia de usuario y de testing.
+-   **Categorías Hardcodeadas**: El archivo  todavía tiene categorías de presupuesto hardcodeadas. Debería modificarse para que, al igual que , cargue las categorías dinámicamente desde el backend.
 
 **key api endpoints**
--   **/api/process/bank-statement**: (POST) Endpoint mejorado para procesar PDFs de estados de cuenta.
--   **/api/expected-incomes**: (GET, POST, PUT, DELETE) CRUD para ingresos previstos. (Nuevo)
--   **/api/accounts-receivable**: (GET, POST, PUT, DELETE) CRUD para cuentas por cobrar. (Nuevo)
+-   **/api/travel-fund**: (GET) Obtiene el estado del fondo de viajes.
+-   **/api/travel-fund/deposit**: (POST) Agrega un depósito al fondo.
+-   **/api/travel-fund/edit**: (PUT) Edita una entrada del fondo.
+-   **/api/budget/categories**: (GET) Endpoint que ahora se usa para obtener las categorías de presupuesto del usuario.
+-   **/api/credit-cards/{card_id}**: (PUT) Actualizado para aceptar actualizaciones parciales.
+-   **/api/reconciliation/bulk-approve**: (PUT) Endpoint verificado y funcionando para aprobación en lote.
 
 **Critical Info for New Agent**
--   **PERSISTENT DATABASE**: La aplicación está conectada a una base de datos **MongoDB Atlas** externa. La URL de conexión está en . Los datos ahora persisten entre deploys. ¡No más pérdida de datos!
--   **SEED SCRIPT**: El archivo  se ejecuta al iniciar el servidor para crear 3 usuarios, 4 tarjetas y 6 diferidos si la base de datos está vacía. Las credenciales actualizadas están en este script.
--   **IN-PROGRESS FEATURE IMPLEMENTATION**: El agente está a mitad de implementar un gran conjunto de características solicitadas por el usuario. Revisa la sección **In progress Task List** para saber exactamente dónde continuar. La prioridad es terminar la implementación de las Fases 1, 2 y 3.
--   **PDF PROCESSING SOLVED**: El problema principal del procesamiento de PDF que fallaba con Pacificard ha sido resuelto. El sistema ahora es mucho más robusto.
+-   **MODO DEMO**: La aplicación tiene un modo de demostración. Para probarlo, usa las credenciales: **** / ****. Este usuario ve datos completamente ficticios y una UI adaptada, lo que es ideal para compartir previews. Asegúrate de que cualquier nueva funcionalidad también esté aislada para este rol.
+-   **EXPIRACIÓN DE TOKEN CORTA**: El token JWT parece tener una vida útil muy corta, causando constantes cierres de sesión durante el uso y las pruebas automatizadas. Considera investigar y aumentar el  en  como una de las primeras acciones para mejorar el flujo de trabajo.
+-   **TAREA EN PROGRESO**: La prioridad es finalizar la funcionalidad del Fondo de Viajes (). Los cimientos (backend y UI básica) ya están puestos.
 
 **documents and test reports created in this job**
 -    (actualizado)
+-   
 
 **Last 10 User Messages and any pending HUMAN messages**
-1.  **User**: Pide ayuda para integrar una base de datos persistente, sugiriendo Supabase.
-2.  **Agent**: Recomienda MongoDB Atlas ya que la app ya usa MongoDB, y guía al usuario sobre cómo crear una cuenta y obtener la URL de conexión.
-3.  **User**: Proporciona las credenciales y la URL de conexión de MongoDB Atlas.
-4.  **Agent**: Integra MongoDB Atlas, crea un script de  para los datos iniciales, y soluciona un problema de conexión SSL. Confirma la conexión exitosa y la persistencia de los datos.
-5.  **User**: Pide cambiar las credenciales de los 3 usuarios (admin, esposa, contadora).
-6.  **Agent**: Actualiza las credenciales en la base de datos y en el script de , y confirma que el login funciona.
-7.  **User**: Informa de un error (crash) al editar el límite de una tarjeta.
-8.  **Agent**: Diagnostica un problema de validación y datos faltantes. Arregla el manejo de errores en el frontend y actualiza los datos del seed y la base de datos con los campos que faltaban.
-9.  **User**: Solicita nuevas funcionalidades: filtro y acciones en bulk en la página de validación, un botón 'X' en los recordatorios, y una sugerencia para una vista más simple para su esposa (KP).
-10. **User**: Proporciona un prompt detallado con una lista completa de mejoras deseadas (Metas de Viaje, Ingresos Previstos, FAB, etc.) y pide un análisis de viabilidad y un plan de implementación.
-11. **User**: Aprueba el plan de implementación (Fase 1, 2 y 3) y pide que se inicie el trabajo antes del deploy.
+1.  **User**: Reporta error al registrar pago parcial y falta de calendarios en formularios.
+2.  **Agent**: Corrige el bug del pago parcial (problema de Pydantic en el endpoint) y verifica que los calendarios ya existían y funcionan.
+3.  **User**: Reporta error al cargar transacciones y pide quitar sugerencias de ciudades y añadir calendario en Metas de Viaje.
+4.  **Agent**: Corrige el error de carga de transacciones (haciendo  opcional) y limpia el formulario de Metas de Viaje.
+5.  **User**: Pide crear un usuario demo con datos ficticios para poder compartir un preview.
+6.  **Agent**: Implementa el usuario demo con datos aislados y un banner de notificación.
+7.  **User**: Nota que el usuario demo todavía ve sus datos reales (presupuesto, tarjetas, etc.) y pide que sea un demo real.
+8.  **Agent**: Corrige el aislamiento de datos, haciendo que los endpoints del backend devuelvan datos ficticios si el rol del usuario es demo.
+9.  **User**: Pide que al editar una transacción, se puedan usar sus categorías de presupuesto personales.
+10. **Agent**: Implementa la carga dinámica de categorías de presupuesto en el formulario de transacciones.
+11. **User**: Reporta que la acción en lote en Cargar y Validar no funciona.
+12. **Agent**: Investiga y corrige el bug en el modal de acciones en lote.
+13. **User**: Reporta error al editar el cupo de la tarjeta Apple.
+14. **Agent**: Corrige el endpoint de actualización de tarjetas para que acepte datos parciales.
+15. **User**: Pide añadir la categorización del SRI sin quitar la del presupuesto.
+16. **Agent**: Implementa la doble categorización en el formulario de transacciones.
+17. **User**: Reporta múltiples bugs: error al crear meta de viaje, calendarios no aparecen, bulk approve no funciona. También pide una idea para enlazar su categoría de Viajes y Entretenimiento con sus metas de viaje.
+18. **Agent**: Corrige todos los bugs (z-index de calendarios, lógica de bulk approve) y propone una solución (Fondo de Viajes).
+19. **User**: Aprueba la idea del Fondo de Viajes (Opción A) y pide poder agregar dinero extra al fondo.
+20. **Agent**: Comienza la implementación del Fondo de Viajes.
 
 **Project Health Check:**
 -   **Broken**: Ninguno.
--   **Mocked**: Ninguno.
+-   **Mocked**: Los datos para el usuario demo son ficticios y servidos condicionalmente desde el backend, pero no es un mock a nivel de API.
 
 **3rd Party Integrations**
 -   **OpenAI GPT**: Usado para el chatbot. Usa Emergent LLM Key.
 -   **Gemini**: Usado para el OCR de documentos. Usa Emergent LLM Key.
--   **MongoDB Atlas**: Base de datos como servicio, persistente. Requiere URL de conexión del usuario.
+-   **MongoDB Atlas**: Base de datos como servicio, persistente. Requiere URL de conexión.
 
 **Testing status**
--   **Testing agent used after significant changes**: NO
+-   **Testing agent used after significant changes**: YES
 -   **Troubleshoot agent used after agent stuck in loop**: NO
 -   **Test files created**: None.
 -   **Known regressions**: None.
@@ -301,7 +206,8 @@ options:
 -   **Admin (Emilio)**:  / 
 -   **Familiar (KP)**:  / 
 -   **Contadora (María)**:  / 
+-   **Demo User**:  / 
 
 **What agent forgot to execute**
--   El agente comenzó la implementación de las Fases 1, 2 y 3 pero no las completó. El trabajo está a mitad de camino y necesita ser continuado.
--   No se ha llamado al  después de los cambios masivos (integración de DB externa, nuevas funcionalidades, etc.), lo cual sería recomendable antes de un deploy final.</analysis>
+-   No se ha implementado el Banner de Notificaciones Inteligentes ni las mejoras de densidad del Dashboard, que eran parte de los requerimientos originales del usuario.
+-   Los issues de larga data como el error 403 vs 401 y las advertencias de  siguen sin resolverse.</analysis>
