@@ -434,26 +434,6 @@ export default function MetasViaje() {
                 required
                 data-testid="destination-input"
               />
-              
-              {/* Quick Select Destinations */}
-              <div className="flex flex-wrap gap-2 mt-2">
-                {PRESET_DESTINATIONS.slice(0, 4).map((dest) => (
-                  <Button
-                    key={dest.name}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="text-xs"
-                    onClick={() => setFormData({ 
-                      ...formData, 
-                      destination: dest.name,
-                      target_amount: dest.estimatedCost.toString()
-                    })}
-                  >
-                    {dest.name}
-                  </Button>
-                ))}
-              </div>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
