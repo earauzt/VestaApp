@@ -214,16 +214,29 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
 - ✅ Vista simplificada para rol "Familiar"
 - ✅ Botón X en recordatorios del Dashboard
 
+### 29 Enero 2026 - Fondo de Viajes Completado ✅
+1. **Fondo de Viajes (Travel Fund)**:
+   - Widget en /metas-viaje muestra: Presupuesto Anual, Ahorros Extra, Gastado, En Tarjeta, Disponible
+   - Botón "Agregar Ahorro" abre diálogo para depositar dinero extra al fondo
+   - Botón "Editar" abre diálogo para modificar el presupuesto anual
+   - Backend endpoints: GET /api/travel-fund, POST /api/travel-fund/deposit, PUT /api/travel-fund/settings
+
+2. **Corrección de Issues**:
+   - JWT 401 vs 403: Ahora devuelve 401 con header WWW-Authenticate para tokens inválidos
+   - Dropdowns de categorías: z-index aumentado a 250 para visibilidad en diálogos
+   - Usuario Demo: Contraseña corregida a "demopass"
+
 ---
 
 ## Backlog / Próximas Tareas
 
 ### P0 (Crítica)
 - [x] ~~Implementar Fases 1-3~~ ✅ COMPLETADO
+- [x] ~~Implementar Fondo de Viajes~~ ✅ COMPLETADO
 
 ### P1 (Alta Prioridad)
-- [ ] Corregir 403 -> 401 en autenticación fallida
-- [ ] Corregir visibilidad dropdown de categorías
+- [x] ~~Corregir 403 -> 401 en autenticación fallida~~ ✅ COMPLETADO
+- [x] ~~Corregir visibilidad dropdown de categorías~~ ✅ COMPLETADO
 - [ ] Implementar Banner de Notificaciones Inteligentes (advertencias de flujo de caja, límites SRI)
 
 ### P2 (Media Prioridad)
