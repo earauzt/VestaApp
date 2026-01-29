@@ -513,7 +513,7 @@ export default function Transactions() {
                             {format(formData.date, "PPP", { locale: es })}
                           </Button>
                         </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
+                        <PopoverContent className="w-auto p-0 z-[200]" align="start">
                           <Calendar
                             mode="single"
                             selected={formData.date}
