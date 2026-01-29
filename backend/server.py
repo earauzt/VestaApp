@@ -736,6 +736,19 @@ class CreditCard(BaseModel):
     currency: str = "USD"
     is_international: bool = False
 
+class CreditCardUpdate(BaseModel):
+    """Model for partial updates to credit cards"""
+    name: Optional[str] = None
+    bank: Optional[str] = None
+    apr: Optional[float] = None
+    credit_limit: Optional[float] = None
+    current_balance: Optional[float] = None
+    minimum_payment: Optional[float] = None
+    cut_off_day: Optional[int] = None
+    payment_due_day: Optional[int] = None
+    currency: Optional[str] = None
+    is_international: Optional[bool] = None
+
 class CreditCardResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str
