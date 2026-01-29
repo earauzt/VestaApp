@@ -41,11 +41,11 @@ import {
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Categories from Excel "Flujos" - PROYECCION EA 2026
-const FLUJO_CATEGORIES = {
-  servicios_basicos: { name: "Servicios Básicos", color: "#3b82f6", budget: 1280 },
-  empleados: { name: "Empleados", color: "#8b5cf6", budget: 1300 },
-  colegio_actividades: { name: "Colegio y Actividades", color: "#06b6d4", budget: 2360 },
+// Default categories (will be overridden by backend for demo users)
+const DEFAULT_FLUJO_CATEGORIES = {
+  servicios_basicos: { name: "Servicios Básicos", color: "#8b5cf6", budget: 1280 },
+  empleados: { name: "Empleados", color: "#06b6d4", budget: 1300 },
+  colegio_actividades: { name: "Colegio y Actividades", color: "#3b82f6", budget: 2360 },
   seguros: { name: "Seguros", color: "#ec4899", budget: 1150 },
   comida: { name: "Comida", color: "#22c55e", budget: 950 },
   restaurantes: { name: "Restaurantes", color: "#f97316", budget: 550 },
@@ -53,6 +53,16 @@ const FLUJO_CATEGORIES = {
   usa: { name: "USA (Mamá, TMobile, Universidad)", color: "#6366f1", budget: 1150 },
   viajes_entretenimiento: { name: "Viajes y Entretenimiento", color: "#14b8a6", budget: 0 },
   gastos_libres: { name: "Gastos Libres (Otros)", color: "#f59e0b", budget: 1300 }
+};
+
+// Demo user categories (simpler/smaller)
+const DEMO_FLUJO_CATEGORIES = {
+  servicios_basicos: { name: "Servicios Básicos", color: "#8b5cf6", budget: 145 },
+  comida: { name: "Alimentación", color: "#22c55e", budget: 350 },
+  restaurantes: { name: "Restaurantes", color: "#f97316", budget: 200 },
+  transporte: { name: "Transporte", color: "#ef4444", budget: 120 },
+  entretenimiento: { name: "Entretenimiento", color: "#14b8a6", budget: 100 },
+  otros: { name: "Otros Gastos", color: "#f59e0b", budget: 100 }
 };
 
 export default function Dashboard() {
