@@ -3316,12 +3316,14 @@ async def get_income_summary(
 # ================= PERSONAL BUDGET (User's Custom Categories) =================
 
 @api_router.get("/budget/categories")
-async def get_budget_categories(user: dict = Depends(get_current_user)):
+async def get_budget_categories_endpoint(user: dict = Depends(get_current_user)):
     """Get personal budget categories (from Excel structure)"""
+    budget_cats = get_budget_categories(user)
+    budget_goals_data = get_budget_goals(user)
     return {
-        "categories": BUDGET_CATEGORIES,
+        "categories": budget_cats,
         "payment_methods": PAYMENT_METHODS,
-        "goals": BUDGET_GOALS,
+        "goals": budget_goals_data,
         "income_sources": INCOME_SOURCES,
         "income_concepts": INCOME_CONCEPTS
     }
