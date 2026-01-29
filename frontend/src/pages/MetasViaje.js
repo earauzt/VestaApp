@@ -712,6 +712,121 @@ export default function MetasViaje() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Fund Deposit Dialog */}
+      <Dialog open={fundDepositDialogOpen} onOpenChange={setFundDepositDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <PiggyBank size={24} className="text-amber-500" />
+              Agregar Ahorro al Fondo
+            </DialogTitle>
+            <DialogDescription>
+              Agrega dinero extra a tu fondo de viajes anual. Este monto se suma a tu presupuesto de "Viajes y Entretenimiento".
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Monto a Depositar</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="pl-8 text-lg font-semibold"
+                  value={depositAmount}
+                  onChange={(e) => setDepositAmount(e.target.value)}
+                  autoFocus
+                  data-testid="fund-deposit-amount"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nota (opcional)</Label>
+              <Input
+                placeholder="Ej: Ahorro de bono diciembre"
+                value={depositNote}
+                onChange={(e) => setDepositNote(e.target.value)}
+                data-testid="fund-deposit-note"
+              />
+            </div>
+
+            {/* Quick amounts */}
+            <div className="flex flex-wrap gap-2">
+              {[100, 250, 500, 1000].map((amount) => (
+                <Button
+                  key={amount}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setDepositAmount(amount.toString())}
+                >
+                  ${amount}
+                </Button>
+              ))}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setFundDepositDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleFundDeposit} className="gap-2 bg-amber-600 hover:bg-amber-700" data-testid="confirm-fund-deposit-btn">
+                <CurrencyDollar size={16} />
+                Depositar
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Fund Settings Dialog */}
+      <Dialog open={fundSettingsDialogOpen} onOpenChange={setFundSettingsDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Gear size={24} className="text-slate-500" />
+              Configurar Fondo de Viajes
+            </DialogTitle>
+            <DialogDescription>
+              Modifica tu presupuesto anual de viajes. Este es el monto base que planeas destinar a viajes y entretenimiento durante el año.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Presupuesto Anual</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="16500.00"
+                  className="pl-8 text-lg font-semibold"
+                  value={newAnnualBudget}
+                  onChange={(e) => setNewAnnualBudget(e.target.value)}
+                  autoFocus
+                  data-testid="fund-annual-budget"
+                />
+              </div>
+              {newAnnualBudget && (
+                <p className="text-sm text-muted-foreground">
+                  Mensual: {formatCurrency(parseFloat(newAnnualBudget) / 12)}/mes
+                </p>
+              )}
+            </div>
+
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setFundSettingsDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleUpdateBudget} className="gap-2" data-testid="confirm-fund-settings-btn">
+                Guardar Cambios
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
