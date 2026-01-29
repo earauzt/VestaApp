@@ -384,6 +384,108 @@ BUDGET_GOALS = {
 # Countries considered international
 INTERNATIONAL_COUNTRIES = ["USA", "United States", "Estados Unidos", "US", "EU", "Europa", "Spain", "España", "Colombia", "Peru", "Perú", "México", "Mexico", "Miami", "New York", "Los Angeles", "Houston", "Texas", "California", "Florida"]
 
+# ================= DEMO USER DATA =================
+# Datos ficticios para usuario demo (no muestra datos reales)
+DEMO_BUDGET_CATEGORIES = {
+    "servicios_basicos": {
+        "name": "Servicios Básicos",
+        "subcategories": {"Luz": 60, "Agua": 25, "Internet": 45, "Gas": 15},
+        "monthly_budget": 145,
+        "annual_budget": 1740,
+        "type": "fixed"
+    },
+    "comida": {
+        "name": "Alimentación",
+        "subcategories": {"Supermercado": 300, "Mercado": 50},
+        "monthly_budget": 350,
+        "annual_budget": 4200,
+        "type": "variable"
+    },
+    "restaurantes": {
+        "name": "Restaurantes",
+        "subcategories": {"Restaurantes": 150, "Delivery": 50},
+        "monthly_budget": 200,
+        "annual_budget": 2400,
+        "type": "discretionary"
+    },
+    "transporte": {
+        "name": "Transporte",
+        "subcategories": {"Gasolina": 80, "Mantenimiento": 40},
+        "monthly_budget": 120,
+        "annual_budget": 1440,
+        "type": "variable"
+    },
+    "entretenimiento": {
+        "name": "Entretenimiento",
+        "subcategories": {"Streaming": 30, "Salidas": 70},
+        "monthly_budget": 100,
+        "annual_budget": 1200,
+        "type": "discretionary"
+    },
+    "otros": {
+        "name": "Otros Gastos",
+        "subcategories": {"Varios": 100},
+        "monthly_budget": 100,
+        "annual_budget": 1200,
+        "type": "discretionary"
+    }
+}
+
+DEMO_INCOME_STRUCTURE = {
+    "personal": {"monthly": 3500, "annual": 42000, "source": "Salario", "note": "Ingreso principal"}
+}
+
+DEMO_BUDGET_SUMMARY = {
+    "total_gastos_fijos_monthly": 1015,
+    "total_gastos_fijos_annual": 12180,
+    "flujo_neto_mensual": 2485,
+    "ahorro_esperado": {"monthly": 350, "annual": 4200, "percentage": 10},
+    "inversion_esperada": {"monthly": 175, "annual": 2100, "percentage": 5}
+}
+
+DEMO_BUDGET_GOALS = {
+    "gastos_fijos_target": {"min": 0.25, "max": 0.35, "name": "Gastos Fijos"},
+    "ahorro_target": {"min": 0.10, "max": 0.10, "name": "Ahorro"},
+    "inversion_target": {"min": 0.05, "max": 0.05, "name": "Inversión"},
+    "gastos_libres_max_annual": 5000
+}
+
+DEMO_CONTRIBUYENTE_INFO = {
+    "ruc": "0900000000001",
+    "nombre": "USUARIO DEMO",
+    "tipo": "PERSONA NATURAL",
+    "regimen": "RIMPE",
+    "obligado_contabilidad": False,
+    "actividad_principal": "SERVICIOS PROFESIONALES",
+    "jurisdiccion": "GUAYAS / GUAYAQUIL",
+    "cargas_familiares": 1,
+    "cargas_detalle": [{"tipo": "conyuge", "nombre": "Cónyuge Demo"}]
+}
+
+def is_demo_user(user: dict) -> bool:
+    """Check if user is a demo user"""
+    return user.get("role") == "demo" or user.get("email") == "demo@fintrack.ec"
+
+def get_budget_categories(user: dict):
+    """Get budget categories based on user type"""
+    return DEMO_BUDGET_CATEGORIES if is_demo_user(user) else BUDGET_CATEGORIES
+
+def get_income_structure(user: dict):
+    """Get income structure based on user type"""
+    return DEMO_INCOME_STRUCTURE if is_demo_user(user) else INCOME_STRUCTURE
+
+def get_budget_summary(user: dict):
+    """Get budget summary based on user type"""
+    return DEMO_BUDGET_SUMMARY if is_demo_user(user) else BUDGET_SUMMARY
+
+def get_budget_goals(user: dict):
+    """Get budget goals based on user type"""
+    return DEMO_BUDGET_GOALS if is_demo_user(user) else BUDGET_GOALS
+
+def get_contribuyente_info(user: dict):
+    """Get contribuyente info based on user type"""
+    return DEMO_CONTRIBUYENTE_INFO if is_demo_user(user) else CONTRIBUYENTE_INFO
+
 # Datos del contribuyente (extraídos del RUC)
 CONTRIBUYENTE_INFO = {
     "ruc": "0912514890001",
