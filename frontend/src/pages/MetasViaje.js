@@ -730,15 +730,15 @@ export default function MetasViaje() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <PiggyBank size={24} className="text-amber-500" />
-              Agregar Ahorro al Fondo
+              Registrar Ahorro
             </DialogTitle>
             <DialogDescription>
-              Agrega dinero extra a tu fondo de viajes anual. Este monto se suma a tu presupuesto de &quot;Viajes y Entretenimiento&quot;.
+              Registra el dinero que has apartado para viajes. Este es dinero que ya tienes disponible en tu cuenta de ahorros.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Monto a Depositar</Label>
+              <Label>Monto Ahorrado</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <Input
@@ -757,7 +757,7 @@ export default function MetasViaje() {
             <div className="space-y-2">
               <Label>Nota (opcional)</Label>
               <Input
-                placeholder="Ej: Ahorro de bono diciembre"
+                placeholder="Ej: Transferencia a cuenta de ahorros"
                 value={depositNote}
                 onChange={(e) => setDepositNote(e.target.value)}
                 data-testid="fund-deposit-note"
