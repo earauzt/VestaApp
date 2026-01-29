@@ -2669,11 +2669,11 @@ async def mark_not_duplicate(
 @api_router.put("/reconciliation/bulk-approve")
 async def bulk_approve_transactions(
     transaction_ids: List[str],
-    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))
+    user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT, UserRole.SPOUSE]))
 ):
     """Bulk approve multiple transactions"""
     result = await db.transactions.update_many(
-        {"id": {"$in": transaction_ids}},
+        {"id": {"$in": transaction_ids}, "user_id": user["id"]},
         {"$set": {
             "status": TransactionStatus.APPROVED,
             "reviewed_by": user["id"],
