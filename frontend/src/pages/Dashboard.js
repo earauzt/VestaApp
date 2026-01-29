@@ -104,7 +104,9 @@ export default function Dashboard() {
       
       // Transform category data to match Flujo categories with budgets
       const byCategory = statsRes.data?.by_category || {};
-      const transformed = Object.entries(FLUJO_CATEGORIES).map(([key, config]) => {
+      // Use demo categories for demo users, default categories for others
+      const categories = user?.email?.includes('demo') ? DEMO_FLUJO_CATEGORIES : DEFAULT_FLUJO_CATEGORIES;
+      const transformed = Object.entries(categories).map(([key, config]) => {
         const spent = byCategory[key] || 0;
         const budget = config.budget;
         const percentage = budget > 0 ? Math.round((spent / budget) * 100) : 0;
