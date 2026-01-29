@@ -38,6 +38,140 @@ ADDITIONAL_USERS = [
         "name": "Contadora",
         "role": "accountant",
         "password": "Arauz2025"
+    },
+    {
+        "id": "user-demo-001",
+        "email": "demo@fintrack.ec",
+        "name": "Usuario Demo",
+        "role": "demo",
+        "password": "demo2026"
+    }
+]
+
+# Datos DEMO para usuarios externos (datos ficticios)
+DEMO_CREDIT_CARDS = [
+    {
+        "id": "demo-card-visa",
+        "user_id": "user-demo-001",
+        "name": "Visa Gold Demo",
+        "bank": "Banco Demo",
+        "credit_limit": 5000.00,
+        "current_balance": 1250.50,
+        "minimum_payment": 125.00,
+        "available_credit": 3749.50,
+        "apr": 15.50,
+        "cut_off_day": 15,
+        "payment_due_day": 1,
+        "statement_date": "2026-01-15",
+        "due_date": "2026-02-01",
+        "currency": "USD",
+        "is_international": False
+    },
+    {
+        "id": "demo-card-mastercard",
+        "user_id": "user-demo-001",
+        "name": "Mastercard Platinum Demo",
+        "bank": "Banco Demo",
+        "credit_limit": 8000.00,
+        "current_balance": 2340.00,
+        "minimum_payment": 234.00,
+        "available_credit": 5660.00,
+        "apr": 16.00,
+        "cut_off_day": 20,
+        "payment_due_day": 5,
+        "statement_date": "2026-01-20",
+        "due_date": "2026-02-05",
+        "currency": "USD",
+        "is_international": False
+    }
+]
+
+DEMO_TRANSACTIONS = [
+    {
+        "id": "demo-tx-001",
+        "user_id": "user-demo-001",
+        "amount": 45.50,
+        "description": "Supermercado La Favorita",
+        "category": "comida",
+        "subcategory": "Supermercado",
+        "date": "2026-01-28",
+        "transaction_type": "expense",
+        "status": "approved",
+        "source_type": "manual"
+    },
+    {
+        "id": "demo-tx-002",
+        "user_id": "user-demo-001",
+        "amount": 28.00,
+        "description": "Gasolina Primax",
+        "category": "carros",
+        "subcategory": "Gasolina",
+        "date": "2026-01-27",
+        "transaction_type": "expense",
+        "status": "approved",
+        "source_type": "manual"
+    },
+    {
+        "id": "demo-tx-003",
+        "user_id": "user-demo-001",
+        "amount": 120.00,
+        "description": "Cena Restaurante Demo",
+        "category": "restaurantes",
+        "subcategory": "Restaurantes",
+        "date": "2026-01-26",
+        "transaction_type": "expense",
+        "status": "approved",
+        "source_type": "manual"
+    },
+    {
+        "id": "demo-tx-004",
+        "user_id": "user-demo-001",
+        "amount": 85.00,
+        "description": "Planilla Eléctrica",
+        "category": "servicios_basicos",
+        "subcategory": "Electricidad",
+        "date": "2026-01-25",
+        "transaction_type": "expense",
+        "status": "approved",
+        "source_type": "manual"
+    },
+    {
+        "id": "demo-tx-005",
+        "user_id": "user-demo-001",
+        "amount": 3500.00,
+        "description": "Salario Mensual",
+        "category": "ingreso",
+        "subcategory": "Salario",
+        "date": "2026-01-15",
+        "transaction_type": "income",
+        "source": "Personal",
+        "status": "approved",
+        "source_type": "manual"
+    },
+    {
+        "id": "demo-tx-006",
+        "user_id": "user-demo-001",
+        "amount": 15.99,
+        "description": "Netflix Suscripción",
+        "category": "otros",
+        "subcategory": "Streaming",
+        "date": "2026-01-20",
+        "transaction_type": "expense",
+        "status": "approved",
+        "source_type": "manual"
+    }
+]
+
+DEMO_TRAVEL_GOALS = [
+    {
+        "id": "demo-goal-001",
+        "user_id": "user-demo-001",
+        "destination": "Cancún, México",
+        "target_amount": 2500.00,
+        "saved_amount": 800.00,
+        "target_date": "2026-07-15",
+        "status": "active",
+        "notes": "Vacaciones de verano"
     }
 ]
 
