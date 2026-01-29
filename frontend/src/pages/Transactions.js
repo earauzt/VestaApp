@@ -548,7 +548,7 @@ export default function Transactions() {
                             <SelectTrigger data-testid="category-select">
                               <SelectValue placeholder="Seleccionar" />
                             </SelectTrigger>
-                            <SelectContent className="z-[100]">
+                            <SelectContent className="z-[250]">
                               {Object.entries(categories).map(([key, cat]) => (
                                 <SelectItem key={key} value={key}>
                                   <span className="flex items-center gap-2">
@@ -569,7 +569,7 @@ export default function Transactions() {
                             <SelectTrigger data-testid="subcategory-select">
                               <SelectValue placeholder="Seleccionar" />
                             </SelectTrigger>
-                            <SelectContent className="z-[100]">
+                            <SelectContent className="z-[250]">
                               {formData.category && categories[formData.category]?.subcategories?.map((sub) => (
                                 <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                               ))}
@@ -594,7 +594,7 @@ export default function Transactions() {
                               <SelectTrigger data-testid="sri-category-select">
                                 <SelectValue placeholder="Seleccionar" />
                               </SelectTrigger>
-                              <SelectContent className="z-[100]">
+                              <SelectContent className="z-[250]">
                                 {Object.entries(SRI_CATEGORIES).map(([key, cat]) => (
                                   <SelectItem key={key} value={key}>
                                     <span className="flex items-center gap-2">
@@ -617,7 +617,7 @@ export default function Transactions() {
                               <SelectTrigger data-testid="sri-subcategory-select">
                                 <SelectValue placeholder="Seleccionar" />
                               </SelectTrigger>
-                              <SelectContent className="z-[100]">
+                              <SelectContent className="z-[250]">
                                 {formData.sri_category && SRI_CATEGORIES[formData.sri_category]?.subcategories?.map((sub) => (
                                   <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                                 ))}
