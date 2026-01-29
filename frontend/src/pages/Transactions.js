@@ -652,7 +652,7 @@ export default function Transactions() {
                         <SelectTrigger data-testid="source-select">
                           <SelectValue placeholder="Seleccionar fuente" />
                         </SelectTrigger>
-                        <SelectContent className="z-[100]">
+                        <SelectContent className="z-[250]">
                           {INCOME_SOURCES.map((source) => (
                             <SelectItem key={source} value={source}>{source}</SelectItem>
                           ))}
