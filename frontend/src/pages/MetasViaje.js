@@ -450,7 +450,7 @@ export default function MetasViaje() {
                       {format(formData.target_date, "d MMM yyyy", { locale: es })}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0 z-[200]" align="start">
                     <Calendar
                       mode="single"
                       selected={formData.target_date}
