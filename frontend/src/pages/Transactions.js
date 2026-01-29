@@ -790,13 +790,13 @@ export default function Transactions() {
                       </div>
                     </div>
                     <div className="flex items-center gap-3">
-                      <div className="text-right">
+                      <div className="text-right space-y-1">
                         <Badge className={CATEGORY_COLORS[transaction.category] || CATEGORY_COLORS.otros}>
                           {categories[transaction.category]?.name || transaction.category}
                         </Badge>
-                        {transaction.is_deductible && (
+                        {transaction.sri_category && SRI_CATEGORIES[transaction.sri_category] && (
                           <Badge variant="outline" className="ml-1 text-xs text-emerald-600 border-emerald-200">
-                            SRI
+                            {SRI_CATEGORIES[transaction.sri_category].icon} {SRI_CATEGORIES[transaction.sri_category].name}
                           </Badge>
                         )}
                       </div>
