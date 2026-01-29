@@ -1112,7 +1112,7 @@ export default function CargarValidar() {
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[250]">
                   <SelectItem value="approve">✅ Aprobar todas</SelectItem>
                   <SelectItem value="reject">❌ Rechazar todas</SelectItem>
                 </SelectContent>
@@ -1127,7 +1127,7 @@ export default function CargarValidar() {
                     <SelectTrigger>
                       <SelectValue placeholder="Mantener categoría actual" />
                     </SelectTrigger>
-                    <SelectContent>
+                    <SelectContent className="z-[250]">
                       <SelectItem value="keep">Mantener actual</SelectItem>
                       {Object.entries(PERSONAL_CATEGORIES).map(([key, cat]) => (
                         <SelectItem key={key} value={key}>{cat.name}</SelectItem>
@@ -1143,7 +1143,7 @@ export default function CargarValidar() {
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar subcategoría" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[250]">
                         <SelectItem value="none">Sin subcategoría</SelectItem>
                         {PERSONAL_CATEGORIES[bulkCategory].subcategories.map(sub => (
                           <SelectItem key={sub} value={sub}>{sub}</SelectItem>
