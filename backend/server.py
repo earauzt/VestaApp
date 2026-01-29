@@ -522,7 +522,7 @@ class TransactionBase(BaseModel):
     amount: float
     description: str
     category: str
-    subcategory: str
+    subcategory: Optional[str] = None
     date: str
     transaction_type: str = "expense"  # expense or income
     source: Optional[str] = None  # For income: Personal, APX, USA
