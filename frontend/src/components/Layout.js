@@ -237,6 +237,12 @@ export default function Layout({ children }) {
         className="flex-1 transition-all duration-300 pt-16 lg:pt-0"
         style={{ marginLeft: isMobile ? 0 : (collapsed ? 80 : 280) }}
       >
+        {/* Demo Mode Banner */}
+        {user?.role === "demo" && (
+          <div className="bg-amber-500 text-black px-4 py-2 text-center text-sm font-medium">
+            🎭 <strong>Modo Demostración</strong> - Estás viendo datos ficticios de ejemplo. Los datos reales no están visibles.
+          </div>
+        )}
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
           {children}
         </div>
