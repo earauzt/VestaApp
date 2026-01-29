@@ -415,8 +415,9 @@ export default function CargarValidar() {
         try {
           if (bulkAction === "approve") {
             const updateData = {};
-            if (bulkCategory) updateData.category = bulkCategory;
-            if (bulkSubcategory) updateData.subcategory = bulkSubcategory;
+            // Solo actualizar si hay categoría válida (no "keep" ni vacío)
+            if (bulkCategory && bulkCategory !== "keep") updateData.category = bulkCategory;
+            if (bulkSubcategory && bulkSubcategory !== "none") updateData.subcategory = bulkSubcategory;
             
             // Update category if specified
             if (Object.keys(updateData).length > 0) {
