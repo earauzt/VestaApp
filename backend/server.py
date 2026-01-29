@@ -3364,19 +3364,21 @@ async def get_personal_budget(
     total_expenses = sum(actuals.values())
     
     # Calculate goal progress
+    budget_goals_data = get_budget_goals(user)
     goal_progress = {
         "gastos_fijos": {
-            "target_percent": BUDGET_GOALS["gastos_fijos_target"],
+            "target_percent": budget_goals_data["gastos_fijos_target"],
             "actual_percent": total_expenses / total_income if total_income > 0 else 0,
-            "status": "on_track" if total_income > 0 and (total_expenses / total_income) <= BUDGET_GOALS["gastos_fijos_target"]["max"] else "over"
+            "status": "on_track" if total_income > 0 and (total_expenses / total_income) <= budget_goals_data["gastos_fijos_target"]["max"] else "over"
         },
         "gastos_libres": {
-            "target_annual": BUDGET_GOALS["gastos_libres_max_annual"],
+            "target_annual": budget_goals_data["gastos_libres_max_annual"],
             "actual_annual": actuals.get("gastos_libres", 0),
-            "remaining": BUDGET_GOALS["gastos_libres_max_annual"] - actuals.get("gastos_libres", 0)
+            "remaining": budget_goals_data["gastos_libres_max_annual"] - actuals.get("gastos_libres", 0)
         }
     }
     
+    budget_cats = get_budget_categories(user)
     return {
         "year": current_year,
         "month": month,
@@ -3386,7 +3388,7 @@ async def get_personal_budget(
         "by_category": actuals,
         "planned": planned_budget.get("categories", {}) if planned_budget else {},
         "goal_progress": goal_progress,
-        "categories_config": BUDGET_CATEGORIES
+        "categories_config": budget_cats
     }
 
 @api_router.post("/budget/personal")
