@@ -488,7 +488,7 @@ export default function Transactions() {
                     <>
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label>Categoría SRI</Label>
+                          <Label>Categoría</Label>
                           <Select 
                             value={formData.category} 
                             onValueChange={(value) => setFormData({ ...formData, category: value, subcategory: "" })}
@@ -497,11 +497,10 @@ export default function Transactions() {
                               <SelectValue placeholder="Seleccionar" />
                             </SelectTrigger>
                             <SelectContent className="z-[100]">
-                              {Object.entries(CATEGORIES).map(([key, cat]) => (
+                              {Object.entries(categories).map(([key, cat]) => (
                                 <SelectItem key={key} value={key}>
                                   <span className="flex items-center gap-2">
                                     {cat.name}
-                                    {cat.deductible && <CheckCircle size={14} className="text-emerald-500" />}
                                   </span>
                                 </SelectItem>
                               ))}
@@ -519,7 +518,7 @@ export default function Transactions() {
                               <SelectValue placeholder="Seleccionar" />
                             </SelectTrigger>
                             <SelectContent className="z-[100]">
-                              {formData.category && CATEGORIES[formData.category]?.subcategories.map((sub) => (
+                              {formData.category && categories[formData.category]?.subcategories?.map((sub) => (
                                 <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                               ))}
                             </SelectContent>
