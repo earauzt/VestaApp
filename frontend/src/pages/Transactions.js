@@ -83,6 +83,7 @@ const INCOME_SOURCES = ["Personal", "APX", "USA"];
 export default function Transactions() {
   const { getAuthHeaders, user } = useAuth();
   const [transactions, setTransactions] = useState([]);
+  const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
@@ -116,11 +117,39 @@ export default function Transactions() {
     is_international: false
   });
 
-  useEffect(() => {
-    fetchTransactions();
-  }, []);
+  // Fetch categories from budget
+  const fetchCategories = useCallback(async () => {
+    try {
+      const response = await axios.get(`${API}/budget/categories`, { headers: getAuthHeaders() });
+      if (response.data?.categories) {
+        // Transform budget categories to transaction categories format
+        const budgetCats = response.data.categories;
+        const transformedCats = {};
+        
+        Object.entries(budgetCats).forEach(([key, cat]) => {
+          const subcats = cat.subcategories;
+          let subcatArray = [];
+          
+          if (typeof subcats === 'object' && !Array.isArray(subcats)) {
+            subcatArray = Object.keys(subcats);
+          } else if (Array.isArray(subcats)) {
+            subcatArray = subcats;
+          }
+          
+          transformedCats[key] = {
+            name: cat.name,
+            subcategories: subcatArray.length > 0 ? subcatArray : ["General"]
+          };
+        });
+        
+        setCategories(transformedCats);
+      }
+    } catch (error) {
+      console.log("Using fallback categories");
+    }
+  }, [getAuthHeaders]);
 
-  const fetchTransactions = async () => {
+  const fetchTransactions = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/transactions`, { headers: getAuthHeaders() });
       setTransactions(response.data);
@@ -129,7 +158,12 @@ export default function Transactions() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeaders]);
+
+  useEffect(() => {
+    fetchCategories();
+    fetchTransactions();
+  }, [fetchCategories, fetchTransactions]);
 
   // Check if transaction might be international
   const checkInternational = (description, establishment, country) => {
