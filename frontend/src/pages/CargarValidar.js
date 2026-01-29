@@ -567,7 +567,7 @@ export default function CargarValidar() {
                   {editMode ? (
                     <Select value={editForm.category} onValueChange={(v) => setEditForm({ ...editForm, category: v, subcategory: "" })}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar categoría" /></SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[250]">
                         {Object.entries(PERSONAL_CATEGORIES).map(([key, cat]) => (
                           <SelectItem key={key} value={key}>{cat.name}</SelectItem>
                         ))}
@@ -585,7 +585,7 @@ export default function CargarValidar() {
                   {editMode ? (
                     <Select value={editForm.subcategory} onValueChange={(v) => setEditForm({ ...editForm, subcategory: v })} disabled={!editForm.category}>
                       <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="z-[250]">
                         {editForm.category && PERSONAL_CATEGORIES[editForm.category]?.subcategories?.map((sub) => (
                           <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                         ))}
@@ -608,7 +608,7 @@ export default function CargarValidar() {
                     {editMode ? (
                       <Select value={editForm.sri_category || ""} onValueChange={(v) => setEditForm({ ...editForm, sri_category: v, sri_subcategory: "" })}>
                         <SelectTrigger><SelectValue placeholder="Categoría deducible" /></SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[250]">
                           {Object.entries(SRI_CATEGORIES).map(([key, cat]) => (
                             <SelectItem key={key} value={key}>
                               {cat.name} {cat.deductible ? "✓" : "✗"}
@@ -631,7 +631,7 @@ export default function CargarValidar() {
                     {editMode ? (
                       <Select value={editForm.sri_subcategory || ""} onValueChange={(v) => setEditForm({ ...editForm, sri_subcategory: v })} disabled={!editForm.sri_category}>
                         <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
-                        <SelectContent>
+                        <SelectContent className="z-[250]">
                           {editForm.sri_category && SRI_SUBCATEGORIES[editForm.sri_category]?.map((sub) => (
                             <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                           ))}
