@@ -3397,19 +3397,22 @@ async def save_personal_budget(
     user: dict = Depends(get_current_user)
 ):
     """Save personal budget configuration"""
-    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE, "demo"]:
         raise HTTPException(status_code=403, detail="No autorizado")
     
     year = budget_data.get("year", datetime.now().year)
+    income_struct = get_income_structure(user)
+    budget_summ = get_budget_summary(user)
+    budget_goals_data = get_budget_goals(user)
     
     budget_doc = {
         "user_id": user["id"],
         "year": year,
         "categories": budget_data.get("categories", {}),
-        "income_projection": budget_data.get("income_projection", INCOME_STRUCTURE),
-        "savings_goal": budget_data.get("savings_goal", BUDGET_SUMMARY["ahorro_esperado"]),
-        "investment_goal": budget_data.get("investment_goal", BUDGET_SUMMARY["inversion_esperada"]),
-        "goals": budget_data.get("goals", BUDGET_GOALS),
+        "income_projection": budget_data.get("income_projection", income_struct),
+        "savings_goal": budget_data.get("savings_goal", budget_summ["ahorro_esperado"]),
+        "investment_goal": budget_data.get("investment_goal", budget_summ["inversion_esperada"]),
+        "goals": budget_data.get("goals", budget_goals_data),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
     
