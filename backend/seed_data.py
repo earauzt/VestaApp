@@ -421,6 +421,42 @@ async def seed_database(mongo_url: str, db_name: str):
                 )
                 logger.info(f"ℹ️ Diferido ya existe: {deferred['description']}")
         
+        # 4. Crear datos DEMO para usuario demo
+        demo_user_id = "user-demo-001"
+        
+        # 4.1 Crear tarjetas demo
+        for card in DEMO_CREDIT_CARDS:
+            existing_card = await db.credit_cards.find_one({"id": card["id"]})
+            if not existing_card:
+                card_doc = {
+                    **card,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.credit_cards.insert_one(card_doc)
+                logger.info(f"✅ Tarjeta DEMO creada: {card['name']}")
+        
+        # 4.2 Crear transacciones demo
+        for tx in DEMO_TRANSACTIONS:
+            existing_tx = await db.transactions.find_one({"id": tx["id"]})
+            if not existing_tx:
+                tx_doc = {
+                    **tx,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.transactions.insert_one(tx_doc)
+                logger.info(f"✅ Transacción DEMO creada: {tx['description']}")
+        
+        # 4.3 Crear metas de viaje demo
+        for goal in DEMO_TRAVEL_GOALS:
+            existing_goal = await db.travel_goals.find_one({"id": goal["id"]})
+            if not existing_goal:
+                goal_doc = {
+                    **goal,
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.travel_goals.insert_one(goal_doc)
+                logger.info(f"✅ Meta de viaje DEMO creada: {goal['destination']}")
+        
         # Resumen
         cards_count = await db.credit_cards.count_documents({})
         deferred_count = await db.deferred_payments.count_documents({})
