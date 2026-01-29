@@ -785,7 +785,7 @@ export default function MetasViaje() {
               </Button>
               <Button onClick={handleFundDeposit} className="gap-2 bg-amber-600 hover:bg-amber-700" data-testid="confirm-fund-deposit-btn">
                 <CurrencyDollar size={16} />
-                Depositar
+                Registrar
               </Button>
             </DialogFooter>
           </div>
@@ -798,15 +798,15 @@ export default function MetasViaje() {
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Gear size={24} className="text-slate-500" />
-              Configurar Fondo de Viajes
+              Editar Meta de Viajes
             </DialogTitle>
             <DialogDescription>
-              Modifica tu presupuesto anual de viajes. Este es el monto base que planeas destinar a viajes y entretenimiento durante el año.
+              Define cuánto planeas destinar a viajes este año. Esta es tu meta de ahorro anual.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>Presupuesto Anual</Label>
+              <Label>Meta Anual de Viajes</Label>
               <div className="relative">
                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                 <Input
@@ -822,7 +822,7 @@ export default function MetasViaje() {
               </div>
               {newAnnualBudget && (
                 <p className="text-sm text-muted-foreground">
-                  Mensual: {formatCurrency(parseFloat(newAnnualBudget) / 12)}/mes
+                  Debes ahorrar {formatCurrency(parseFloat(newAnnualBudget) / 12)}/mes para alcanzar esta meta
                 </p>
               )}
             </div>
