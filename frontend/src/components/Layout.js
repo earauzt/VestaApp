@@ -34,14 +34,14 @@ import {
 } from "@phosphor-icons/react";
 
 const navItems = [
-  { path: "/dashboard", label: "Dashboard", icon: House, roles: ["admin", "spouse", "accountant"] },
-  { path: "/transactions", label: "Transacciones", icon: CreditCard, roles: ["admin", "spouse", "accountant"] },
-  { path: "/ingresos", label: "Ingresos", icon: CurrencyDollar, roles: ["admin", "spouse"] },
-  { path: "/metas-viaje", label: "Metas de Viaje", icon: Airplane, roles: ["admin", "spouse"] },
+  { path: "/dashboard", label: "Dashboard", icon: House, roles: ["admin", "spouse", "accountant", "demo"] },
+  { path: "/transactions", label: "Transacciones", icon: CreditCard, roles: ["admin", "spouse", "accountant", "demo"] },
+  { path: "/ingresos", label: "Ingresos", icon: CurrencyDollar, roles: ["admin", "spouse", "demo"] },
+  { path: "/metas-viaje", label: "Metas de Viaje", icon: Airplane, roles: ["admin", "spouse", "demo"] },
   { path: "/cargar", label: "Cargar y Validar", icon: CloudArrowUp, roles: ["admin", "spouse", "accountant"] },
-  { path: "/deudas", label: "Deudas y Tarjetas", icon: Wallet, roles: ["admin"] },
+  { path: "/deudas", label: "Deudas y Tarjetas", icon: Wallet, roles: ["admin", "demo"] },
   { path: "/flujo", label: "Planificación Flujo", icon: CalendarCheck, roles: ["admin"] },
-  { path: "/budget", label: "Mi Presupuesto", icon: ChartLine, roles: ["admin"] },
+  { path: "/budget", label: "Mi Presupuesto", icon: ChartLine, roles: ["admin", "demo"] },
   { path: "/predictions", label: "Predicciones AI", icon: Brain, roles: ["admin"] },
   // Accountant-only items
   { path: "/sri-limits", label: "Límites SRI", icon: Scales, roles: ["admin", "accountant"] },
