@@ -4427,20 +4427,36 @@ async def get_travel_fund(
         if any(kw in d.get("description", "").lower() for kw in travel_keywords)
     )
     
-    # Calculate available
-    available = fund.get("annual_budget", 0) + fund.get("total_deposited", 0) - total_spent
+    # New logic:
+    # - annual_budget: Meta de cuánto destinar a viajes este año
+    # - total_saved (deposited): Cuánto ya tiene apartado físicamente
+    # - total_spent: Gastos de categoría viajes
+    # - available: Lo que puede gastar hoy = Ahorrado - Gastado
+    # - pending_to_save: Lo que falta por ahorrar = Presupuesto - Ahorrado
+    
+    annual_budget = fund.get("annual_budget", 0)
+    total_saved = fund.get("total_deposited", 0)
+    available = max(0, total_saved - total_spent)  # Lo que realmente puede gastar
+    pending_to_save = max(0, annual_budget - total_saved)  # Lo que falta por ahorrar
+    savings_progress = round((total_saved / annual_budget * 100), 1) if annual_budget > 0 else 0
+    
+    # Calculate suggested monthly saving based on remaining months
+    remaining_months = max(1, 12 - datetime.now().month + 1)
+    monthly_suggested_saving = round(pending_to_save / remaining_months, 2) if pending_to_save > 0 else 0
     
     return {
         "year": current_year,
-        "annual_budget": fund.get("annual_budget", 0),
-        "total_deposited": fund.get("total_deposited", 0),
-        "total_available_fund": fund.get("annual_budget", 0) + fund.get("total_deposited", 0),
+        "annual_budget": annual_budget,
+        "total_saved": total_saved,  # Renamed from total_deposited for clarity
+        "total_deposited": total_saved,  # Keep for backward compatibility
+        "savings_progress": savings_progress,  # Percentage of budget saved
+        "pending_to_save": pending_to_save,  # How much left to save
         "total_spent": total_spent,
         "spent_with_card": total_on_card,
         "pending_card_payments": pending_card_payments,
-        "available": available,
+        "available": available,  # What can actually be spent today
         "deposits": fund.get("deposits", [])[-10:],  # Last 10 deposits
-        "monthly_suggested_saving": round((fund.get("annual_budget", 0) - total_spent) / max(1, 12 - datetime.now().month + 1), 2)
+        "monthly_suggested_saving": monthly_suggested_saving
     }
 
 @api_router.put("/travel-fund/settings")
