@@ -685,7 +685,7 @@ export default function Transactions() {
                     <div className="flex items-center gap-3">
                       <div className="text-right">
                         <Badge className={CATEGORY_COLORS[transaction.category] || CATEGORY_COLORS.otros}>
-                          {CATEGORIES[transaction.category]?.name || transaction.category}
+                          {categories[transaction.category]?.name || transaction.category}
                         </Badge>
                         {transaction.is_deductible && (
                           <Badge variant="outline" className="ml-1 text-xs text-emerald-600 border-emerald-200">
