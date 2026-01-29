@@ -3438,12 +3438,15 @@ async def get_budget_config(
         {"_id": 0}
     )
     
+    # Get appropriate budget categories for user type
+    base_budget_cats = get_budget_categories(user)
+    
     # Merge saved categories with defaults to preserve subcategories
-    merged_categories = dict(BUDGET_CATEGORIES)  # Start with defaults
+    merged_categories = dict(base_budget_cats)  # Start with defaults
     
     if saved and saved.get("categories"):
         saved_cats = saved["categories"]
-        for key, default_cat in BUDGET_CATEGORIES.items():
+        for key, default_cat in base_budget_cats.items():
             if key in saved_cats:
                 # User has this category, merge with defaults
                 merged_cat = dict(default_cat)  # Start with default
@@ -3474,7 +3477,7 @@ async def get_budget_config(
         
         # Add any custom categories the user created
         for key, cat in saved_cats.items():
-            if key not in BUDGET_CATEGORIES:
+            if key not in base_budget_cats:
                 merged_categories[key] = cat
     
     return {
