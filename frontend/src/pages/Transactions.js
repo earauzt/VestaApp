@@ -78,6 +78,52 @@ const FALLBACK_CATEGORIES = {
   otros: { name: "Otros", subcategories: ["Varios", "Entretenimiento"] }
 };
 
+// Categorías del SRI para deducciones fiscales en Ecuador
+const SRI_CATEGORIES = {
+  alimentacion: { 
+    name: "Alimentación", 
+    deductible: true, 
+    subcategories: ["Comida", "Restaurantes", "Supermercado", "Mercado"],
+    icon: "🍽️"
+  },
+  salud: { 
+    name: "Salud", 
+    deductible: true, 
+    subcategories: ["Seguros médicos", "Medicina", "Consultas", "Hospitalización", "Laboratorio", "Odontología"],
+    icon: "🏥"
+  },
+  educacion: { 
+    name: "Educación", 
+    deductible: true, 
+    subcategories: ["Colegio", "Universidad", "Cursos", "Materiales", "Uniformes", "Transporte escolar"],
+    icon: "📚"
+  },
+  vivienda: { 
+    name: "Vivienda", 
+    deductible: true, 
+    subcategories: ["Arriendo", "Intereses hipoteca", "Servicios básicos", "Mantenimiento"],
+    icon: "🏠"
+  },
+  vestimenta: { 
+    name: "Vestimenta", 
+    deductible: true, 
+    subcategories: ["Ropa", "Calzado", "Accesorios"],
+    icon: "👔"
+  },
+  turismo: { 
+    name: "Turismo Nacional", 
+    deductible: true, 
+    subcategories: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"],
+    icon: "🏖️"
+  },
+  no_deducible: { 
+    name: "No Deducible", 
+    deductible: false, 
+    subcategories: ["Viajes internacionales", "Entretenimiento", "Otros"],
+    icon: "❌"
+  }
+};
+
 const INCOME_SOURCES = ["Personal", "APX", "USA"];
 
 export default function Transactions() {
