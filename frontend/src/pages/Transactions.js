@@ -327,6 +327,8 @@ export default function Transactions() {
       description: "",
       category: "",
       subcategory: "",
+      sri_category: "",
+      sri_subcategory: "",
       date: new Date(),
       transaction_type: "expense",
       source: "",
