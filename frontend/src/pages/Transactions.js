@@ -587,7 +587,7 @@ export default function Transactions() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las categorías</SelectItem>
-                {Object.entries(CATEGORIES).map(([key, cat]) => (
+                {Object.entries(categories).map(([key, cat]) => (
                   <SelectItem key={key} value={key}>{cat.name}</SelectItem>
                 ))}
               </SelectContent>
