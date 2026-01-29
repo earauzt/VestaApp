@@ -4351,6 +4351,145 @@ async def delete_travel_goal(
         raise HTTPException(status_code=404, detail="Meta no encontrada")
     return {"message": "Eliminado"}
 
+# ================= TRAVEL FUND (Fondo de Viajes) =================
+
+@api_router.get("/travel-fund")
+async def get_travel_fund(
+    year: int = None,
+    user: dict = Depends(get_current_user)
+):
+    """Get travel fund status for the year"""
+    current_year = year or datetime.now().year
+    
+    # Get or create fund for this year
+    fund = await db.travel_funds.find_one(
+        {"user_id": user["id"], "year": current_year},
+        {"_id": 0}
+    )
+    
+    if not fund:
+        # Create default fund based on user's budget
+        budget_goals = get_budget_goals(user)
+        annual_budget = 16500 if not is_demo_user(user) else 2000  # Default from Excel or demo
+        
+        fund = {
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "year": current_year,
+            "annual_budget": annual_budget,
+            "total_deposited": 0,
+            "deposits": [],
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.travel_funds.insert_one(fund)
+        fund = {k: v for k, v in fund.items() if k != "_id"}
+    
+    # Calculate spending from transactions in viajes_entretenimiento category
+    year_start = f"{current_year}-01-01"
+    year_end = f"{current_year}-12-31"
+    
+    travel_expenses = await db.transactions.find({
+        "user_id": user["id"],
+        "category": {"$in": ["viajes_entretenimiento", "viajes_internacionales", "turismo"]},
+        "transaction_type": "expense",
+        "date": {"$gte": year_start, "$lte": year_end}
+    }).to_list(500)
+    
+    total_spent = sum(t.get("amount", 0) for t in travel_expenses)
+    
+    # Calculate card payments (expenses paid with credit card)
+    card_expenses = [t for t in travel_expenses if t.get("payment_method") in ["tarjeta", "credit_card", "apple_card"]]
+    total_on_card = sum(t.get("amount", 0) for t in card_expenses)
+    
+    # Get deferred payments related to travel
+    travel_deferred = await db.deferred_payments.find({
+        "user_id": user["id"],
+        "remaining_installments": {"$gt": 0}
+    }).to_list(50)
+    
+    # Filter deferred that might be travel related (by description)
+    travel_keywords = ["viaje", "hotel", "vuelo", "avion", "airbnb", "booking", "despegar", "latam", "avianca", "copa"]
+    pending_card_payments = sum(
+        d.get("remaining_installments", 0) * d.get("monthly_payment", 0)
+        for d in travel_deferred
+        if any(kw in d.get("description", "").lower() for kw in travel_keywords)
+    )
+    
+    # Calculate available
+    available = fund.get("annual_budget", 0) + fund.get("total_deposited", 0) - total_spent
+    
+    return {
+        "year": current_year,
+        "annual_budget": fund.get("annual_budget", 0),
+        "total_deposited": fund.get("total_deposited", 0),
+        "total_available_fund": fund.get("annual_budget", 0) + fund.get("total_deposited", 0),
+        "total_spent": total_spent,
+        "spent_with_card": total_on_card,
+        "pending_card_payments": pending_card_payments,
+        "available": available,
+        "deposits": fund.get("deposits", [])[-10:],  # Last 10 deposits
+        "monthly_suggested_saving": round((fund.get("annual_budget", 0) - total_spent) / max(1, 12 - datetime.now().month + 1), 2)
+    }
+
+@api_router.put("/travel-fund/settings")
+async def update_travel_fund_settings(
+    settings: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Update travel fund annual budget"""
+    current_year = datetime.now().year
+    annual_budget = settings.get("annual_budget", 16500)
+    
+    await db.travel_funds.update_one(
+        {"user_id": user["id"], "year": current_year},
+        {"$set": {"annual_budget": annual_budget}},
+        upsert=True
+    )
+    
+    return {"message": "Configuración actualizada", "annual_budget": annual_budget}
+
+@api_router.post("/travel-fund/deposit")
+async def add_travel_fund_deposit(
+    deposit_data: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Add money to travel fund"""
+    amount = deposit_data.get("amount", 0)
+    note = deposit_data.get("note", "Depósito al fondo de viajes")
+    
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Monto debe ser mayor a 0")
+    
+    current_year = datetime.now().year
+    
+    deposit = {
+        "id": str(uuid.uuid4()),
+        "amount": amount,
+        "note": note,
+        "date": datetime.now(timezone.utc).isoformat()
+    }
+    
+    result = await db.travel_funds.update_one(
+        {"user_id": user["id"], "year": current_year},
+        {
+            "$inc": {"total_deposited": amount},
+            "$push": {"deposits": deposit}
+        },
+        upsert=True
+    )
+    
+    # Get updated fund
+    fund = await db.travel_funds.find_one(
+        {"user_id": user["id"], "year": current_year},
+        {"_id": 0}
+    )
+    
+    return {
+        "message": f"${amount:,.2f} agregado al fondo de viajes",
+        "total_deposited": fund.get("total_deposited", amount),
+        "deposit": deposit
+    }
+
 # ================= CASH FLOW PROJECTION =================
 
 @api_router.get("/cashflow/projection")
