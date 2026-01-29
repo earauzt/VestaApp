@@ -573,6 +573,61 @@ export default function Transactions() {
                           </Select>
                         </div>
                       </div>
+                      
+                      {/* Categorías SRI para deducciones fiscales */}
+                      <div className="p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+                        <Label className="text-emerald-700 dark:text-emerald-400 font-medium flex items-center gap-2 mb-3">
+                          <CheckCircle size={16} />
+                          Categorización SRI (Deducciones)
+                        </Label>
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Categoría SRI</Label>
+                            <Select 
+                              value={formData.sri_category} 
+                              onValueChange={(value) => setFormData({ ...formData, sri_category: value, sri_subcategory: "" })}
+                            >
+                              <SelectTrigger data-testid="sri-category-select">
+                                <SelectValue placeholder="Seleccionar" />
+                              </SelectTrigger>
+                              <SelectContent className="z-[100]">
+                                {Object.entries(SRI_CATEGORIES).map(([key, cat]) => (
+                                  <SelectItem key={key} value={key}>
+                                    <span className="flex items-center gap-2">
+                                      <span>{cat.icon}</span>
+                                      {cat.name}
+                                      {cat.deductible && <CheckCircle size={12} className="text-emerald-500" />}
+                                    </span>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Subcategoría SRI</Label>
+                            <Select 
+                              value={formData.sri_subcategory} 
+                              onValueChange={(value) => setFormData({ ...formData, sri_subcategory: value })}
+                              disabled={!formData.sri_category}
+                            >
+                              <SelectTrigger data-testid="sri-subcategory-select">
+                                <SelectValue placeholder="Seleccionar" />
+                              </SelectTrigger>
+                              <SelectContent className="z-[100]">
+                                {formData.sri_category && SRI_CATEGORIES[formData.sri_category]?.subcategories?.map((sub) => (
+                                  <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                        </div>
+                        {formData.sri_category && SRI_CATEGORIES[formData.sri_category]?.deductible && (
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
+                            ✓ Este gasto es deducible para el SRI
+                          </p>
+                        )}
+                      </div>
+
                       <div className="space-y-2">
                         <Label>Establecimiento (opcional)</Label>
                         <Input
