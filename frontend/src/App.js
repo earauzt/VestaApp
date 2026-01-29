@@ -52,7 +52,7 @@ function AppRoutes() {
       <Route 
         path="/dashboard" 
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
             <Dashboard />
           </ProtectedRoute>
         } 
@@ -60,7 +60,7 @@ function AppRoutes() {
       <Route 
         path="/transactions" 
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
             <Transactions />
           </ProtectedRoute>
         } 
@@ -68,7 +68,7 @@ function AppRoutes() {
       <Route 
         path="/cargar" 
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "spouse", "accountant"]}>
             <CargarValidar />
           </ProtectedRoute>
         } 
@@ -76,7 +76,7 @@ function AppRoutes() {
       <Route 
         path="/budget" 
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "spouse", "demo"]}>
             <PresupuestoEditable />
           </ProtectedRoute>
         } 
@@ -100,7 +100,7 @@ function AppRoutes() {
       <Route 
         path="/international" 
         element={
-          <ProtectedRoute>
+          <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
             <InternationalExpenses />
           </ProtectedRoute>
         } 
@@ -116,7 +116,7 @@ function AppRoutes() {
       <Route 
         path="/ingresos" 
         element={
-          <ProtectedRoute allowedRoles={["admin", "spouse"]}>
+          <ProtectedRoute allowedRoles={["admin", "spouse", "demo"]}>
             <Ingresos />
           </ProtectedRoute>
         } 
@@ -124,7 +124,7 @@ function AppRoutes() {
       <Route 
         path="/deudas" 
         element={
-          <ProtectedRoute allowedRoles={["admin", "spouse"]}>
+          <ProtectedRoute allowedRoles={["admin", "spouse", "demo"]}>
             <Deudas />
           </ProtectedRoute>
         } 
@@ -140,7 +140,7 @@ function AppRoutes() {
       <Route 
         path="/metas-viaje" 
         element={
-          <ProtectedRoute allowedRoles={["admin", "spouse"]}>
+          <ProtectedRoute allowedRoles={["admin", "spouse", "demo"]}>
             <MetasViaje />
           </ProtectedRoute>
         } 
