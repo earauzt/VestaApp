@@ -4074,10 +4074,14 @@ async def create_account_receivable(
 @api_router.put("/accounts-receivable/{account_id}/payment")
 async def record_receivable_payment(
     account_id: str,
-    amount: float,
+    payment_data: dict,
     user: dict = Depends(get_current_user)
 ):
     """Record a payment for an account receivable"""
+    amount = payment_data.get("amount", 0)
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Monto debe ser mayor a 0")
+    
     account = await db.accounts_receivable.find_one({"id": account_id, "user_id": user["id"]})
     if not account:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
