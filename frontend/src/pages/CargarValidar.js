@@ -1122,12 +1122,12 @@ export default function CargarValidar() {
               <>
                 <div>
                   <Label>Categoría (opcional)</Label>
-                  <Select value={bulkCategory} onValueChange={(v) => { setBulkCategory(v); setBulkSubcategory(""); }}>
+                  <Select value={bulkCategory || "keep"} onValueChange={(v) => { setBulkCategory(v === "keep" ? "" : v); setBulkSubcategory(""); }}>
                     <SelectTrigger>
                       <SelectValue placeholder="Mantener categoría actual" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Mantener actual</SelectItem>
+                      <SelectItem value="keep">Mantener actual</SelectItem>
                       {Object.entries(PERSONAL_CATEGORIES).map(([key, cat]) => (
                         <SelectItem key={key} value={key}>{cat.name}</SelectItem>
                       ))}
@@ -1138,11 +1138,12 @@ export default function CargarValidar() {
                 {bulkCategory && PERSONAL_CATEGORIES[bulkCategory]?.subcategories && (
                   <div>
                     <Label>Subcategoría</Label>
-                    <Select value={bulkSubcategory} onValueChange={setBulkSubcategory}>
+                    <Select value={bulkSubcategory || "none"} onValueChange={(v) => setBulkSubcategory(v === "none" ? "" : v)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Seleccionar subcategoría" />
                       </SelectTrigger>
                       <SelectContent>
+                        <SelectItem value="none">Sin subcategoría</SelectItem>
                         {PERSONAL_CATEGORIES[bulkCategory].subcategories.map(sub => (
                           <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                         ))}
