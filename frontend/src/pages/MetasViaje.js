@@ -39,12 +39,18 @@ const STATUS_CONFIG = {
 export default function MetasViaje() {
   const { getAuthHeaders, user } = useAuth();
   const [goals, setGoals] = useState([]);
+  const [travelFund, setTravelFund] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [savingsDialogOpen, setSavingsDialogOpen] = useState(false);
+  const [fundDepositDialogOpen, setFundDepositDialogOpen] = useState(false);
+  const [fundSettingsDialogOpen, setFundSettingsDialogOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState(null);
   const [selectedGoal, setSelectedGoal] = useState(null);
   const [savingsAmount, setSavingsAmount] = useState("");
+  const [depositAmount, setDepositAmount] = useState("");
+  const [depositNote, setDepositNote] = useState("");
+  const [newAnnualBudget, setNewAnnualBudget] = useState("");
 
   // Form state
   const [formData, setFormData] = useState({
@@ -56,10 +62,14 @@ export default function MetasViaje() {
 
   const fetchGoals = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() });
-      setGoals(response.data?.goals || []);
+      const [goalsRes, fundRes] = await Promise.all([
+        axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/travel-fund`, { headers: getAuthHeaders() }).catch(() => ({ data: null }))
+      ]);
+      setGoals(goalsRes.data?.goals || []);
+      setTravelFund(fundRes.data);
     } catch (error) {
-      toast.error("Error al cargar metas de viaje");
+      toast.error("Error al cargar datos");
     } finally {
       setLoading(false);
     }
@@ -68,6 +78,49 @@ export default function MetasViaje() {
   useEffect(() => {
     fetchGoals();
   }, [fetchGoals]);
+
+  const handleFundDeposit = async () => {
+    if (!depositAmount || parseFloat(depositAmount) <= 0) {
+      toast.error("Ingresa un monto válido");
+      return;
+    }
+
+    try {
+      await axios.post(
+        `${API}/travel-fund/deposit`,
+        { amount: parseFloat(depositAmount), note: depositNote || "Ahorro extra para viajes" },
+        { headers: getAuthHeaders() }
+      );
+      toast.success(`$${parseFloat(depositAmount).toLocaleString()} agregado al fondo`);
+      setFundDepositDialogOpen(false);
+      setDepositAmount("");
+      setDepositNote("");
+      fetchGoals();
+    } catch (error) {
+      toast.error("Error al agregar al fondo");
+    }
+  };
+
+  const handleUpdateBudget = async () => {
+    if (!newAnnualBudget || parseFloat(newAnnualBudget) <= 0) {
+      toast.error("Ingresa un presupuesto válido");
+      return;
+    }
+
+    try {
+      await axios.put(
+        `${API}/travel-fund/settings`,
+        { annual_budget: parseFloat(newAnnualBudget) },
+        { headers: getAuthHeaders() }
+      );
+      toast.success("Presupuesto actualizado");
+      setFundSettingsDialogOpen(false);
+      setNewAnnualBudget("");
+      fetchGoals();
+    } catch (error) {
+      toast.error("Error al actualizar");
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
