@@ -601,6 +601,51 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {/* Burbuja especial de Viajes - conectada al fondo */}
+                {travelFund && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="p-4 rounded-xl border-2 border-violet-300 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="font-medium text-sm flex items-center gap-2">
+                        <Airplane size={16} className="text-violet-600" />
+                        Viajes
+                      </span>
+                      <Badge className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                        Meta
+                      </Badge>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Progress 
+                        value={travelFund.savings_progress || 0} 
+                        className="h-3 [&>div]:bg-violet-500"
+                      />
+                      
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-bold text-violet-700">
+                          {formatCurrency(travelFund.monthly_suggested_saving || 0)}
+                        </span>
+                        <span className="text-xs text-violet-600">
+                          /mes
+                        </span>
+                      </div>
+                      
+                      <p className="text-xs text-violet-600">
+                        {(travelFund.savings_progress || 0).toFixed(0)}% ahorrado de {formatCurrency(travelFund.annual_budget)}
+                      </p>
+                      
+                      <Link to="/viajes">
+                        <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-100">
+                          Ver fondo →
+                        </Button>
+                      </Link>
+                    </div>
+                  </motion.div>
+                )}
+
                 {categoryData
                   .filter(cat => cat.budget > 0 || cat.value > 0)
                   .sort((a, b) => (b.value / (b.budget || 1)) - (a.value / (a.budget || 1)))
