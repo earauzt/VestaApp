@@ -214,6 +214,31 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
 - ✅ Vista simplificada para rol "Familiar"
 - ✅ Botón X en recordatorios del Dashboard
 
+### 30 Enero 2026 - Reorganización de Viajes y Presupuesto ✅
+1. **Página "Viajes" (antes "Metas de Viaje")**:
+   - Renombrada en navegación y rutas
+   - Resumen del Fondo de Viajes: Meta Anual, Ya Ahorrado, Gastado, Disponible
+   - Pestañas: Destinos | Por Categoría | Transacciones
+   - Destinos como cards lineales con progreso
+   - Desglose de gastos por subcategoría (Hoteles, Pasajes, Comida, etc.)
+   - Lista de transacciones de viajes con visualización completa
+
+2. **Dashboard mejorado**:
+   - Quitado widget de "Metas de Viaje"
+   - Sección "Gastos por Categoría" como burbujas con progreso vs presupuesto
+   - Indicadores visuales de límite (rojo si excedido, amarillo si cerca)
+
+3. **Mi Presupuesto**:
+   - Removido "Viajes y Entretenimiento" de categorías (se gestiona en /viajes)
+   - Pestaña "Ahorro e Inversión" con metas editables:
+     - Meta de Ahorro (para imprevistos) - anual y mensual
+     - Meta de Inversión (crecimiento patrimonial) - anual y mensual
+
+4. **Backend**:
+   - Nuevo endpoint GET /api/travel-fund/transactions para listar transacciones de viajes
+   - Endpoint GET/PUT /api/budget/financial-goals para metas de ahorro/inversión
+   - Categoría viajes_entretenimiento excluida del config de presupuesto pero disponible para transacciones
+
 ### 29 Enero 2026 - Fondo de Viajes Completado ✅
 1. **Fondo de Viajes (Travel Fund)**:
    - Widget en /metas-viaje con nueva lógica de ahorro:
