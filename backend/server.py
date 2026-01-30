@@ -3568,6 +3568,78 @@ async def update_budget_category(
     
     return {"message": f"Categoría {category_key} actualizada"}
 
+@api_router.put("/budget/financial-goals")
+async def update_financial_goals(
+    goals_data: dict,
+    user: dict = Depends(get_current_user)
+):
+    """Update savings and investment annual goals"""
+    if user["role"] not in [UserRole.ADMIN, UserRole.SPOUSE]:
+        raise HTTPException(status_code=403, detail="No autorizado")
+    
+    year = datetime.now().year
+    update_fields = {"updated_at": datetime.now(timezone.utc).isoformat()}
+    
+    if "savings_goal" in goals_data:
+        update_fields["savings_goal"] = {
+            "annual": goals_data["savings_goal"],
+            "monthly": round(goals_data["savings_goal"] / 12, 2),
+            "description": "Ahorro para imprevistos"
+        }
+    
+    if "investment_goal" in goals_data:
+        update_fields["investment_goal"] = {
+            "annual": goals_data["investment_goal"],
+            "monthly": round(goals_data["investment_goal"] / 12, 2),
+            "description": "Meta de inversión anual"
+        }
+    
+    if "travel_savings_goal" in goals_data:
+        update_fields["travel_savings_goal"] = {
+            "annual": goals_data["travel_savings_goal"],
+            "monthly": round(goals_data["travel_savings_goal"] / 12, 2),
+            "description": "Ahorro mensual para viajes"
+        }
+    
+    await db.personal_budgets.update_one(
+        {"user_id": user["id"], "year": year},
+        {"$set": update_fields},
+        upsert=True
+    )
+    
+    return {"message": "Metas financieras actualizadas", "goals": update_fields}
+
+@api_router.get("/budget/financial-goals")
+async def get_financial_goals(user: dict = Depends(get_current_user)):
+    """Get savings and investment goals"""
+    year = datetime.now().year
+    
+    budget = await db.personal_budgets.find_one(
+        {"user_id": user["id"], "year": year},
+        {"_id": 0, "savings_goal": 1, "investment_goal": 1, "travel_savings_goal": 1}
+    )
+    
+    # Get travel fund for connection
+    travel_fund = await db.travel_funds.find_one(
+        {"user_id": user["id"], "year": year},
+        {"_id": 0, "annual_budget": 1, "total_deposited": 1}
+    )
+    
+    # Defaults
+    default_savings = {"annual": 12000, "monthly": 1000, "description": "Ahorro para imprevistos"}
+    default_investment = {"annual": 6000, "monthly": 500, "description": "Meta de inversión anual"}
+    default_travel = {"annual": travel_fund.get("annual_budget", 16500) if travel_fund else 16500, "monthly": 0, "description": "Ahorro mensual para viajes"}
+    
+    if travel_fund:
+        default_travel["saved"] = travel_fund.get("total_deposited", 0)
+    
+    return {
+        "year": year,
+        "savings_goal": budget.get("savings_goal", default_savings) if budget else default_savings,
+        "investment_goal": budget.get("investment_goal", default_investment) if budget else default_investment,
+        "travel_savings_goal": budget.get("travel_savings_goal", default_travel) if budget else default_travel
+    }
+
 @api_router.post("/budget/category")
 async def add_budget_category(
     category_data: dict,
