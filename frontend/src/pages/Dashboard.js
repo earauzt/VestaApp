@@ -270,66 +270,6 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      {/* Vista Simplificada para KP (spouse) */}
-      {user?.role === "spouse" && categoryData.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <Card className="bento-card bg-gradient-to-br from-violet-50 to-pink-50 dark:from-violet-950/30 dark:to-pink-950/30 border-violet-200 dark:border-violet-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Sparkle size={24} className="text-violet-500" weight="fill" />
-                Resumen del Mes
-              </CardTitle>
-              <CardDescription>Hola {user?.name || 'KP'}, aquí está tu resumen de gastos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {categoryData
-                  .filter(cat => cat.value > 0)
-                  .sort((a, b) => b.value - a.value)
-                  .slice(0, 6)
-                  .map((cat, index) => (
-                    <motion.div 
-                      key={cat.key}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      className="flex items-center justify-between p-3 rounded-lg bg-white/60 dark:bg-black/20"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: cat.color }}
-                        />
-                        <span className="font-medium">{cat.name}</span>
-                      </div>
-                      <div className="text-right">
-                        <span className="font-bold text-lg">{formatCurrency(cat.value)}</span>
-                        {cat.budget > 0 && (
-                          <span className={`text-xs ml-2 ${cat.percentage > 100 ? 'text-red-500' : 'text-muted-foreground'}`}>
-                            ({cat.percentage}% del presupuesto)
-                          </span>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))}
-              </div>
-              
-              {/* Total del mes */}
-              <div className="mt-4 pt-4 border-t border-violet-200 dark:border-violet-800 flex justify-between items-center">
-                <span className="text-muted-foreground">Total gastado este mes:</span>
-                <span className="text-2xl font-bold text-violet-600 dark:text-violet-400">
-                  {formatCurrency(stats?.total_expenses || categoryData.reduce((sum, cat) => sum + cat.value, 0))}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      )}
-
       {/* Stats Grid - Responsive */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
         {statCards.map((stat, index) => (
