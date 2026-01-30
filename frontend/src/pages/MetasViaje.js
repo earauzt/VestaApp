@@ -625,7 +625,7 @@ export default function MetasViaje() {
             
             <div className="space-y-2">
               <Label>Fecha Objetivo</Label>
-              <Popover>
+              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
                 <PopoverTrigger asChild>
                   <Button variant="outline" className="w-full justify-start font-normal">
                     <CalendarBlank size={16} className="mr-2" />
@@ -636,7 +636,12 @@ export default function MetasViaje() {
                   <Calendar
                     mode="single"
                     selected={formData.target_date}
-                    onSelect={(date) => date && setFormData({ ...formData, target_date: date })}
+                    onSelect={(date) => {
+                      if (date) {
+                        setFormData({ ...formData, target_date: date });
+                        setCalendarOpen(false);
+                      }
+                    }}
                     initialFocus
                   />
                 </PopoverContent>
