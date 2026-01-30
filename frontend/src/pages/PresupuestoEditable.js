@@ -373,7 +373,7 @@ export default function PresupuestoEditable() {
       </Card>
 
       {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="gastos">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="gastos">Categorías de Gastos</TabsTrigger>
           <TabsTrigger value="ingresos">Proyección Ingresos</TabsTrigger>
