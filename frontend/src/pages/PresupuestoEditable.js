@@ -45,22 +45,30 @@ export default function PresupuestoEditable() {
   const [savingsGoal, setSavingsGoal] = useState({ monthly: 1250, percentage: 10 });
   const [investmentGoal, setInvestmentGoal] = useState({ monthly: 1875, percentage: 15 });
 
+  const [travelFund, setTravelFund] = useState(null);
+
   useEffect(() => {
     fetchBudgetConfig();
   }, []);
 
   const fetchBudgetConfig = async () => {
     try {
-      const response = await axios.get(`${API}/budget/config`, { headers: getAuthHeaders() });
-      setBudgetConfig(response.data);
-      if (response.data.income_projection) {
-        setIncomeProjection(response.data.income_projection);
+      const [budgetRes, travelRes] = await Promise.all([
+        axios.get(`${API}/budget/config`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/travel-fund`, { headers: getAuthHeaders() }).catch(() => ({ data: null }))
+      ]);
+      
+      setBudgetConfig(budgetRes.data);
+      setTravelFund(travelRes.data);
+      
+      if (budgetRes.data.income_projection) {
+        setIncomeProjection(budgetRes.data.income_projection);
       }
-      if (response.data.savings_goal) {
-        setSavingsGoal(response.data.savings_goal);
+      if (budgetRes.data.savings_goal) {
+        setSavingsGoal(budgetRes.data.savings_goal);
       }
-      if (response.data.investment_goal) {
-        setInvestmentGoal(response.data.investment_goal);
+      if (budgetRes.data.investment_goal) {
+        setInvestmentGoal(budgetRes.data.investment_goal);
       }
     } catch (error) {
       toast.error("Error al cargar configuración");
