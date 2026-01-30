@@ -236,6 +236,131 @@ export default function Budget() {
         </motion.div>
       </div>
 
+      {/* Financial Goals - Ahorro e Inversión */}
+      {financialGoals && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.25 }}
+        >
+          <Card className="bento-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Target size={20} className="text-violet-600" />
+                Metas de Ahorro e Inversión
+              </CardTitle>
+              <CardDescription>Metas anuales para alcanzar tus objetivos financieros</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Ahorro para Imprevistos */}
+                <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <PiggyBank size={24} className="text-emerald-600" />
+                      <div>
+                        <p className="font-semibold text-emerald-800 dark:text-emerald-400">Ahorro</p>
+                        <p className="text-xs text-emerald-600 dark:text-emerald-500">Para imprevistos</p>
+                      </div>
+                    </div>
+                    {canEdit && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => openGoalDialog("savings_goal", financialGoals.savings_goal?.annual)}
+                      >
+                        <Pencil size={16} />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-end">
+                      <span className="text-2xl font-bold text-emerald-700 dark:text-emerald-400">
+                        {formatCurrency(financialGoals.savings_goal?.annual || 0)}
+                      </span>
+                      <span className="text-sm text-emerald-600">/año</span>
+                    </div>
+                    <p className="text-sm text-emerald-600 dark:text-emerald-500">
+                      Meta mensual: {formatCurrency(financialGoals.savings_goal?.monthly || 0)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Inversión */}
+                <div className="p-4 rounded-xl bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <TrendUp size={24} className="text-blue-600" />
+                      <div>
+                        <p className="font-semibold text-blue-800 dark:text-blue-400">Inversión</p>
+                        <p className="text-xs text-blue-600 dark:text-blue-500">Crecimiento patrimonial</p>
+                      </div>
+                    </div>
+                    {canEdit && (
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8"
+                        onClick={() => openGoalDialog("investment_goal", financialGoals.investment_goal?.annual)}
+                      >
+                        <Pencil size={16} />
+                      </Button>
+                    )}
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-end">
+                      <span className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                        {formatCurrency(financialGoals.investment_goal?.annual || 0)}
+                      </span>
+                      <span className="text-sm text-blue-600">/año</span>
+                    </div>
+                    <p className="text-sm text-blue-600 dark:text-blue-500">
+                      Meta mensual: {formatCurrency(financialGoals.investment_goal?.monthly || 0)}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Viajes (conectado al fondo de viajes) */}
+                <div className="p-4 rounded-xl bg-violet-50 dark:bg-violet-950/20 border border-violet-200 dark:border-violet-800">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Airplane size={24} className="text-violet-600" />
+                      <div>
+                        <p className="font-semibold text-violet-800 dark:text-violet-400">Viajes</p>
+                        <p className="text-xs text-violet-600 dark:text-violet-500">Fondo de viajes</p>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-end">
+                      <span className="text-2xl font-bold text-violet-700 dark:text-violet-400">
+                        {formatCurrency(financialGoals.travel_savings_goal?.annual || 0)}
+                      </span>
+                      <span className="text-sm text-violet-600">/año</span>
+                    </div>
+                    {financialGoals.travel_savings_goal?.saved > 0 && (
+                      <div className="space-y-1">
+                        <Progress 
+                          value={(financialGoals.travel_savings_goal.saved / financialGoals.travel_savings_goal.annual) * 100} 
+                          className="h-2"
+                        />
+                        <p className="text-xs text-violet-600">
+                          {formatCurrency(financialGoals.travel_savings_goal.saved)} ahorrado ({((financialGoals.travel_savings_goal.saved / financialGoals.travel_savings_goal.annual) * 100).toFixed(0)}%)
+                        </p>
+                      </div>
+                    )}
+                    <a href="/viajes" className="text-sm text-violet-600 hover:text-violet-700 underline">
+                      Ver fondo de viajes →
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Chart */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
