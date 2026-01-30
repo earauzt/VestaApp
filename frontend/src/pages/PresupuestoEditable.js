@@ -48,6 +48,9 @@ export default function PresupuestoEditable() {
   const [investmentGoal, setInvestmentGoal] = useState({ monthly: 1875, percentage: 15 });
 
   const [travelFund, setTravelFund] = useState(null);
+  
+  // Tab state for controlled tabs
+  const [activeTab, setActiveTab] = useState("gastos");
 
   useEffect(() => {
     fetchBudgetConfig();
