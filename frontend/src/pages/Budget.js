@@ -60,13 +60,19 @@ const CATEGORY_COLORS = {
 };
 
 export default function Budget() {
-  const { getAuthHeaders } = useAuth();
+  const { getAuthHeaders, user } = useAuth();
   const [budget, setBudget] = useState(null);
   const [comparison, setComparison] = useState([]);
   const [suggestions, setSuggestions] = useState([]);
+  const [financialGoals, setFinancialGoals] = useState(null);
   const [monthsAnalyzed, setMonthsAnalyzed] = useState(0);
   const [loading, setLoading] = useState(true);
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [goalDialogOpen, setGoalDialogOpen] = useState(false);
+  const [editingGoalType, setEditingGoalType] = useState(null);
+  const [goalAmount, setGoalAmount] = useState("");
+
+  const canEdit = user?.role === "admin" || user?.role === "spouse";
 
   useEffect(() => {
     fetchData();
@@ -74,20 +80,49 @@ export default function Budget() {
 
   const fetchData = async () => {
     try {
-      const [budgetRes, comparisonRes, suggestionsRes] = await Promise.all([
+      const [budgetRes, comparisonRes, suggestionsRes, goalsRes] = await Promise.all([
         axios.get(`${API}/budget`, { headers: getAuthHeaders() }),
         axios.get(`${API}/budget/vs-actual`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/budget/suggestions`, { headers: getAuthHeaders() })
+        axios.get(`${API}/budget/suggestions`, { headers: getAuthHeaders() }),
+        axios.get(`${API}/budget/financial-goals`, { headers: getAuthHeaders() })
       ]);
       setBudget(budgetRes.data);
       setComparison(comparisonRes.data.comparison);
       setSuggestions(suggestionsRes.data.suggestions || []);
       setMonthsAnalyzed(suggestionsRes.data.months_analyzed || 0);
+      setFinancialGoals(goalsRes.data);
     } catch (error) {
       toast.error("Error al cargar presupuesto");
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSaveGoal = async () => {
+    if (!goalAmount || parseFloat(goalAmount) <= 0) {
+      toast.error("Ingresa un monto válido");
+      return;
+    }
+
+    try {
+      const payload = {};
+      payload[editingGoalType] = parseFloat(goalAmount);
+      
+      await axios.put(`${API}/budget/financial-goals`, payload, { headers: getAuthHeaders() });
+      toast.success("Meta actualizada");
+      setGoalDialogOpen(false);
+      setGoalAmount("");
+      setEditingGoalType(null);
+      fetchData();
+    } catch (error) {
+      toast.error("Error al actualizar meta");
+    }
+  };
+
+  const openGoalDialog = (type, currentValue) => {
+    setEditingGoalType(type);
+    setGoalAmount(currentValue?.toString() || "");
+    setGoalDialogOpen(true);
   };
 
   const formatCurrency = (value) => {
