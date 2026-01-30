@@ -284,16 +284,16 @@ export default function Dashboard() {
             transition={{ duration: 0.3, delay: index * 0.05 }}
           >
             <Card className="bento-card hover:-translate-y-1 transition-all duration-300">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+              <CardContent className="p-3 sm:p-6">
+                <div className="flex items-center justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs sm:text-sm text-muted-foreground mb-1 truncate">{stat.title}</p>
-                    <p className={`text-lg sm:text-2xl font-bold ${stat.color}`}>
+                    <p className="text-xs text-muted-foreground mb-1 truncate">{stat.title}</p>
+                    <p className={`text-base sm:text-xl lg:text-2xl font-bold ${stat.color} truncate`}>
                       {formatCurrency(stat.value)}
                     </p>
                   </div>
-                  <div className={`p-2 sm:p-3 rounded-xl bg-muted ${stat.color} self-start`}>
-                    <stat.icon size={20} weight="duotone" className="sm:w-6 sm:h-6" />
+                  <div className={`p-2 rounded-xl bg-muted ${stat.color} shrink-0`}>
+                    <stat.icon size={18} weight="duotone" className="sm:w-5 sm:h-5" />
                   </div>
                 </div>
               </CardContent>
