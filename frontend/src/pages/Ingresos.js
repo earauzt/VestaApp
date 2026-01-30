@@ -79,6 +79,8 @@ export default function Ingresos() {
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedReceivable, setSelectedReceivable] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState("");
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarOpen2, setCalendarOpen2] = useState(false);
 
   // Form state for income
   const [formData, setFormData] = useState({
