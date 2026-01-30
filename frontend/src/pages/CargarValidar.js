@@ -78,7 +78,7 @@ const PERSONAL_CATEGORIES = {
   },
   viajes_entretenimiento: { 
     name: "Viajes y Entretenimiento", 
-    subcategories: ["Pasajes", "Hoteles", "Navidad", "Ropa", "Tech"]
+    subcategories: ["Hoteles", "Pasajes", "Comida", "Entretenimiento", "Ropa", "Tech", "Transporte", "Tours", "Otros"]
   },
   gastos_libres: { 
     name: "Gastos Libres (Otros)", 
