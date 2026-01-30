@@ -89,7 +89,7 @@ export default function MetasViaje() {
     try {
       await axios.post(
         `${API}/travel-fund/deposit`,
-        { amount: parseFloat(depositAmount), note: depositNote || "Ahorro extra para viajes" },
+        { amount: parseFloat(depositAmount), note: depositNote || "Ahorro para viajes" },
         { headers: getAuthHeaders() }
       );
       toast.success(`$${parseFloat(depositAmount).toLocaleString()} agregado al fondo`);
@@ -98,7 +98,9 @@ export default function MetasViaje() {
       setDepositNote("");
       fetchGoals();
     } catch (error) {
-      toast.error("Error al agregar al fondo");
+      const errorMsg = error.response?.data?.detail;
+      const message = typeof errorMsg === 'string' ? errorMsg : "Error al agregar al fondo";
+      toast.error(message);
     }
   };
 
