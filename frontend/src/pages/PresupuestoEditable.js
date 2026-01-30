@@ -368,22 +368,9 @@ export default function PresupuestoEditable() {
           </div>
         </CardContent>
       </Card>
-                className="text-blue-600 hover:text-blue-700 h-7"
-                onClick={() => {
-                  const tabs = document.querySelector('[value="metas"]');
-                  if (tabs) tabs.click();
-                }}
-              >
-                <Pencil size={14} className="mr-1" />
-                Editar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="gastos">
+      <Tabs value={activeTab} onValueChange={setActiveTab} defaultValue="gastos">
         <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="gastos">Categorías de Gastos</TabsTrigger>
           <TabsTrigger value="ingresos">Proyección Ingresos</TabsTrigger>
