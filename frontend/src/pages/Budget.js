@@ -563,6 +563,55 @@ export default function Budget() {
           </Card>
         </motion.div>
       )}
+
+      {/* Dialog: Edit Financial Goal */}
+      <Dialog open={goalDialogOpen} onOpenChange={setGoalDialogOpen}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {editingGoalType === "savings_goal" && <PiggyBank size={24} className="text-emerald-500" />}
+              {editingGoalType === "investment_goal" && <TrendUp size={24} className="text-blue-500" />}
+              {editingGoalType === "savings_goal" ? "Editar Meta de Ahorro" : "Editar Meta de Inversión"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingGoalType === "savings_goal" 
+                ? "Define cuánto quieres ahorrar este año para imprevistos."
+                : "Define cuánto quieres invertir este año para crecimiento patrimonial."
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Meta Anual</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                <Input
+                  type="number"
+                  step="0.01"
+                  placeholder="12000"
+                  className="pl-8 text-lg font-semibold"
+                  value={goalAmount}
+                  onChange={(e) => setGoalAmount(e.target.value)}
+                  autoFocus
+                />
+              </div>
+              {goalAmount && (
+                <p className="text-sm text-muted-foreground">
+                  Meta mensual: {formatCurrency(parseFloat(goalAmount) / 12)}
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setGoalDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveGoal}>
+                Guardar
+              </Button>
+            </DialogFooter>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
