@@ -88,20 +88,24 @@ export default function Dashboard() {
   // Filter out dismissed reminders
   const visibleReminders = reminders.filter((_, index) => !dismissedReminders.includes(index));
 
+  const [travelFund, setTravelFund] = useState(null);
+
   const fetchData = useCallback(async () => {
     try {
-      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes] = await Promise.all([
+      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes] = await Promise.all([
         axios.get(`${API}/dashboard/stats`, { headers: getAuthHeaders() }),
         axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers: getAuthHeaders() }),
         axios.get(`${API}/reminders`, { headers: getAuthHeaders() }).catch(() => ({ data: [] })),
         axios.get(`${API}/cashflow/projection`, { headers: getAuthHeaders() }).catch(() => ({ data: null })),
-        axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() }).catch(() => ({ data: { goals: [] } }))
+        axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() }).catch(() => ({ data: { goals: [] } })),
+        axios.get(`${API}/travel-fund`, { headers: getAuthHeaders() }).catch(() => ({ data: null }))
       ]);
       
       setStats(statsRes.data);
       setChartData(chartRes.data.data);
       setReminders(remindersRes.data);
       setCashflowProjection(cashflowRes.data);
+      setTravelFund(fundRes.data);
       const goalsData = goalsRes.data?.goals || [];
       setTravelGoals(goalsData.filter(g => g.status === "active").slice(0, 2));
       
