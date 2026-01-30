@@ -4538,6 +4538,48 @@ async def add_travel_fund_deposit(
         "deposit": deposit
     }
 
+@api_router.get("/travel-fund/transactions")
+async def get_travel_transactions(
+    user: dict = Depends(get_current_user),
+    year: int = None
+):
+    """Get all travel and entertainment transactions for the year"""
+    current_year = year or datetime.now().year
+    year_start = f"{current_year}-01-01"
+    year_end = f"{current_year}-12-31"
+    
+    # Get travel transactions
+    transactions = await db.transactions.find({
+        "user_id": user["id"],
+        "category": {"$in": ["viajes_entretenimiento", "viajes_internacionales", "turismo"]},
+        "transaction_type": "expense",
+        "date": {"$gte": year_start, "$lte": year_end}
+    }, {"_id": 0}).sort("date", -1).to_list(500)
+    
+    # Calculate totals by subcategory
+    by_subcategory = {}
+    for t in transactions:
+        subcat = t.get("subcategory", "Otros") or "Otros"
+        if subcat not in by_subcategory:
+            by_subcategory[subcat] = {"total": 0, "count": 0}
+        by_subcategory[subcat]["total"] += t.get("amount", 0)
+        by_subcategory[subcat]["count"] += 1
+    
+    subcategory_summary = [
+        {"subcategory": k, "total": v["total"], "count": v["count"]}
+        for k, v in sorted(by_subcategory.items(), key=lambda x: x[1]["total"], reverse=True)
+    ]
+    
+    total = sum(t.get("amount", 0) for t in transactions)
+    
+    return {
+        "year": current_year,
+        "transactions": transactions,
+        "total": total,
+        "count": len(transactions),
+        "by_subcategory": subcategory_summary
+    }
+
 # ================= CASH FLOW PROJECTION =================
 
 @api_router.get("/cashflow/projection")
