@@ -138,13 +138,15 @@ function AppRoutes() {
         } 
       />
       <Route 
-        path="/metas-viaje" 
+        path="/viajes" 
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse", "demo"]}>
             <MetasViaje />
           </ProtectedRoute>
         } 
       />
+      {/* Redirect old route */}
+      <Route path="/metas-viaje" element={<Navigate to="/viajes" replace />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
