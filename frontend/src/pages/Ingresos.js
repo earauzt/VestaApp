@@ -917,18 +917,23 @@ export default function Ingresos() {
               </div>
               <div className="space-y-2">
                 <Label>Fecha Esperada</Label>
-                <Popover>
+                <Popover open={calendarOpen2} onOpenChange={setCalendarOpen2}>
                   <PopoverTrigger asChild>
                     <Button variant="outline" className="w-full justify-start gap-2">
                       <CalendarBlank size={16} />
                       {format(expectedForm.expected_date, "d MMM", { locale: es })}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[200]" align="start">
+                  <PopoverContent className="w-auto p-0 z-[250]" align="start">
                     <Calendar
                       mode="single"
                       selected={expectedForm.expected_date}
-                      onSelect={(date) => date && setExpectedForm({ ...expectedForm, expected_date: date })}
+                      onSelect={(date) => {
+                        if (date) {
+                          setExpectedForm({ ...expectedForm, expected_date: date });
+                          setCalendarOpen2(false);
+                        }
+                      }}
                       initialFocus
                     />
                   </PopoverContent>
