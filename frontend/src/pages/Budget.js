@@ -6,6 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../co
 import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
+import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog";
 import { toast } from "sonner";
 import { 
   ChartLine, 
@@ -15,7 +18,11 @@ import {
   Target,
   Lightbulb,
   CheckCircle,
-  Scales
+  Scales,
+  PiggyBank,
+  TrendUp,
+  Pencil,
+  Airplane
 } from "@phosphor-icons/react";
 import { 
   BarChart, 
