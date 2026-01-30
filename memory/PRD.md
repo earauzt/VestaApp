@@ -280,6 +280,7 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
 ### P1 (Alta Prioridad)
 - [x] ~~Corregir 403 -> 401 en autenticación fallida~~ ✅ COMPLETADO
 - [x] ~~Corregir visibilidad dropdown de categorías~~ ✅ COMPLETADO
+- [x] ~~Corregir botón "Editar" de Ahorro/Inversión en Mi Presupuesto~~ ✅ COMPLETADO
 - [ ] Implementar Banner de Notificaciones Inteligentes (advertencias de flujo de caja, límites SRI)
 
 ### P2 (Media Prioridad)
