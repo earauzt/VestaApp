@@ -51,7 +51,6 @@ const DEFAULT_FLUJO_CATEGORIES = {
   restaurantes: { name: "Restaurantes", color: "#f97316", budget: 550 },
   carros: { name: "Carros", color: "#ef4444", budget: 565 },
   usa: { name: "USA (Mamá, TMobile, Universidad)", color: "#6366f1", budget: 1150 },
-  viajes_entretenimiento: { name: "Viajes y Entretenimiento", color: "#14b8a6", budget: 0 },
   gastos_libres: { name: "Gastos Libres (Otros)", color: "#f59e0b", budget: 1300 }
 };
 
