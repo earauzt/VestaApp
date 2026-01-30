@@ -4471,6 +4471,7 @@ async def get_travel_fund(
         "savings_progress": savings_progress,  # Percentage of budget saved
         "pending_to_save": pending_to_save,  # How much left to save
         "total_spent": total_spent,
+        "spending_breakdown": spending_breakdown,  # Desglose por subcategoría
         "spent_with_card": total_on_card,
         "pending_card_payments": pending_card_payments,
         "available": available,  # What can actually be spent today
