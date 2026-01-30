@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 import uuid
 
 class FamilyFinanceAPITester:
-    def __init__(self, base_url="https://ecudashboard.preview.emergentagent.com/api"):
+    def __init__(self, base_url="https://fintrackec.preview.emergentagent.com/api"):
         self.base_url = base_url
         self.admin_token = None
         self.spouse_token = None
