@@ -316,6 +316,21 @@ export default function MetasViaje() {
                 <p className="text-xl font-bold text-blue-700 dark:text-blue-400">{formatCurrency(travelFund.available)}</p>
               </div>
             </div>
+
+            {/* Desglose de gastos por subcategoría */}
+            {travelFund.spending_breakdown && travelFund.spending_breakdown.length > 0 && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50/50 dark:bg-red-900/10 border border-red-200 dark:border-red-800">
+                <p className="text-xs font-medium text-red-700 dark:text-red-400 mb-2">Desglose de gastos:</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                  {travelFund.spending_breakdown.map((item, i) => (
+                    <div key={i} className="flex justify-between items-center p-2 rounded bg-white/60 dark:bg-black/20">
+                      <span className="text-xs text-muted-foreground truncate">{item.subcategory}</span>
+                      <span className="text-xs font-semibold text-red-600 ml-2">{formatCurrency(item.amount)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
             
             {/* Info de tarjeta si hay */}
             {travelFund.pending_card_payments > 0 && (
