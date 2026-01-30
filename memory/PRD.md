@@ -239,6 +239,20 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
    - Endpoint GET/PUT /api/budget/financial-goals para metas de ahorro/inversión
    - Categoría viajes_entretenimiento excluida del config de presupuesto pero disponible para transacciones
 
+### 30 Enero 2026 (PM) - Corrección de Bugs de UI ✅
+1. **Bug corregido: Botón "Editar" en Mi Presupuesto**:
+   - Se añadió el estado `activeTab` que faltaba en `PresupuestoEditable.js`
+   - Los botones "Editar" de las burbujas de Ahorro e Inversión ahora funcionan correctamente
+   - El componente `Tabs` ahora es controlado (value/onValueChange)
+
+2. **Bug corregido: Números superpuestos en Dashboard y Límites SRI**:
+   - Verificado que las clases responsivas (`text-base sm:text-xl lg:text-2xl`, `truncate`, `min-w-0`) funcionan correctamente
+   - No hay superposición de texto en vistas móviles (375x667)
+
+3. **Verificado: Burbuja de Viajes en Mi Presupuesto**:
+   - La burbuja aparece correctamente mostrando la meta mensual de ahorro para viajes
+   - El Total Mensual Necesario incluye Gastos + Ahorro + Inversión + Viajes
+
 ### 29 Enero 2026 - Fondo de Viajes Completado ✅
 1. **Fondo de Viajes (Travel Fund)**:
    - Widget en /metas-viaje con nueva lógica de ahorro:
