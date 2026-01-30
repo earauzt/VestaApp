@@ -253,6 +253,22 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
    - La burbuja aparece correctamente mostrando la meta mensual de ahorro para viajes
    - El Total Mensual Necesario incluye Gastos + Ahorro + Inversión + Viajes
 
+### 30 Enero 2026 (Noche) - Rediseño del Resumen en Mi Presupuesto ✅
+1. **Nueva visualización tipo "Resta Matemática"**:
+   - Ingresos Proyectados (primera línea, verde)
+   - − Gastos Fijos (con signo menos)
+   - − Ahorro (con botón editar)
+   - − Inversión (con botón editar)
+   - − Meta Viajes (con enlace a /viajes)
+   - ═══════════════════════════════
+   - = Flujo Libre (verde) / Faltante (rojo)
+
+2. **Lógica actualizada**:
+   - El balance ahora incluye la meta de viajes en el cálculo
+   - Formula: Ingresos - Gastos - Ahorro - Inversión - Meta Viajes
+   - Si el resultado es positivo: "Flujo Libre" (verde)
+   - Si el resultado es negativo: "Faltante" (rojo)
+
 ### 29 Enero 2026 - Fondo de Viajes Completado ✅
 1. **Fondo de Viajes (Travel Fund)**:
    - Widget en /metas-viaje con nueva lógica de ahorro:
