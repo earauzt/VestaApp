@@ -147,19 +147,19 @@ export default function SRILimits() {
           transition={{ duration: 0.3 }}
         >
           <Card className="bento-card">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Límite Global</p>
-                  <p className="stat-number text-primary">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Límite Global</p>
+                  <p className="text-lg sm:text-2xl font-bold text-primary truncate">
                     {formatCurrency(data?.limite_global)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {cargasFamiliares} cargas × CBF ${data?.canasta_basica?.toFixed(2)}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                  <CurrencyDollar size={24} weight="duotone" />
+                <div className="p-2 sm:p-3 rounded-xl bg-primary/10 text-primary shrink-0">
+                  <CurrencyDollar size={20} weight="duotone" className="sm:w-6 sm:h-6" />
                 </div>
               </div>
             </CardContent>
@@ -172,19 +172,19 @@ export default function SRILimits() {
           transition={{ duration: 0.3, delay: 0.1 }}
         >
           <Card className="bento-card">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground mb-1">Gastos Deducibles</p>
-                  <p className="stat-number text-emerald-600">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs sm:text-sm text-muted-foreground mb-1">Gastos Deducibles</p>
+                  <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">
                     {formatCurrency(data?.total_deductible_spent)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
                     {data?.percentage_used}% del límite usado
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30">
-                  <CheckCircle size={24} weight="duotone" />
+                <div className="p-2 sm:p-3 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 shrink-0">
+                  <CheckCircle size={20} weight="duotone" className="sm:w-6 sm:h-6" />
                 </div>
               </div>
             </CardContent>
