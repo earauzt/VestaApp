@@ -184,7 +184,8 @@ export default function PresupuestoEditable() {
   };
 
   const { totalExpenses, totalIncome } = calculateTotals();
-  const balance = totalIncome - totalExpenses - savingsGoal.monthly - investmentGoal.monthly;
+  const travelMonthly = travelFund?.monthly_suggested_saving || 0;
+  const balance = totalIncome - totalExpenses - savingsGoal.monthly - investmentGoal.monthly - travelMonthly;
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-EC', { style: 'currency', currency: 'USD' }).format(value || 0);
