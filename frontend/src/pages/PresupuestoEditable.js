@@ -212,34 +212,34 @@ export default function PresupuestoEditable() {
       </div>
 
       {/* Summary Cards - Row 1: Ingresos, Gastos, Flujo Libre */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-3 sm:gap-4">
         <Card className="bento-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <Wallet size={18} />
-              <span className="text-sm">Ingresos</span>
+              <Wallet size={16} />
+              <span className="text-xs sm:text-sm">Ingresos</span>
             </div>
-            <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalIncome)}</p>
+            <p className="text-lg sm:text-2xl font-bold text-emerald-600">{formatCurrency(totalIncome)}</p>
             <p className="text-xs text-muted-foreground">/mes</p>
           </CardContent>
         </Card>
         <Card className="bento-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <ChartLine size={18} />
-              <span className="text-sm">Gastos Fijos</span>
+              <ChartLine size={16} />
+              <span className="text-xs sm:text-sm">Gastos Fijos</span>
             </div>
-            <p className="text-2xl font-bold text-red-500">{formatCurrency(totalExpenses)}</p>
+            <p className="text-lg sm:text-2xl font-bold text-red-500">{formatCurrency(totalExpenses)}</p>
             <p className="text-xs text-muted-foreground">/mes</p>
           </CardContent>
         </Card>
         <Card className="bento-card">
-          <CardContent className="p-4">
+          <CardContent className="p-3 sm:p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
-              <TrendUp size={18} />
-              <span className="text-sm">Flujo Libre</span>
+              <TrendUp size={16} />
+              <span className="text-xs sm:text-sm">Flujo Libre</span>
             </div>
-            <p className={`text-2xl font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+            <p className={`text-lg sm:text-2xl font-bold ${balance >= 0 ? 'text-emerald-600' : 'text-red-500'}`}>
               {formatCurrency(balance)}
             </p>
             <p className="text-xs text-muted-foreground">/mes</p>
@@ -247,38 +247,36 @@ export default function PresupuestoEditable() {
         </Card>
       </div>
 
-      {/* Ahorro e Inversión - Burbujas Lineales Editables */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Ahorro, Inversión y Viajes - Burbujas Lineales */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {/* Ahorro */}
         <Card className="bento-card bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-emerald-950/20 dark:to-teal-950/20 border-emerald-200 dark:border-emerald-800">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                  <PiggyBank size={24} className="text-emerald-600" />
+                  <PiggyBank size={20} className="text-emerald-600" />
                 </div>
                 <div>
-                  <p className="font-semibold text-emerald-800 dark:text-emerald-400">Ahorro (Imprevistos)</p>
-                  <p className="text-xs text-emerald-600">Meta: {formatCurrency(savingsGoal.monthly * 12)}/año</p>
+                  <p className="font-semibold text-emerald-800 dark:text-emerald-400 text-sm">Ahorro</p>
+                  <p className="text-xs text-emerald-600">Imprevistos</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold text-emerald-600">{formatCurrency(savingsGoal.monthly)}</p>
-                <p className="text-xs text-emerald-600">{savingsGoal.percentage}% del ingreso</p>
+                <p className="text-xl font-bold text-emerald-600">{formatCurrency(savingsGoal.monthly)}</p>
+                <p className="text-xs text-emerald-600">/mes</p>
               </div>
             </div>
-            <div className="mt-3 flex items-center gap-2">
-              <Progress value={savingsGoal.percentage * 2} className="flex-1 h-2" />
+            <Progress value={savingsGoal.percentage * 2} className="h-2 mb-2" />
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-emerald-600">{savingsGoal.percentage}% • {formatCurrency(savingsGoal.monthly * 12)}/año</span>
               <Button 
                 variant="ghost" 
                 size="sm"
-                className="text-emerald-600 hover:text-emerald-700 h-7"
-                onClick={() => {
-                  const tabs = document.querySelector('[value="metas"]');
-                  if (tabs) tabs.click();
-                }}
+                className="text-emerald-600 hover:text-emerald-700 h-6 text-xs px-2"
+                onClick={() => setActiveTab("metas")}
               >
-                <Pencil size={14} className="mr-1" />
+                <Pencil size={12} className="mr-1" />
                 Editar
               </Button>
             </div>
@@ -288,26 +286,88 @@ export default function PresupuestoEditable() {
         {/* Inversión */}
         <Card className="bento-card bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border-blue-200 dark:border-blue-800">
           <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
                 <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                  <TrendUp size={24} className="text-blue-600" />
+                  <TrendUp size={20} className="text-blue-600" />
                 </div>
                 <div>
-                  <p className="font-semibold text-blue-800 dark:text-blue-400">Inversión</p>
-                  <p className="text-xs text-blue-600">Meta: {formatCurrency(investmentGoal.monthly * 12)}/año</p>
+                  <p className="font-semibold text-blue-800 dark:text-blue-400 text-sm">Inversión</p>
+                  <p className="text-xs text-blue-600">Crecimiento</p>
                 </div>
               </div>
               <div className="text-right">
-                <p className="text-2xl font-bold text-blue-600">{formatCurrency(investmentGoal.monthly)}</p>
-                <p className="text-xs text-blue-600">{investmentGoal.percentage}% del ingreso</p>
+                <p className="text-xl font-bold text-blue-600">{formatCurrency(investmentGoal.monthly)}</p>
+                <p className="text-xs text-blue-600">/mes</p>
               </div>
             </div>
-            <div className="mt-3 flex items-center gap-2">
-              <Progress value={investmentGoal.percentage * 2} className="flex-1 h-2" />
+            <Progress value={investmentGoal.percentage * 2} className="h-2 mb-2" />
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-blue-600">{investmentGoal.percentage}% • {formatCurrency(investmentGoal.monthly * 12)}/año</span>
               <Button 
                 variant="ghost" 
                 size="sm"
+                className="text-blue-600 hover:text-blue-700 h-6 text-xs px-2"
+                onClick={() => setActiveTab("metas")}
+              >
+                <Pencil size={12} className="mr-1" />
+                Editar
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Viajes */}
+        {travelFund && (
+          <Card className="bento-card bg-gradient-to-r from-violet-50 to-purple-50 dark:from-violet-950/20 dark:to-purple-950/20 border-violet-200 dark:border-violet-800">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/30">
+                    <Airplane size={20} className="text-violet-600" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-violet-800 dark:text-violet-400 text-sm">Viajes</p>
+                    <p className="text-xs text-violet-600">Meta anual</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xl font-bold text-violet-600">{formatCurrency(travelFund.monthly_suggested_saving || 0)}</p>
+                  <p className="text-xs text-violet-600">/mes</p>
+                </div>
+              </div>
+              <Progress value={travelFund.savings_progress || 0} className="h-2 mb-2 [&>div]:bg-violet-500" />
+              <div className="flex justify-between items-center">
+                <span className="text-xs text-violet-600">{(travelFund.savings_progress || 0).toFixed(0)}% • {formatCurrency(travelFund.annual_budget)}/año</span>
+                <Link to="/viajes">
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-violet-600 hover:text-violet-700 h-6 text-xs px-2"
+                  >
+                    Ver fondo →
+                  </Button>
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Total mensual necesario */}
+      <Card className="bento-card border-2 border-primary/30">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm text-muted-foreground">Total Mensual Necesario</p>
+              <p className="text-xs text-muted-foreground">(Gastos + Ahorro + Inversión + Viajes)</p>
+            </div>
+            <p className="text-2xl font-bold text-primary">
+              {formatCurrency(totalExpenses + savingsGoal.monthly + investmentGoal.monthly + (travelFund?.monthly_suggested_saving || 0))}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
                 className="text-blue-600 hover:text-blue-700 h-7"
                 onClick={() => {
                   const tabs = document.querySelector('[value="metas"]');
