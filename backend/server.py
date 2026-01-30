@@ -323,13 +323,20 @@ BUDGET_CATEGORIES = {
     "viajes_entretenimiento": {
         "name": "Viajes y Entretenimiento",
         "subcategories": {
-            "Pasajes": 500,
-            "Navidad": 7000
+            "Hoteles": 3000,
+            "Pasajes": 3000,
+            "Comida": 2000,
+            "Entretenimiento": 2000,
+            "Ropa": 2000,
+            "Tech": 1500,
+            "Transporte": 1000,
+            "Tours": 1000,
+            "Otros": 1000
         },
         "monthly_budget": 0,
         "annual_budget": 16500,
         "type": "variable",
-        "payment_methods": ["tarjeta", "apple_card"],
+        "payment_methods": ["tarjeta", "apple_card", "efectivo"],
         "is_recurring": False,
         "notes": "Pasajes en Enero $500, Diciembre $3000. Navidad $7000 en Diciembre"
     },
