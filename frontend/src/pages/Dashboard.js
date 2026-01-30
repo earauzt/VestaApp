@@ -563,65 +563,64 @@ export default function Dashboard() {
         </Card>
       </div>
 
-      {/* Cashflow Projection & Travel Goals Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        {/* Cashflow Projection Widget */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-        >
-          <Card className="bento-card h-full bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 border-blue-200 dark:border-blue-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <TrendUp size={20} className="text-blue-600" weight="duotone" />
-                Flujo Proyectado (30 días)
-              </CardTitle>
-              <CardDescription>Proyección de ingresos y gastos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {cashflowProjection ? (
-                <div className="space-y-4">
-                  {/* Summary */}
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
-                      <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                        <ArrowUp size={12} className="text-emerald-500" />
-                        Ingresos
-                      </p>
-                      <p className="text-lg font-bold text-emerald-600">
-                        {formatCurrency(cashflowProjection.total_expected_income || 0)}
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
-                      <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                        <ArrowDown size={12} className="text-red-500" />
-                        Gastos
-                      </p>
-                      <p className="text-lg font-bold text-red-600">
-                        {formatCurrency(cashflowProjection.total_scheduled_payments || 0)}
-                      </p>
-                    </div>
-                    <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
-                      <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                        <Wallet size={12} className="text-blue-500" />
-                        Neto
-                      </p>
-                      <p className={`text-lg font-bold ${
-                        (cashflowProjection.net_projection || 0) >= 0 
-                          ? "text-emerald-600" 
-                          : "text-red-600"
-                      }`}>
-                        {formatCurrency(cashflowProjection.net_projection || 0)}
-                      </p>
-                    </div>
+      {/* Cashflow Projection Widget - Full Width */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.4 }}
+      >
+        <Card className="bento-card bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 border-blue-200 dark:border-blue-800">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <TrendUp size={20} className="text-blue-600" weight="duotone" />
+              Flujo Proyectado (30 días)
+            </CardTitle>
+            <CardDescription>Proyección de ingresos y gastos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {cashflowProjection ? (
+              <div className="space-y-4">
+                {/* Summary */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
+                    <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                      <ArrowUp size={12} className="text-emerald-500" />
+                      Ingresos
+                    </p>
+                    <p className="text-lg font-bold text-emerald-600">
+                      {formatCurrency(cashflowProjection.total_expected_income || 0)}
+                    </p>
                   </div>
+                  <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
+                    <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                      <ArrowDown size={12} className="text-red-500" />
+                      Gastos
+                    </p>
+                    <p className="text-lg font-bold text-red-600">
+                      {formatCurrency(cashflowProjection.total_scheduled_payments || 0)}
+                    </p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
+                    <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
+                      <Wallet size={12} className="text-blue-500" />
+                      Neto
+                    </p>
+                    <p className={`text-lg font-bold ${
+                      (cashflowProjection.net_projection || 0) >= 0 
+                        ? "text-emerald-600" 
+                        : "text-red-600"
+                    }`}>
+                      {formatCurrency(cashflowProjection.net_projection || 0)}
+                    </p>
+                  </div>
+                </div>
 
-                  {/* Upcoming Items */}
-                  {cashflowProjection.upcoming_items?.length > 0 && (
-                    <div className="space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Próximos movimientos:</p>
-                      {cashflowProjection.upcoming_items.slice(0, 3).map((item, idx) => (
+                {/* Upcoming Items */}
+                {cashflowProjection.upcoming_items?.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Próximos movimientos:</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                      {cashflowProjection.upcoming_items.slice(0, 6).map((item, idx) => (
                         <div 
                           key={idx} 
                           className="flex items-center justify-between p-2 rounded-lg bg-white/40 dark:bg-black/10"
@@ -632,7 +631,7 @@ export default function Dashboard() {
                             ) : (
                               <ArrowDown size={14} className="text-red-500" />
                             )}
-                            <span className="text-sm truncate max-w-[150px]">{item.description}</span>
+                            <span className="text-sm truncate max-w-[120px]">{item.description}</span>
                           </div>
                           <div className="text-right">
                             <span className={`text-sm font-semibold ${
@@ -640,90 +639,128 @@ export default function Dashboard() {
                             }`}>
                               {item.type === "income" ? "+" : "-"}{formatCurrency(item.amount)}
                             </span>
-                            <p className="text-xs text-muted-foreground">{item.date}</p>
                           </div>
                         </div>
                       ))}
                     </div>
-                  )}
+                  </div>
+                )}
 
-                  <Link to="/flujo">
-                    <Button variant="outline" size="sm" className="w-full mt-2">
-                      Ver Planificación Completa
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Clock size={32} className="mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No hay proyección disponible</p>
-                  <Link to="/flujo">
-                    <Button variant="outline" size="sm" className="mt-3">
-                      Configurar Flujo
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
+                <Link to="/flujo">
+                  <Button variant="outline" size="sm" className="w-full mt-2">
+                    Ver Planificación Completa
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <Clock size={32} className="mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No hay proyección disponible</p>
+                <Link to="/flujo">
+                  <Button variant="outline" size="sm" className="mt-3">
+                    Configurar Flujo
+                  </Button>
+                </Link>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
-        {/* Travel Goals Widget */}
+      {/* Gastos por Categoría - Burbujas de Progreso */}
+      {categoryData.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.5 }}
         >
-          <Card className="bento-card h-full bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30 border-violet-200 dark:border-violet-800">
-            <CardHeader className="pb-2">
+          <Card className="bento-card">
+            <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Airplane size={20} className="text-violet-600" weight="duotone" />
-                Metas de Viaje
+                <Receipt size={20} className="text-violet-600" weight="duotone" />
+                Gastos por Categoría
               </CardTitle>
-              <CardDescription>Progreso de ahorro para viajes</CardDescription>
+              <CardDescription>Progreso vs presupuesto mensual</CardDescription>
             </CardHeader>
             <CardContent>
-              {travelGoals.length > 0 ? (
-                <div className="space-y-4">
-                  {travelGoals.map((goal) => {
-                    const progress = goal.target_amount > 0 
-                      ? ((goal.saved_amount || 0) / goal.target_amount) * 100 
-                      : 0;
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {categoryData
+                  .filter(cat => cat.budget > 0 || cat.value > 0)
+                  .sort((a, b) => (b.value / (b.budget || 1)) - (a.value / (a.budget || 1)))
+                  .map((cat, index) => {
+                    const percentage = cat.budget > 0 ? (cat.value / cat.budget) * 100 : 0;
+                    const isOverBudget = percentage > 100;
+                    const isNearLimit = percentage >= 80 && percentage <= 100;
+                    
                     return (
-                      <div key={goal.id} className="p-3 rounded-lg bg-white/60 dark:bg-black/20">
+                      <motion.div
+                        key={cat.key}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                          isOverBudget 
+                            ? "border-red-300 bg-red-50/50 dark:bg-red-950/20" 
+                            : isNearLimit
+                              ? "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20"
+                              : "border-transparent bg-muted/30"
+                        }`}
+                      >
                         <div className="flex items-center justify-between mb-2">
-                          <span className="font-medium">{goal.destination}</span>
-                          <Badge variant="secondary">{progress.toFixed(0)}%</Badge>
+                          <span className="font-medium text-sm truncate flex-1">{cat.name}</span>
+                          {isOverBudget && (
+                            <Badge variant="destructive" className="text-xs ml-2">
+                              +{(percentage - 100).toFixed(0)}%
+                            </Badge>
+                          )}
                         </div>
-                        <Progress value={Math.min(progress, 100)} className="h-2 mb-2" />
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{formatCurrency(goal.saved_amount || 0)} ahorrado</span>
-                          <span>Meta: {formatCurrency(goal.target_amount)}</span>
+                        
+                        <div className="space-y-2">
+                          <Progress 
+                            value={Math.min(percentage, 100)} 
+                            className={`h-3 ${isOverBudget ? "[&>div]:bg-red-500" : isNearLimit ? "[&>div]:bg-amber-500" : ""}`}
+                          />
+                          
+                          <div className="flex justify-between items-center">
+                            <span className={`text-lg font-bold ${
+                              isOverBudget ? "text-red-600" : "text-foreground"
+                            }`}>
+                              {formatCurrency(cat.value)}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              / {formatCurrency(cat.budget)}
+                            </span>
+                          </div>
+                          
+                          {cat.budget > 0 && (
+                            <p className={`text-xs ${
+                              isOverBudget 
+                                ? "text-red-600" 
+                                : isNearLimit 
+                                  ? "text-amber-600" 
+                                  : "text-muted-foreground"
+                            }`}>
+                              {isOverBudget 
+                                ? `Excedido por ${formatCurrency(cat.value - cat.budget)}`
+                                : `Disponible: ${formatCurrency(cat.budget - cat.value)}`
+                              }
+                            </p>
+                          )}
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
-                  <Link to="/metas-viaje">
-                    <Button variant="outline" size="sm" className="w-full">
-                      Ver Todas las Metas
-                    </Button>
-                  </Link>
-                </div>
-              ) : (
-                <div className="text-center py-6 text-muted-foreground">
-                  <Airplane size={32} className="mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">No tienes metas de viaje activas</p>
-                  <Link to="/metas-viaje">
-                    <Button variant="outline" size="sm" className="mt-3">
-                      Crear Primera Meta
-                    </Button>
-                  </Link>
-                </div>
-              )}
+              </div>
+              
+              <Link to="/budget" className="block mt-4">
+                <Button variant="outline" size="sm" className="w-full">
+                  Ver Presupuesto Completo
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </motion.div>
-      </div>
+      )}
     </div>
   );
 }
