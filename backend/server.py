@@ -3517,6 +3517,10 @@ async def get_budget_config(
             if key not in base_budget_cats:
                 merged_categories[key] = cat
     
+    # Remove viajes_entretenimiento from budget display (it's managed in Viajes section)
+    if "viajes_entretenimiento" in merged_categories:
+        del merged_categories["viajes_entretenimiento"]
+    
     return {
         "year": current_year,
         "categories": merged_categories,
