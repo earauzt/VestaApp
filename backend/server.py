@@ -4416,6 +4416,18 @@ async def get_travel_fund(
     
     total_spent = sum(t.get("amount", 0) for t in travel_expenses)
     
+    # Calculate spending breakdown by subcategory
+    spending_by_subcategory = {}
+    for t in travel_expenses:
+        subcat = t.get("subcategory", "Otros") or "Otros"
+        spending_by_subcategory[subcat] = spending_by_subcategory.get(subcat, 0) + t.get("amount", 0)
+    
+    # Sort by amount descending
+    spending_breakdown = [
+        {"subcategory": k, "amount": v}
+        for k, v in sorted(spending_by_subcategory.items(), key=lambda x: x[1], reverse=True)
+    ]
+    
     # Calculate card payments (expenses paid with credit card)
     card_expenses = [t for t in travel_expenses if t.get("payment_method") in ["tarjeta", "credit_card", "apple_card"]]
     total_on_card = sum(t.get("amount", 0) for t in card_expenses)
