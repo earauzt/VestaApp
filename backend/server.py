@@ -791,9 +791,13 @@ class ScheduledPayment(BaseModel):
     amount: float
     due_day: int  # Day of month
     category: str
+    subcategory: Optional[str] = None  # Nueva subcategoría
     payment_method: str  # transferencia, tarjeta_diners, tarjeta_pichincha, etc.
     is_recurring: bool = True
     reminder_days_before: int = 2  # Days before to remind
+    minimum_amount: Optional[float] = None  # For credit cards - minimum payment
+    total_balance: Optional[float] = None  # For credit cards - total balance
+    card_name: Optional[str] = None  # Credit card name if applicable
 
 class ScheduledPaymentResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -803,9 +807,13 @@ class ScheduledPaymentResponse(BaseModel):
     amount: float
     due_day: int
     category: str
+    subcategory: Optional[str] = None
     payment_method: str
     is_recurring: bool
     reminder_days_before: int
+    minimum_amount: Optional[float] = None
+    total_balance: Optional[float] = None
+    card_name: Optional[str] = None
     last_paid_date: Optional[str] = None
     next_due_date: str
     created_at: str
