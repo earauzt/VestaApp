@@ -89,6 +89,7 @@ export default function Flujo() {
 
   useEffect(() => {
     fetchData();
+    fetchBudgetData();
   }, []);
 
   const fetchData = async () => {
@@ -102,15 +103,31 @@ export default function Flujo() {
     }
   };
 
+  const fetchBudgetData = async () => {
+    try {
+      const response = await axios.get(`${API}/budget/config`, { headers: getAuthHeaders() });
+      setBudgetData(response.data);
+    } catch (error) {
+      console.log("Error loading budget data");
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
     try {
       const payload = {
-        ...formData,
+        name: formData.name,
         amount: parseFloat(formData.amount),
         due_day: parseInt(formData.due_day),
-        reminder_days_before: parseInt(formData.reminder_days_before)
+        category: formData.category,
+        subcategory: formData.subcategory || null,
+        payment_method: formData.payment_method,
+        is_recurring: formData.is_recurring,
+        reminder_days_before: parseInt(formData.reminder_days_before),
+        minimum_amount: formData.minimum_amount ? parseFloat(formData.minimum_amount) : null,
+        total_balance: formData.total_balance ? parseFloat(formData.total_balance) : null,
+        card_name: formData.card_name || null
       };
 
       if (editingPayment) {
@@ -157,9 +174,13 @@ export default function Flujo() {
       amount: payment.amount.toString(),
       due_day: payment.due_day,
       category: payment.category,
+      subcategory: payment.subcategory || "",
       payment_method: payment.payment_method,
       is_recurring: payment.is_recurring,
-      reminder_days_before: payment.reminder_days_before
+      reminder_days_before: payment.reminder_days_before,
+      minimum_amount: payment.minimum_amount?.toString() || "",
+      total_balance: payment.total_balance?.toString() || "",
+      card_name: payment.card_name || ""
     });
     setDialogOpen(true);
   };
@@ -171,9 +192,13 @@ export default function Flujo() {
       amount: "",
       due_day: 1,
       category: "",
+      subcategory: "",
       payment_method: "transferencia",
       is_recurring: true,
-      reminder_days_before: 2
+      reminder_days_before: 2,
+      minimum_amount: "",
+      total_balance: "",
+      card_name: ""
     });
   };
 
