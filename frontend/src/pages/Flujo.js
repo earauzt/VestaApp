@@ -231,13 +231,53 @@ export default function Flujo() {
     return weeks;
   };
 
-  const weeks = groupByWeek(payments);
+  // Group payments by category
+  const groupByCategory = (payments) => {
+    const grouped = {};
+    payments.forEach(p => {
+      const cat = p.category || "otros";
+      if (!grouped[cat]) {
+        grouped[cat] = { payments: [], total: 0 };
+      }
+      grouped[cat].payments.push(p);
+      grouped[cat].total += p.amount || 0;
+    });
+    return grouped;
+  };
+
+  // Get category budget from budget data
+  const getCategoryBudget = (category) => {
+    if (!budgetData?.categories?.[category]) return null;
+    const catData = budgetData.categories[category];
+    return catData.total || Object.values(catData.subcategories || {}).reduce((sum, val) => sum + (val || 0), 0);
+  };
+
+  // Filter payments by week if needed
+  const filteredPayments = filterWeek === "all" 
+    ? payments 
+    : payments.filter(p => {
+        const day = p.due_day;
+        if (filterWeek === "week1") return day <= 7;
+        if (filterWeek === "week2") return day > 7 && day <= 14;
+        if (filterWeek === "week3") return day > 14 && day <= 21;
+        if (filterWeek === "week4") return day > 21;
+        return true;
+      });
+
+  const weeks = groupByWeek(filteredPayments);
+  const byCategory = groupByCategory(payments);
   const totalMonthly = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
 
   // Get method icon
   const getMethodIcon = (method) => {
     const found = PAYMENT_METHODS.find(m => m.value === method);
     return found?.icon || Receipt;
+  };
+
+  // Get category label
+  const getCategoryLabel = (cat) => {
+    const found = CATEGORIES.find(c => c.value === cat);
+    return found?.label || cat;
   };
 
   return (
@@ -250,7 +290,7 @@ export default function Flujo() {
             Programa tus pagos y asigna con qué tarjeta/cuenta pagar
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="text-lg px-4 py-2">
             Total mensual: {formatCurrency(totalMonthly)}
           </Badge>
@@ -263,21 +303,255 @@ export default function Flujo() {
         </div>
       </div>
 
-      {/* Linear View by Week */}
-      <div className="space-y-6">
-        {Object.entries(weeks).map(([key, week]) => (
-          <div key={key}>
-            {/* Week Header */}
-            <div className="flex items-center justify-between mb-3 sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                  <CalendarBlank size={20} className="text-primary" />
+      {/* View Options and Filters */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <Tabs value={viewMode} onValueChange={setViewMode} className="flex-1">
+          <TabsList>
+            <TabsTrigger value="week" className="gap-2">
+              <CalendarBlank size={16} />
+              Por Semana
+            </TabsTrigger>
+            <TabsTrigger value="category" className="gap-2">
+              <ChartBar size={16} />
+              Por Categoría
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+        
+        {viewMode === "week" && (
+          <Select value={filterWeek} onValueChange={setFilterWeek}>
+            <SelectTrigger className="w-[180px]">
+              <Funnel size={16} className="mr-2" />
+              <SelectValue placeholder="Filtrar semana" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todo el mes</SelectItem>
+              <SelectItem value="week1">Semana 1 (1-7)</SelectItem>
+              <SelectItem value="week2">Semana 2 (8-14)</SelectItem>
+              <SelectItem value="week3">Semana 3 (15-21)</SelectItem>
+              <SelectItem value="week4">Semana 4 (22-31)</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
+      </div>
+
+      {/* VIEW: By Week */}
+      {viewMode === "week" && (
+        <div className="space-y-6">
+          {Object.entries(weeks).map(([key, week]) => (
+            <div key={key}>
+              {/* Week Header */}
+              <div className="flex items-center justify-between mb-3 sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <CalendarBlank size={20} className="text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">{week.label}</h3>
+                    <p className="text-sm text-muted-foreground">{week.payments.length} pagos</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-semibold">{week.label}</h3>
-                  <p className="text-sm text-muted-foreground">{week.payments.length} pagos</p>
-                </div>
+                <Badge variant="outline" className="text-base font-mono">
+                  {formatCurrency(week.payments.reduce((s, p) => s + p.amount, 0))}
+                </Badge>
               </div>
+
+              {/* Payments List */}
+              {week.payments.length === 0 ? (
+                <Card className="bento-card">
+                  <CardContent className="py-8 text-center text-muted-foreground">
+                    <CheckCircle size={32} className="mx-auto mb-2 text-emerald-500" />
+                    <p>Sin pagos programados esta semana</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="space-y-2">
+                  {week.payments.map((payment, index) => {
+                    const MethodIcon = getMethodIcon(payment.payment_method);
+                    const isPastDue = payment.days_until_due < 0;
+                    const isDueSoon = payment.is_due_soon;
+                    const CategoryLabel = getCategoryLabel(payment.category);
+                    const isCard = payment.payment_method?.includes("tarjeta") || payment.payment_method === "apple_card";
+                    
+                    return (
+                      <motion.div
+                        key={payment.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.03 }}
+                        className={`p-4 rounded-xl border transition-all hover:shadow-md ${
+                          isPastDue 
+                            ? "bg-red-50 dark:bg-red-900/20 border-red-200" 
+                            : isDueSoon 
+                              ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200"
+                              : "bg-card border-border hover:border-primary/30"
+                        }`}
+                      >
+                        <div className="flex items-center gap-4">
+                          {/* Day indicator */}
+                          <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 ${
+                            isPastDue ? "bg-red-100 text-red-600" : isDueSoon ? "bg-amber-100 text-amber-600" : "bg-muted"
+                          }`}>
+                            <span className="text-lg font-bold">{payment.due_day}</span>
+                            <span className="text-[10px] uppercase">día</span>
+                          </div>
+
+                          {/* Payment Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="font-semibold">{payment.name}</span>
+                              {payment.card_name && (
+                                <Badge variant="outline" className="text-xs gap-1 bg-primary/5">
+                                  <CreditCard size={10} />
+                                  {payment.card_name}
+                                </Badge>
+                              )}
+                              {payment.is_recurring && (
+                                <Badge variant="secondary" className="text-xs">Recurrente</Badge>
+                              )}
+                              {isDueSoon && (
+                                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
+                                  <Clock size={12} className="mr-1" />
+                                  {payment.days_until_due} días
+                                </Badge>
+                              )}
+                              {isPastDue && (
+                                <Badge variant="destructive" className="text-xs">
+                                  <Warning size={12} className="mr-1" />
+                                  Vencido
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <MethodIcon size={14} />
+                                {PAYMENT_METHODS.find(m => m.value === payment.payment_method)?.label || payment.payment_method}
+                              </span>
+                              <span>•</span>
+                              <span>{CategoryLabel}</span>
+                              {payment.subcategory && (
+                                <>
+                                  <span>•</span>
+                                  <span className="text-primary">{payment.subcategory}</span>
+                                </>
+                              )}
+                            </div>
+                            {/* Credit card info */}
+                            {isCard && (payment.minimum_amount || payment.total_balance) && (
+                              <div className="flex items-center gap-4 mt-2 text-xs">
+                                {payment.minimum_amount && (
+                                  <span className="px-2 py-1 rounded bg-amber-100 text-amber-700">
+                                    Mín: {formatCurrency(payment.minimum_amount)}
+                                  </span>
+                                )}
+                                {payment.total_balance && (
+                                  <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
+                                    Saldo: {formatCurrency(payment.total_balance)}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Amount & Actions */}
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <p className="text-xl font-bold font-mono">{formatCurrency(payment.amount)}</p>
+                            </div>
+                            {canEdit && (
+                              <div className="flex gap-1">
+                                <Button variant="ghost" size="icon" onClick={() => handleEdit(payment)} className="h-8 w-8">
+                                  <Pencil size={14} />
+                                </Button>
+                                <Button variant="ghost" size="icon" onClick={() => handleDelete(payment.id)} className="h-8 w-8 text-red-500">
+                                  <Trash size={14} />
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* VIEW: By Category */}
+      {viewMode === "category" && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {Object.entries(byCategory).map(([category, data]) => {
+            const budget = getCategoryBudget(category);
+            const spent = data.total;
+            const percentage = budget ? (spent / budget) * 100 : 0;
+            
+            return (
+              <Card key={category} className="bento-card">
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-base flex items-center gap-2">
+                      <ChartBar size={18} className="text-primary" />
+                      {getCategoryLabel(category)}
+                    </CardTitle>
+                    <Badge variant="outline" className="font-mono">
+                      {formatCurrency(spent)}
+                    </Badge>
+                  </div>
+                  {budget && (
+                    <div className="mt-2">
+                      <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                        <span>Presupuesto: {formatCurrency(budget)}</span>
+                        <span className={percentage > 100 ? "text-red-600" : ""}>{percentage.toFixed(0)}%</span>
+                      </div>
+                      <Progress 
+                        value={Math.min(percentage, 100)} 
+                        className={`h-2 ${percentage > 100 ? "[&>div]:bg-red-500" : ""}`} 
+                      />
+                    </div>
+                  )}
+                </CardHeader>
+                <CardContent className="pt-2">
+                  <div className="space-y-2">
+                    {data.payments.map((payment) => {
+                      const MethodIcon = getMethodIcon(payment.payment_method);
+                      return (
+                        <div 
+                          key={payment.id}
+                          className="flex items-center justify-between p-2 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium w-6 h-6 flex items-center justify-center bg-background rounded">
+                              {payment.due_day}
+                            </span>
+                            <div>
+                              <p className="text-sm font-medium">{payment.name}</p>
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <MethodIcon size={12} />
+                                <span>{payment.subcategory || PAYMENT_METHODS.find(m => m.value === payment.payment_method)?.label}</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-mono text-sm font-bold">{formatCurrency(payment.amount)}</span>
+                            {canEdit && (
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(payment)} className="h-6 w-6">
+                                <Pencil size={12} />
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
               <Badge variant="outline" className="text-base font-mono">
                 {formatCurrency(week.payments.reduce((s, p) => s + p.amount, 0))}
               </Badge>
