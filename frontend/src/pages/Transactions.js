@@ -353,7 +353,27 @@ export default function Transactions() {
                          t.establishment?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === "all" || t.category === filterCategory;
     const matchesType = filterType === "all" || t.transaction_type === filterType;
-    return matchesSearch && matchesCategory && matchesType;
+    
+    // Period filter
+    let matchesPeriod = true;
+    if (filterPeriod !== "all" && t.date) {
+      const txDate = new Date(t.date);
+      const now = new Date();
+      const currentMonth = now.getMonth();
+      const currentYear = now.getFullYear();
+      
+      if (filterPeriod === "this_month") {
+        matchesPeriod = txDate.getMonth() === currentMonth && txDate.getFullYear() === currentYear;
+      } else if (filterPeriod === "last_month") {
+        const lastMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+        const lastMonthYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+        matchesPeriod = txDate.getMonth() === lastMonth && txDate.getFullYear() === lastMonthYear;
+      } else if (filterPeriod === "this_year") {
+        matchesPeriod = txDate.getFullYear() === currentYear;
+      }
+    }
+    
+    return matchesSearch && matchesCategory && matchesType && matchesPeriod;
   });
 
   const canEdit = user?.role === "admin" || user?.role === "spouse";
