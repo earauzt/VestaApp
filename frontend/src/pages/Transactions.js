@@ -714,6 +714,18 @@ export default function Transactions() {
                 data-testid="search-input"
               />
             </div>
+            <Select value={filterPeriod} onValueChange={setFilterPeriod}>
+              <SelectTrigger className="w-[150px]" data-testid="filter-period">
+                <CalendarBlank size={18} className="mr-2" />
+                <SelectValue placeholder="Período" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todo el tiempo</SelectItem>
+                <SelectItem value="this_month">Este mes</SelectItem>
+                <SelectItem value="last_month">Mes anterior</SelectItem>
+                <SelectItem value="this_year">Este año</SelectItem>
+              </SelectContent>
+            </Select>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
               <SelectTrigger className="w-[180px]" data-testid="filter-category">
                 <Funnel size={18} className="mr-2" />
