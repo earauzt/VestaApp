@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog";
 import { Badge } from "../components/ui/badge";
 import { Switch } from "../components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Progress } from "../components/ui/progress";
 import { toast } from "sonner";
 import { 
   Plus, 
@@ -25,7 +27,11 @@ import {
   Receipt,
   Bell,
   ArrowRight,
-  Lightning
+  Lightning,
+  Funnel,
+  ChartBar,
+  CaretDown,
+  User
 } from "@phosphor-icons/react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -41,28 +47,30 @@ const PAYMENT_METHODS = [
 ];
 
 const CATEGORIES = [
-  { value: "tarjeta_credito", label: "Pago Tarjeta de Crédito" },
-  { value: "servicios_basicos", label: "Servicios Básicos" },
-  { value: "suscripciones", label: "Suscripciones" },
-  { value: "empleados", label: "Empleados" },
-  { value: "colegio_actividades", label: "Colegio y Actividades" },
-  { value: "seguros", label: "Seguros" },
-  { value: "comida", label: "Comida" },
-  { value: "restaurantes", label: "Restaurantes" },
-  { value: "carros", label: "Carros" },
-  { value: "usa", label: "USA" },
-  { value: "viajes", label: "Viajes" },
-  { value: "gastos_libres", label: "Gastos Libres" },
-  { value: "diferido", label: "Pago Diferido" }
+  { value: "tarjeta_credito", label: "Pago Tarjeta de Crédito", subcategories: ["Diners", "Pichincha", "Pacificard", "Apple Card"] },
+  { value: "servicios_basicos", label: "Servicios Básicos", subcategories: ["Luz", "Agua", "Internet", "Gas", "Teléfono"] },
+  { value: "suscripciones", label: "Suscripciones", subcategories: ["Netflix", "Spotify", "Amazon", "Disney+", "iCloud"] },
+  { value: "empleados", label: "Empleados", subcategories: ["Ramona", "Angélica", "IESS"] },
+  { value: "colegio_actividades", label: "Colegio y Actividades", subcategories: ["Pensión", "Matrícula", "Fútbol", "Telas"] },
+  { value: "seguros", label: "Seguros", subcategories: ["Salud", "Carros", "Vida"] },
+  { value: "comida", label: "Comida", subcategories: ["Supermaxi", "Mercado"] },
+  { value: "restaurantes", label: "Restaurantes", subcategories: ["Comida afuera", "Delivery"] },
+  { value: "carros", label: "Carros", subcategories: ["Gasolina 1", "Gasolina 2", "Mantenimiento"] },
+  { value: "usa", label: "USA", subcategories: ["Mamá (Venmo)", "TMobile", "Universidad"] },
+  { value: "viajes", label: "Viajes", subcategories: ["Hoteles", "Pasajes", "Tours"] },
+  { value: "gastos_libres", label: "Gastos Libres", subcategories: ["KP (Esposa)", "EA (Emilio)", "Varios"] },
+  { value: "diferido", label: "Pago Diferido", subcategories: ["Compras a plazos"] }
 ];
 
 export default function Flujo() {
   const { getAuthHeaders, user } = useAuth();
   const [payments, setPayments] = useState([]);
+  const [budgetData, setBudgetData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
-  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth());
+  const [viewMode, setViewMode] = useState("week"); // week, category
+  const [filterWeek, setFilterWeek] = useState("all"); // all, week1, week2, week3, week4
 
   // Form state
   const [formData, setFormData] = useState({
@@ -70,9 +78,13 @@ export default function Flujo() {
     amount: "",
     due_day: 1,
     category: "",
+    subcategory: "",
     payment_method: "transferencia",
     is_recurring: true,
-    reminder_days_before: 2
+    reminder_days_before: 2,
+    minimum_amount: "",
+    total_balance: "",
+    card_name: ""
   });
 
   useEffect(() => {
