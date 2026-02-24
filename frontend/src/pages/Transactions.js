@@ -136,6 +136,7 @@ export default function Transactions() {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterCategory, setFilterCategory] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [filterPeriod, setFilterPeriod] = useState("all"); // all, this_month, last_month, this_year
   const [calendarOpen, setCalendarOpen] = useState(false);
   
   // International transaction popup
