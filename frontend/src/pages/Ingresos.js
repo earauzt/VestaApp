@@ -247,14 +247,30 @@ export default function Ingresos() {
     }
 
     try {
+      // First record the payment on the receivable
       await axios.put(
         `${API}/accounts-receivable/${selectedReceivable.id}/payment`,
         { amount: parseFloat(paymentAmount) },
         { headers: getAuthHeaders() }
       );
-      toast.success("Pago registrado");
+      
+      // Also create an income record for this payment
+      const incomePayload = {
+        amount: parseFloat(paymentAmount),
+        date: format(paymentDate, "yyyy-MM-dd"),
+        distribution: "Personal",
+        concept: "Cobro de Factura",
+        description: `Pago de ${selectedReceivable.client_name}${selectedReceivable.invoice_number ? ` - Factura ${selectedReceivable.invoice_number}` : ""}`,
+        is_recurring: false,
+        payment_method: "transferencia"
+      };
+      
+      await axios.post(`${API}/income`, incomePayload, { headers: getAuthHeaders() });
+      
+      toast.success("Pago registrado e ingreso creado");
       setPaymentDialogOpen(false);
       setPaymentAmount("");
+      setPaymentDate(new Date());
       setSelectedReceivable(null);
       fetchData();
     } catch (error) {
