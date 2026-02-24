@@ -1135,7 +1135,7 @@ export default function Ingresos() {
 
       {/* Dialog for Recording Payment */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-[350px]">
+        <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle>Registrar Pago</DialogTitle>
             <DialogDescription>
@@ -1159,6 +1159,33 @@ export default function Ingresos() {
                 autoFocus
               />
             </div>
+            <div className="space-y-2">
+              <Label>Fecha del Pago</Label>
+              <Popover open={calendarOpenPayment} onOpenChange={setCalendarOpenPayment}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-start gap-2">
+                    <CalendarBlank size={16} />
+                    {format(paymentDate, "d MMM yyyy", { locale: es })}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 z-[250]" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={paymentDate}
+                    onSelect={(date) => {
+                      if (date) {
+                        setPaymentDate(date);
+                        setCalendarOpenPayment(false);
+                      }
+                    }}
+                    initialFocus
+                  />
+                </PopoverContent>
+              </Popover>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              💡 Este pago se registrará también como ingreso con la fecha seleccionada.
+            </p>
             <DialogFooter>
               <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancelar</Button>
               <Button onClick={handleRecordPayment}>Registrar</Button>
