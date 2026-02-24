@@ -599,7 +599,7 @@ export default function Flujo() {
 
       {/* Add/Edit Payment Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingPayment ? "Editar Pago" : "Nuevo Pago Programado"}</DialogTitle>
             <DialogDescription>
@@ -620,7 +620,7 @@ export default function Flujo() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Monto</Label>
+                <Label>Monto a Pagar</Label>
                 <Input
                   type="number"
                   step="0.01"
@@ -645,27 +645,48 @@ export default function Flujo() {
               </div>
             </div>
 
-            <div className="space-y-2">
-              <Label>Categoría</Label>
-              <Select 
-                value={formData.category} 
-                onValueChange={(v) => setFormData({ ...formData, category: v })}
-              >
-                <SelectTrigger data-testid="payment-category">
-                  <SelectValue placeholder="Seleccionar categoría" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((cat) => (
-                    <SelectItem key={cat.value} value={cat.value}>
-                      {cat.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Categoría</Label>
+                <Select 
+                  value={formData.category} 
+                  onValueChange={(v) => setFormData({ ...formData, category: v, subcategory: "" })}
+                >
+                  <SelectTrigger data-testid="payment-category">
+                    <SelectValue placeholder="Seleccionar categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.map((cat) => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Subcategoría</Label>
+                <Select 
+                  value={formData.subcategory} 
+                  onValueChange={(v) => setFormData({ ...formData, subcategory: v })}
+                  disabled={!formData.category}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {CATEGORIES.find(c => c.value === formData.category)?.subcategories?.map((sub) => (
+                      <SelectItem key={sub} value={sub}>
+                        {sub}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label>Método de pago</Label>
+              <Label>Método de pago / Tarjeta</Label>
               <Select 
                 value={formData.payment_method} 
                 onValueChange={(v) => setFormData({ ...formData, payment_method: v })}
@@ -685,6 +706,51 @@ export default function Flujo() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* Credit Card Info - Only show for credit card payments */}
+            {(formData.payment_method?.includes("tarjeta") || formData.payment_method === "apple_card") && (
+              <Card className="bg-muted/50 border-dashed">
+                <CardContent className="p-4 space-y-3">
+                  <div className="flex items-center gap-2 text-sm font-medium text-primary">
+                    <CreditCard size={16} />
+                    Información de Tarjeta
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-xs">Nombre de la tarjeta</Label>
+                    <Input
+                      placeholder="Ej: Diners Emilio, Pichincha KP..."
+                      value={formData.card_name}
+                      onChange={(e) => setFormData({ ...formData, card_name: e.target.value })}
+                      className="h-8 text-sm"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-2">
+                      <Label className="text-xs">Pago Mínimo</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={formData.minimum_amount}
+                        onChange={(e) => setFormData({ ...formData, minimum_amount: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-xs">Saldo Total del Mes</Label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="0.00"
+                        value={formData.total_balance}
+                        onChange={(e) => setFormData({ ...formData, total_balance: e.target.value })}
+                        className="h-8 text-sm"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
