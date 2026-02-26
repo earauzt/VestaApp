@@ -89,21 +89,30 @@ export default function ReconciliacionEstados() {
           headers: {
             ...getAuthHeaders(),
             "Content-Type": "multipart/form-data"
-          }
+          },
+          timeout: 120000 // 2 minutes timeout for large PDFs
         }
       );
 
-      setReconciliationData(response.data);
+      console.log("Reconciliation response:", response.data);
       
-      // Pre-select all new transactions for creation
-      const newItems = response.data.transactions
-        .filter(t => t.status === "new")
-        .map(t => t.temp_id);
-      setSelectedItems(newItems);
+      if (response.data.transactions && response.data.transactions.length > 0) {
+        setReconciliationData(response.data);
+        
+        // Pre-select all new transactions for creation
+        const newItems = response.data.transactions
+          .filter(t => t.status === "new")
+          .map(t => t.temp_id);
+        setSelectedItems(newItems);
 
-      toast.success(`Estado de cuenta procesado: ${response.data.summary.total} transacciones`);
+        toast.success(`Estado de cuenta procesado: ${response.data.summary.total} transacciones (${response.data.summary.matched} coinciden, ${response.data.summary.new} nuevas)`);
+      } else {
+        toast.warning("No se encontraron transacciones en el estado de cuenta. Verifica que el archivo sea legible.");
+      }
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Error al procesar estado de cuenta");
+      console.error("Upload error:", error);
+      const errorMsg = error.response?.data?.detail || error.message || "Error al procesar estado de cuenta";
+      toast.error(errorMsg);
     } finally {
       setUploading(false);
       e.target.value = "";
