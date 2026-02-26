@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import ReconciliacionEstados from "../components/ReconciliacionEstados";
 import { 
   CloudArrowUp,
   SpinnerGap,
@@ -33,7 +34,8 @@ import {
   Warning,
   Copy,
   CheckSquare,
-  ArrowRight
+  ArrowRight,
+  Bank
 } from "@phosphor-icons/react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
