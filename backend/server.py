@@ -2340,9 +2340,16 @@ async def upload_statement_for_reconciliation(
         # Process with AI
         result = await process_image_with_ai(file_path, document_type="bank_statement")
         
+        # Handle case when AI processing fails
+        if result is None:
+            raise HTTPException(
+                status_code=500, 
+                detail="No se pudo procesar el archivo. El servicio de OCR no respondió. Por favor intenta de nuevo."
+            )
+        
         # Detect bank from file or result
         detected_bank = bank_name if bank_name != "auto" else None
-        card_info = result.get("card_info", {})
+        card_info = result.get("card_info", {}) or {}
         
         if not detected_bank:
             # Try to detect from card info or filename
