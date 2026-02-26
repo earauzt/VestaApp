@@ -2315,6 +2315,448 @@ async def get_international_transactions(
     ).sort("date", -1).to_list(1000)
     return {"transactions": transactions}
 
+# ================= STATEMENT RECONCILIATION ENDPOINTS =================
+
+@api_router.post("/reconciliation/upload-statement")
+async def upload_statement_for_reconciliation(
+    file: UploadFile = File(...),
+    bank_name: str = "auto",
+    statement_type: str = "auto",  # credit_card, bank_account
+    user: dict = Depends(get_current_user)
+):
+    """
+    Upload a bank/credit card statement and reconcile with existing transactions.
+    Returns matched, new, and unmatched transactions.
+    """
+    temp_dir = tempfile.mkdtemp()
+    file_path = os.path.join(temp_dir, file.filename)
+    
+    try:
+        async with aiofiles.open(file_path, 'wb') as f:
+            content = await file.read()
+            await f.write(content)
+        
+        # Process with AI
+        result = await process_image_with_ai(file_path, document_type="bank_statement")
+        
+        # Detect bank from file or result
+        detected_bank = bank_name if bank_name != "auto" else None
+        card_info = result.get("card_info", {})
+        
+        if not detected_bank:
+            # Try to detect from card info or filename
+            bank_keywords = {
+                "diners": "diners",
+                "pichincha": "pichincha",
+                "pacificard": "pacificard",
+                "apple": "apple_card",
+                "pacifico": "banco_pacifico",
+                "bolivariano": "bolivariano"
+            }
+            text_to_check = f"{card_info.get('bank_name', '')} {card_info.get('card_name', '')} {file.filename}".lower()
+            for keyword, bank_value in bank_keywords.items():
+                if keyword in text_to_check:
+                    detected_bank = bank_value
+                    break
+            if not detected_bank:
+                detected_bank = "unknown"
+        
+        # Detect statement type
+        detected_type = statement_type if statement_type != "auto" else None
+        if not detected_type:
+            if card_info.get("credit_limit") or card_info.get("minimum_payment") or "tarjeta" in file.filename.lower():
+                detected_type = "credit_card"
+            else:
+                detected_type = "bank_account"
+        
+        # Get statement period
+        period_start = card_info.get("period_start") or card_info.get("statement_date") or datetime.now().strftime("%Y-%m")
+        period_end = card_info.get("period_end") or period_start
+        period = f"{period_start[:7]}" if period_start else datetime.now().strftime("%Y-%m")
+        
+        # Create statement record
+        statement_id = str(uuid.uuid4())
+        statement_doc = {
+            "id": statement_id,
+            "user_id": user["id"],
+            "bank_name": detected_bank,
+            "statement_type": detected_type,
+            "period": period,
+            "file_name": file.filename,
+            "card_info": card_info,
+            "total_transactions": 0,
+            "matched": 0,
+            "new": 0,
+            "no_match": 0,
+            "status": "processing",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        
+        # Process and reconcile transactions
+        transactions = result.get("transactions", [])
+        reconciled_transactions = []
+        matched_count = 0
+        new_count = 0
+        no_match_count = 0
+        
+        for t in transactions:
+            amount = abs(t.get("amount", 0))
+            if amount == 0:
+                continue
+            
+            # Skip payments to the card
+            is_payment = t.get("amount", 0) < 0 or "pago" in t.get("description", "").lower()
+            if is_payment and detected_type == "credit_card":
+                continue
+            
+            date = t.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+            establishment = t.get("establishment", t.get("description", "")[:50])
+            description = t.get("description", "")
+            
+            # Check for existing matching transaction
+            match_result = await find_matching_transaction(user["id"], amount, date, establishment, description)
+            
+            # Look up known vendor for category suggestion
+            vendor_lookup = await lookup_known_vendor(user["id"], establishment, description)
+            
+            recon_item = {
+                "temp_id": str(uuid.uuid4()),
+                "amount": amount,
+                "date": date,
+                "description": description,
+                "establishment": establishment,
+                "original_data": t,
+                "status": match_result["status"],
+                "confidence": match_result.get("confidence", 0),
+                "matched_transaction_id": match_result.get("matched_id"),
+                "matched_transaction": match_result.get("matched_transaction"),
+                "suggested_category": vendor_lookup.get("personal_category") if vendor_lookup["found"] else t.get("category"),
+                "suggested_sri_category": vendor_lookup.get("sri_category") if vendor_lookup["found"] else t.get("sri_category"),
+                "suggested_subcategory": vendor_lookup.get("subcategory") if vendor_lookup["found"] else t.get("subcategory"),
+                "is_deductible": vendor_lookup.get("is_deductible", False) if vendor_lookup["found"] else False,
+                "auto_categorized": vendor_lookup["found"],
+                "vendor_known": vendor_lookup["found"]
+            }
+            
+            if match_result["status"] == "matched":
+                matched_count += 1
+            elif match_result["status"] == "new":
+                new_count += 1
+            else:
+                no_match_count += 1
+            
+            reconciled_transactions.append(recon_item)
+        
+        # Update statement record
+        statement_doc["total_transactions"] = len(reconciled_transactions)
+        statement_doc["matched"] = matched_count
+        statement_doc["new"] = new_count
+        statement_doc["no_match"] = no_match_count
+        statement_doc["status"] = "ready"
+        
+        await db.statement_uploads.insert_one(statement_doc)
+        
+        # Update card info if credit card statement
+        if detected_type == "credit_card" and card_info.get("current_balance"):
+            await update_card_from_statement(user["id"], detected_bank, card_info)
+        
+        return {
+            "statement_id": statement_id,
+            "statement_type": detected_type,
+            "bank_name": detected_bank,
+            "period": period,
+            "card_info": card_info,
+            "summary": {
+                "total": len(reconciled_transactions),
+                "matched": matched_count,
+                "new": new_count,
+                "no_match": no_match_count
+            },
+            "transactions": reconciled_transactions
+        }
+        
+    except Exception as e:
+        logger.error(f"Statement reconciliation error: {e}")
+        raise HTTPException(status_code=500, detail=f"Error procesando estado de cuenta: {str(e)}")
+    finally:
+        if os.path.exists(file_path):
+            os.remove(file_path)
+        if os.path.exists(temp_dir):
+            os.rmdir(temp_dir)
+
+async def find_matching_transaction(user_id: str, amount: float, date: str, establishment: str, description: str) -> dict:
+    """Find a matching existing transaction for reconciliation"""
+    # Parse date
+    try:
+        tx_date = datetime.fromisoformat(date.replace("Z", "+00:00"))
+    except:
+        tx_date = datetime.now(timezone.utc)
+    
+    # Date range: 3 days before and after
+    date_start = (tx_date - timedelta(days=3)).strftime("%Y-%m-%d")
+    date_end = (tx_date + timedelta(days=3)).strftime("%Y-%m-%d")
+    
+    # Amount tolerance: 1%
+    amount_low = amount * 0.99
+    amount_high = amount * 1.01
+    
+    # Search for matching transactions
+    query = {
+        "user_id": user_id,
+        "date": {"$gte": date_start, "$lte": date_end},
+        "amount": {"$gte": amount_low, "$lte": amount_high},
+        "transaction_type": "expense"
+    }
+    
+    potential_matches = await db.transactions.find(query, {"_id": 0}).to_list(10)
+    
+    if not potential_matches:
+        return {"status": "new", "confidence": 0}
+    
+    # Score matches
+    best_match = None
+    best_score = 0
+    
+    for match in potential_matches:
+        score = 0
+        
+        # Amount match (exact = 40 points)
+        if abs(match["amount"] - amount) < 0.01:
+            score += 40
+        else:
+            score += 30  # Close match
+        
+        # Date match (exact = 30 points)
+        if match["date"] == date:
+            score += 30
+        elif abs((datetime.fromisoformat(match["date"]) - tx_date).days) <= 1:
+            score += 20
+        else:
+            score += 10
+        
+        # Establishment match (30 points)
+        match_estab = (match.get("establishment") or match.get("description", "")).lower()
+        search_estab = (establishment or description).lower()
+        
+        if match_estab and search_estab:
+            if match_estab == search_estab:
+                score += 30
+            elif search_estab in match_estab or match_estab in search_estab:
+                score += 20
+            # Check for common words
+            match_words = set(match_estab.split())
+            search_words = set(search_estab.split())
+            common_words = match_words & search_words
+            if len(common_words) > 0:
+                score += min(len(common_words) * 5, 15)
+        
+        if score > best_score:
+            best_score = score
+            best_match = match
+    
+    if best_score >= 70:
+        return {
+            "status": "matched",
+            "confidence": best_score / 100,
+            "matched_id": best_match["id"],
+            "matched_transaction": best_match
+        }
+    elif best_score >= 50:
+        return {
+            "status": "no_match",  # Potential match but not confident enough
+            "confidence": best_score / 100,
+            "matched_id": best_match["id"],
+            "matched_transaction": best_match
+        }
+    
+    return {"status": "new", "confidence": 0}
+
+async def update_card_from_statement(user_id: str, bank_name: str, card_info: dict):
+    """Update credit card info from statement"""
+    # Find existing card
+    bank_patterns = {
+        "diners": ["diners"],
+        "pichincha": ["pichincha"],
+        "pacificard": ["pacificard", "pacifico"],
+        "apple_card": ["apple"],
+        "banco_pacifico": ["pacifico", "banco pacifico"],
+        "bolivariano": ["bolivariano"]
+    }
+    
+    patterns = bank_patterns.get(bank_name, [bank_name])
+    
+    existing_card = await db.credit_cards.find_one({
+        "user_id": user_id,
+        "$or": [{"name": {"$regex": p, "$options": "i"}} for p in patterns]
+    })
+    
+    if existing_card:
+        update_data = {
+            "updated_at": datetime.now(timezone.utc).isoformat()
+        }
+        if card_info.get("current_balance"):
+            update_data["current_balance"] = card_info["current_balance"]
+        if card_info.get("minimum_payment"):
+            update_data["minimum_payment"] = card_info["minimum_payment"]
+        if card_info.get("credit_limit"):
+            update_data["credit_limit"] = card_info["credit_limit"]
+        if card_info.get("due_date"):
+            update_data["due_date"] = card_info["due_date"]
+        if card_info.get("statement_date"):
+            update_data["statement_date"] = card_info["statement_date"]
+        
+        await db.credit_cards.update_one(
+            {"id": existing_card["id"]},
+            {"$set": update_data}
+        )
+        return existing_card["id"]
+    
+    return None
+
+@api_router.post("/reconciliation/confirm-matches")
+async def confirm_reconciliation_matches(
+    statement_id: str,
+    confirmed_matches: List[Dict],  # [{temp_id, action: "match"|"create"|"skip", matched_id?, category?, sri_category?}]
+    user: dict = Depends(get_current_user)
+):
+    """Confirm reconciliation matches and create/update transactions"""
+    created = 0
+    matched = 0
+    skipped = 0
+    
+    for item in confirmed_matches:
+        action = item.get("action", "skip")
+        
+        if action == "skip":
+            skipped += 1
+            continue
+        
+        if action == "match":
+            # Link to existing transaction
+            matched_id = item.get("matched_id")
+            if matched_id:
+                await db.transactions.update_one(
+                    {"id": matched_id, "user_id": user["id"]},
+                    {"$set": {
+                        "reconciled": True,
+                        "reconciled_at": datetime.now(timezone.utc).isoformat(),
+                        "statement_id": statement_id
+                    }}
+                )
+                matched += 1
+        
+        elif action == "create":
+            # Create new transaction
+            tx_data = item.get("transaction_data", {})
+            
+            # Look up known vendor
+            vendor_lookup = await lookup_known_vendor(
+                user["id"], 
+                tx_data.get("establishment", ""), 
+                tx_data.get("description", "")
+            )
+            
+            category = item.get("category") or (vendor_lookup.get("personal_category") if vendor_lookup["found"] else tx_data.get("category", "otros"))
+            sri_category = item.get("sri_category") or (vendor_lookup.get("sri_category") if vendor_lookup["found"] else None)
+            subcategory = item.get("subcategory") or (vendor_lookup.get("subcategory") if vendor_lookup["found"] else tx_data.get("subcategory", "Varios"))
+            
+            transaction_doc = {
+                "id": str(uuid.uuid4()),
+                "user_id": user["id"],
+                "amount": tx_data.get("amount", 0),
+                "description": tx_data.get("description", ""),
+                "establishment": tx_data.get("establishment", ""),
+                "date": tx_data.get("date", datetime.now().strftime("%Y-%m-%d")),
+                "category": category,
+                "personal_category": category,
+                "sri_category": sri_category,
+                "subcategory": subcategory,
+                "transaction_type": "expense",
+                "is_deductible": vendor_lookup.get("is_deductible", False) if vendor_lookup["found"] else SRI_CATEGORIES.get(category, {}).get("deductible", False),
+                "status": TransactionStatus.APPROVED,
+                "source_type": SourceType.BANK_STATEMENT,
+                "reconciled": True,
+                "reconciled_at": datetime.now(timezone.utc).isoformat(),
+                "statement_id": statement_id,
+                "auto_categorized_by": "known_vendor" if vendor_lookup["found"] else "user",
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            
+            await db.transactions.insert_one(transaction_doc)
+            
+            # Learn vendor if not known
+            if not vendor_lookup["found"] and tx_data.get("establishment"):
+                vendor_doc = {
+                    "id": str(uuid.uuid4()),
+                    "user_id": user["id"],
+                    "establishment": tx_data["establishment"].strip(),
+                    "personal_category": category,
+                    "sri_category": sri_category,
+                    "subcategory": subcategory,
+                    "is_deductible": transaction_doc["is_deductible"],
+                    "times_used": 1,
+                    "last_used": datetime.now(timezone.utc).isoformat(),
+                    "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                await db.known_vendors.insert_one(vendor_doc)
+            
+            created += 1
+    
+    # Update statement status
+    await db.statement_uploads.update_one(
+        {"id": statement_id, "user_id": user["id"]},
+        {"$set": {
+            "status": "completed",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+            "final_stats": {"created": created, "matched": matched, "skipped": skipped}
+        }}
+    )
+    
+    return {
+        "message": "Reconciliación completada",
+        "created": created,
+        "matched": matched,
+        "skipped": skipped
+    }
+
+@api_router.get("/reconciliation/history")
+async def get_reconciliation_history(
+    user: dict = Depends(get_current_user)
+):
+    """Get history of uploaded statements"""
+    statements = await db.statement_uploads.find(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(50)
+    return {"statements": statements}
+
+@api_router.get("/credit-cards")
+async def get_credit_cards(user: dict = Depends(get_current_user)):
+    """Get all credit cards for the user"""
+    cards = await db.credit_cards.find(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    ).to_list(20)
+    return {"cards": cards}
+
+@api_router.get("/bank-accounts")
+async def get_bank_accounts(user: dict = Depends(get_current_user)):
+    """Get all bank accounts for the user"""
+    accounts = await db.bank_accounts.find(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    ).to_list(20)
+    
+    # If no accounts, return default ones for Ecuador
+    if not accounts:
+        default_accounts = [
+            {"id": "default-pacifico", "name": "Banco Pacífico", "bank": "banco_pacifico", "type": "checking", "balance": 0},
+            {"id": "default-bolivariano", "name": "Banco Bolivariano", "bank": "bolivariano", "type": "savings", "balance": 0}
+        ]
+        return {"accounts": default_accounts}
+    
+    return {"accounts": accounts}
+
 @api_router.get("/transactions/by-payment-source")
 async def get_transactions_by_payment_source(
     payment_source: str = "internacional",
