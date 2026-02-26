@@ -805,30 +805,12 @@ export default function Ingresos() {
                   data-testid="amount-input"
                 />
               </div>
-              <div className="space-y-2">
-                <Label>Fecha</Label>
-                <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start gap-2" data-testid="date-picker">
-                      <CalendarBlank size={16} />
-                      {format(formData.date, "d MMM", { locale: es })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[250]" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={formData.date}
-                      onSelect={(date) => {
-                        if (date) {
-                          setFormData({ ...formData, date });
-                          setCalendarOpen(false);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <DateInput
+                label="Fecha"
+                value={formData.date}
+                onChange={(date) => setFormData({ ...formData, date })}
+                data-testid="date-picker"
+              />
             </div>
 
             <div className="space-y-2">
