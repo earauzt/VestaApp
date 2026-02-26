@@ -2698,6 +2698,67 @@ async def update_card_from_statement(user_id: str, bank_name: str, card_info: di
     
     return None
 
+async def find_matching_deferred(user_id: str, establishment: str, amount: float, date: str) -> dict:
+    """
+    Find a matching deferred payment based on establishment and amount.
+    Returns deferred info if found, including remaining balance.
+    """
+    # Get all active deferred payments
+    deferred_payments = await db.deferred_payments.find(
+        {"user_id": user_id, "remaining_installments": {"$gt": 0}},
+        {"_id": 0}
+    ).to_list(100)
+    
+    if not deferred_payments:
+        return None
+    
+    estab_lower = establishment.lower() if establishment else ""
+    
+    best_match = None
+    best_score = 0
+    
+    for dp in deferred_payments:
+        score = 0
+        dp_desc = (dp.get("description", "") or dp.get("establishment", "")).lower()
+        monthly = dp.get("monthly_payment", 0)
+        
+        # Check amount match (within 5%)
+        if monthly > 0 and abs(amount - monthly) / monthly < 0.05:
+            score += 50
+        elif monthly > 0 and abs(amount - monthly) / monthly < 0.15:
+            score += 30
+        
+        # Check establishment match
+        if estab_lower and dp_desc:
+            if estab_lower in dp_desc or dp_desc in estab_lower:
+                score += 40
+            else:
+                # Check common words
+                estab_words = set(estab_lower.split())
+                dp_words = set(dp_desc.split())
+                common = estab_words & dp_words
+                if common:
+                    score += len(common) * 10
+        
+        if score > best_score and score >= 40:
+            best_score = score
+            best_match = dp
+    
+    if best_match:
+        return {
+            "found": True,
+            "deferred_id": best_match.get("id"),
+            "description": best_match.get("description"),
+            "original_amount": best_match.get("original_amount"),
+            "monthly_payment": best_match.get("monthly_payment"),
+            "remaining_installments": best_match.get("remaining_installments"),
+            "remaining_amount": best_match.get("remaining_amount") or (best_match.get("monthly_payment", 0) * best_match.get("remaining_installments", 0)),
+            "total_installments": best_match.get("total_installments"),
+            "confidence": best_score / 100
+        }
+    
+    return None
+
 @api_router.post("/reconciliation/confirm-matches")
 async def confirm_reconciliation_matches(
     statement_id: str,
