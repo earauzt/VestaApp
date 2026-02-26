@@ -764,11 +764,15 @@ export default function CargarValidar() {
       <Card className="bento-card">
         <CardContent className="p-4 sm:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-2 mb-6">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="upload" className="gap-2" data-testid="tab-upload">
                 <CloudArrowUp size={18} />
-                <span className="hidden sm:inline">Cargar Archivos</span>
-                <span className="sm:hidden">Cargar</span>
+                <span className="hidden sm:inline">Cargar</span>
+              </TabsTrigger>
+              <TabsTrigger value="reconcile" className="gap-2" data-testid="tab-reconcile">
+                <Bank size={18} />
+                <span className="hidden sm:inline">Estados de Cuenta</span>
+                <span className="sm:hidden">Bancos</span>
               </TabsTrigger>
               <TabsTrigger value="validate" className="gap-2" data-testid="tab-validate">
                 <CheckSquare size={18} />
