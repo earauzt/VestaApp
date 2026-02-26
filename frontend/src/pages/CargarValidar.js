@@ -957,6 +957,11 @@ export default function CargarValidar() {
               </div>
             </TabsContent>
 
+            {/* Reconcile Tab - Estados de Cuenta */}
+            <TabsContent value="reconcile">
+              <ReconciliacionEstados />
+            </TabsContent>
+
             {/* Validate Tab */}
             <TabsContent value="validate">
               <div className="space-y-4">
