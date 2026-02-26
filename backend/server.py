@@ -3451,7 +3451,8 @@ async def create_known_vendor(
     }
     
     await db.known_vendors.insert_one(vendor_data)
-    del vendor_data["_id"] if "_id" in vendor_data else None
+    if "_id" in vendor_data:
+        del vendor_data["_id"]
     return KnownVendorResponse(**vendor_data)
 
 @api_router.get("/known-vendors/lookup")
