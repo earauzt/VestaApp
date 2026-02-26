@@ -3242,6 +3242,176 @@ async def auto_categorize_transaction(
         "message": "No se encontró regla de categorización"
     }
 
+# ================= KNOWN VENDORS ENDPOINTS =================
+
+@api_router.get("/known-vendors", response_model=List[KnownVendorResponse])
+async def get_known_vendors(user: dict = Depends(get_current_user)):
+    """Get all known vendors for the user"""
+    vendors = await db.known_vendors.find(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    ).sort("times_used", -1).to_list(500)
+    return [KnownVendorResponse(**v) for v in vendors]
+
+@api_router.post("/known-vendors", response_model=KnownVendorResponse)
+async def create_known_vendor(
+    vendor: KnownVendorCreate,
+    user: dict = Depends(get_current_user)
+):
+    """Create or update a known vendor mapping"""
+    # Normalize establishment name for matching
+    normalized_name = vendor.establishment.strip().lower()
+    
+    # Check if vendor already exists
+    existing = await db.known_vendors.find_one({
+        "user_id": user["id"],
+        "establishment": {"$regex": f"^{re.escape(normalized_name)}$", "$options": "i"}
+    })
+    
+    if existing:
+        # Update existing vendor
+        await db.known_vendors.update_one(
+            {"id": existing["id"]},
+            {"$set": {
+                "personal_category": vendor.personal_category,
+                "sri_category": vendor.sri_category,
+                "subcategory": vendor.subcategory,
+                "is_deductible": vendor.is_deductible,
+                "last_used": datetime.now(timezone.utc).isoformat(),
+                "$inc": {"times_used": 1}
+            }}
+        )
+        updated = await db.known_vendors.find_one({"id": existing["id"]}, {"_id": 0})
+        return KnownVendorResponse(**updated)
+    
+    # Create new vendor
+    vendor_data = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "establishment": vendor.establishment.strip(),
+        "personal_category": vendor.personal_category,
+        "sri_category": vendor.sri_category,
+        "subcategory": vendor.subcategory,
+        "is_deductible": vendor.is_deductible,
+        "times_used": 1,
+        "last_used": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    
+    await db.known_vendors.insert_one(vendor_data)
+    del vendor_data["_id"] if "_id" in vendor_data else None
+    return KnownVendorResponse(**vendor_data)
+
+@api_router.get("/known-vendors/lookup")
+async def lookup_vendor(
+    establishment: str,
+    user: dict = Depends(get_current_user)
+):
+    """Look up a vendor by establishment name and return categories if known"""
+    normalized = establishment.strip().lower()
+    
+    # Try exact match first
+    vendor = await db.known_vendors.find_one({
+        "user_id": user["id"],
+        "establishment": {"$regex": f"^{re.escape(normalized)}$", "$options": "i"}
+    }, {"_id": 0})
+    
+    if vendor:
+        # Update last used and times_used
+        await db.known_vendors.update_one(
+            {"id": vendor["id"]},
+            {"$set": {"last_used": datetime.now(timezone.utc).isoformat()},
+             "$inc": {"times_used": 1}}
+        )
+        return {
+            "found": True,
+            "vendor": KnownVendorResponse(**vendor),
+            "personal_category": vendor["personal_category"],
+            "sri_category": vendor.get("sri_category"),
+            "subcategory": vendor.get("subcategory"),
+            "is_deductible": vendor.get("is_deductible", False)
+        }
+    
+    # Try partial match (contains)
+    vendor = await db.known_vendors.find_one({
+        "user_id": user["id"],
+        "establishment": {"$regex": re.escape(normalized), "$options": "i"}
+    }, {"_id": 0})
+    
+    if vendor:
+        return {
+            "found": True,
+            "partial_match": True,
+            "vendor": KnownVendorResponse(**vendor),
+            "personal_category": vendor["personal_category"],
+            "sri_category": vendor.get("sri_category"),
+            "subcategory": vendor.get("subcategory"),
+            "is_deductible": vendor.get("is_deductible", False)
+        }
+    
+    return {"found": False}
+
+@api_router.put("/known-vendors/{vendor_id}")
+async def update_known_vendor(
+    vendor_id: str,
+    vendor: KnownVendorCreate,
+    user: dict = Depends(get_current_user)
+):
+    """Update a known vendor"""
+    result = await db.known_vendors.update_one(
+        {"id": vendor_id, "user_id": user["id"]},
+        {"$set": {
+            "establishment": vendor.establishment.strip(),
+            "personal_category": vendor.personal_category,
+            "sri_category": vendor.sri_category,
+            "subcategory": vendor.subcategory,
+            "is_deductible": vendor.is_deductible,
+            "last_used": datetime.now(timezone.utc).isoformat()
+        }}
+    )
+    
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Vendor no encontrado")
+    
+    updated = await db.known_vendors.find_one({"id": vendor_id}, {"_id": 0})
+    return KnownVendorResponse(**updated)
+
+@api_router.delete("/known-vendors/{vendor_id}")
+async def delete_known_vendor(
+    vendor_id: str,
+    user: dict = Depends(get_current_user)
+):
+    """Delete a known vendor"""
+    result = await db.known_vendors.delete_one({"id": vendor_id, "user_id": user["id"]})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Vendor no encontrado")
+    return {"message": "Vendor eliminado"}
+
+@api_router.post("/known-vendors/learn-from-transaction")
+async def learn_vendor_from_transaction(
+    transaction_id: str,
+    user: dict = Depends(get_current_user)
+):
+    """Learn vendor categories from an approved/categorized transaction"""
+    tx = await db.transactions.find_one({"id": transaction_id, "user_id": user["id"]}, {"_id": 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    
+    establishment = tx.get("establishment") or tx.get("description", "")
+    if not establishment:
+        raise HTTPException(status_code=400, detail="Transacción sin establecimiento")
+    
+    # Create or update vendor
+    vendor_data = KnownVendorCreate(
+        establishment=establishment,
+        personal_category=tx.get("personal_category") or tx.get("category", "otros"),
+        sri_category=tx.get("sri_category"),
+        subcategory=tx.get("subcategory"),
+        is_deductible=tx.get("is_deductible", False)
+    )
+    
+    return await create_known_vendor(vendor_data, user)
+
 # ================= USERS MANAGEMENT (ADMIN ONLY) =================
 
 @api_router.get("/users", response_model=List[UserResponse])
