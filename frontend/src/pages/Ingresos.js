@@ -1083,30 +1083,11 @@ export default function Ingresos() {
                 autoFocus
               />
             </div>
-            <div className="space-y-2">
-              <Label>Fecha del Pago</Label>
-              <Popover open={calendarOpenPayment} onOpenChange={setCalendarOpenPayment}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start gap-2">
-                    <CalendarBlank size={16} />
-                    {format(paymentDate, "d MMM yyyy", { locale: es })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[250]" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={paymentDate}
-                    onSelect={(date) => {
-                      if (date) {
-                        setPaymentDate(date);
-                        setCalendarOpenPayment(false);
-                      }
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            <DateInput
+              label="Fecha del Pago"
+              value={paymentDate}
+              onChange={(date) => setPaymentDate(date)}
+            />
             <p className="text-sm text-muted-foreground">
               💡 Este pago se registrará también como ingreso con la fecha seleccionada.
             </p>
