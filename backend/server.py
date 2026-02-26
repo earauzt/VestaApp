@@ -1216,6 +1216,56 @@ async def find_potential_duplicates(user_id: str, amount: float, date: str, esta
     
     return duplicates
 
+async def lookup_known_vendor(user_id: str, establishment: str, description: str = "") -> dict:
+    """
+    Look up a vendor by establishment name and return categories if known.
+    This function is used during transaction processing to auto-categorize.
+    """
+    if not establishment and not description:
+        return {"found": False}
+    
+    search_text = (establishment or description).strip().lower()
+    
+    # Try exact match first
+    vendor = await db.known_vendors.find_one({
+        "user_id": user_id,
+        "establishment": {"$regex": f"^{re.escape(search_text)}$", "$options": "i"}
+    }, {"_id": 0})
+    
+    if not vendor:
+        # Try partial match
+        vendor = await db.known_vendors.find_one({
+            "user_id": user_id,
+            "establishment": {"$regex": re.escape(search_text), "$options": "i"}
+        }, {"_id": 0})
+    
+    if not vendor and description:
+        # Try with description
+        desc_text = description.strip().lower()
+        vendor = await db.known_vendors.find_one({
+            "user_id": user_id,
+            "establishment": {"$regex": re.escape(desc_text), "$options": "i"}
+        }, {"_id": 0})
+    
+    if vendor:
+        # Update usage stats
+        await db.known_vendors.update_one(
+            {"id": vendor["id"]},
+            {
+                "$set": {"last_used": datetime.now(timezone.utc).isoformat()},
+                "$inc": {"times_used": 1}
+            }
+        )
+        return {
+            "found": True,
+            "personal_category": vendor.get("personal_category"),
+            "sri_category": vendor.get("sri_category"),
+            "subcategory": vendor.get("subcategory"),
+            "is_deductible": vendor.get("is_deductible", False)
+        }
+    
+    return {"found": False}
+
 # ================= TRANSACTIONS ENDPOINTS =================
 
 @api_router.post("/transactions", response_model=TransactionResponse)
