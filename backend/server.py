@@ -4045,30 +4045,156 @@ async def delete_known_vendor(
         raise HTTPException(status_code=404, detail="Vendor no encontrado")
     return {"message": "Vendor eliminado"}
 
-@api_router.post("/known-vendors/learn-from-transaction")
-async def learn_vendor_from_transaction(
-    transaction_id: str,
+@api_router.post("/known-vendors/learn-from-history")
+async def learn_vendors_from_history(
     user: dict = Depends(get_current_user)
 ):
-    """Learn vendor categories from an approved/categorized transaction"""
-    tx = await db.transactions.find_one({"id": transaction_id, "user_id": user["id"]}, {"_id": 0})
-    if not tx:
-        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    """
+    Learn vendors from ALL historical approved transactions.
+    This imports categories from transactions that have been manually categorized.
+    """
+    # Get all approved transactions with establishments
+    transactions = await db.transactions.find(
+        {
+            "user_id": user["id"],
+            "status": {"$in": ["approved", TransactionStatus.APPROVED]},
+            "establishment": {"$exists": True, "$ne": "", "$ne": None}
+        },
+        {"_id": 0}
+    ).to_list(5000)
     
-    establishment = tx.get("establishment") or tx.get("description", "")
-    if not establishment:
-        raise HTTPException(status_code=400, detail="Transacción sin establecimiento")
+    learned_count = 0
+    updated_count = 0
     
-    # Create or update vendor
-    vendor_data = KnownVendorCreate(
-        establishment=establishment,
-        personal_category=tx.get("personal_category") or tx.get("category", "otros"),
-        sri_category=tx.get("sri_category"),
-        subcategory=tx.get("subcategory"),
-        is_deductible=tx.get("is_deductible", False)
+    # Group by establishment and get the most common category
+    vendor_categories = {}
+    for tx in transactions:
+        estab = tx.get("establishment", "").strip()
+        if not estab or len(estab) < 3:
+            continue
+        
+        estab_lower = estab.lower()
+        category = tx.get("personal_category") or tx.get("category", "otros")
+        sri_category = tx.get("sri_category")
+        subcategory = tx.get("subcategory")
+        is_deductible = tx.get("is_deductible", False)
+        
+        if estab_lower not in vendor_categories:
+            vendor_categories[estab_lower] = {
+                "establishment": estab,
+                "categories": {},
+                "sri_categories": {},
+                "subcategories": {},
+                "is_deductible": is_deductible
+            }
+        
+        # Count category occurrences
+        if category:
+            vendor_categories[estab_lower]["categories"][category] = vendor_categories[estab_lower]["categories"].get(category, 0) + 1
+        if sri_category:
+            vendor_categories[estab_lower]["sri_categories"][sri_category] = vendor_categories[estab_lower]["sri_categories"].get(sri_category, 0) + 1
+        if subcategory:
+            vendor_categories[estab_lower]["subcategories"][subcategory] = vendor_categories[estab_lower]["subcategories"].get(subcategory, 0) + 1
+    
+    # Create or update vendors with most common categories
+    for estab_lower, data in vendor_categories.items():
+        # Get most common category
+        categories = data["categories"]
+        if not categories:
+            continue
+        
+        best_category = max(categories.keys(), key=lambda k: categories[k])
+        best_sri = max(data["sri_categories"].keys(), key=lambda k: data["sri_categories"][k]) if data["sri_categories"] else None
+        best_subcategory = max(data["subcategories"].keys(), key=lambda k: data["subcategories"][k]) if data["subcategories"] else None
+        
+        # Check if vendor exists
+        existing = await db.known_vendors.find_one({
+            "user_id": user["id"],
+            "establishment": {"$regex": f"^{re.escape(estab_lower)}$", "$options": "i"}
+        })
+        
+        if existing:
+            # Update existing
+            await db.known_vendors.update_one(
+                {"id": existing["id"]},
+                {"$set": {
+                    "personal_category": best_category,
+                    "sri_category": best_sri,
+                    "subcategory": best_subcategory,
+                    "is_deductible": data["is_deductible"],
+                    "times_used": sum(categories.values()),
+                    "last_used": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+            updated_count += 1
+        else:
+            # Create new
+            vendor_doc = {
+                "id": str(uuid.uuid4()),
+                "user_id": user["id"],
+                "establishment": data["establishment"],
+                "personal_category": best_category,
+                "sri_category": best_sri,
+                "subcategory": best_subcategory,
+                "is_deductible": data["is_deductible"],
+                "times_used": sum(categories.values()),
+                "last_used": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.known_vendors.insert_one(vendor_doc)
+            learned_count += 1
+    
+    return {
+        "message": f"Aprendizaje completado: {learned_count} nuevos vendors, {updated_count} actualizados",
+        "new_vendors": learned_count,
+        "updated_vendors": updated_count,
+        "total_transactions_processed": len(transactions)
+    }
+
+@api_router.post("/deferred-payments/{payment_id}/register-installment")
+async def register_deferred_installment(
+    payment_id: str,
+    amount: Optional[float] = None,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Register an installment payment for a deferred purchase.
+    Reduces the remaining installments and updates the balance.
+    """
+    payment = await db.deferred_payments.find_one(
+        {"id": payment_id, "user_id": user["id"]},
+        {"_id": 0}
     )
     
-    return await create_known_vendor(vendor_data, user)
+    if not payment:
+        raise HTTPException(status_code=404, detail="Diferido no encontrado")
+    
+    remaining = payment.get("remaining_installments", 0)
+    if remaining <= 0:
+        return {"message": "Este diferido ya está pagado completamente"}
+    
+    monthly_payment = payment.get("monthly_payment", 0)
+    payment_amount = amount or monthly_payment
+    
+    # Calculate new values
+    new_remaining = remaining - 1
+    new_remaining_amount = new_remaining * monthly_payment
+    
+    await db.deferred_payments.update_one(
+        {"id": payment_id},
+        {"$set": {
+            "remaining_installments": new_remaining,
+            "remaining_amount": new_remaining_amount,
+            "last_payment_date": datetime.now(timezone.utc).isoformat(),
+            "paid_installments": payment.get("paid_installments", 0) + 1
+        }}
+    )
+    
+    return {
+        "message": f"Cuota registrada. Quedan {new_remaining} cuotas",
+        "remaining_installments": new_remaining,
+        "remaining_amount": new_remaining_amount
+    }
 
 # ================= USERS MANAGEMENT (ADMIN ONLY) =================
 
