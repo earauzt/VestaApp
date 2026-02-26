@@ -930,6 +930,50 @@ class KnownVendorResponse(BaseModel):
     last_used: str
     created_at: str
 
+# ================= STATEMENT RECONCILIATION MODELS =================
+
+class StatementType(str, Enum):
+    CREDIT_CARD = "credit_card"
+    BANK_ACCOUNT = "bank_account"
+
+class BankName(str, Enum):
+    DINERS = "diners"
+    PICHINCHA = "pichincha"
+    PACIFICARD = "pacificard"
+    APPLE_CARD = "apple_card"
+    BANCO_PACIFICO = "banco_pacifico"
+    BOLIVARIANO = "bolivariano"
+
+class ReconciliationStatus(str, Enum):
+    MATCHED = "matched"  # Coincide con transacción existente
+    NEW = "new"  # Nueva transacción
+    NO_MATCH = "no_match"  # Sin coincidencia pero similar
+    DUPLICATE = "duplicate"  # Posible duplicado
+
+class StatementUploadResponse(BaseModel):
+    statement_id: str
+    statement_type: str
+    bank_name: str
+    period: str
+    total_transactions: int
+    matched: int
+    new: int
+    no_match: int
+    card_info: Optional[Dict] = None
+    transactions: List[Dict]
+
+class ReconciliationResult(BaseModel):
+    transaction_id: str
+    status: str  # matched, new, no_match
+    confidence: float
+    matched_transaction_id: Optional[str] = None
+    amount: float
+    date: str
+    description: str
+    establishment: Optional[str] = None
+    suggested_category: Optional[str] = None
+    suggested_sri_category: Optional[str] = None
+
 # ================= AUTH HELPERS IMPLEMENTATION =================
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
