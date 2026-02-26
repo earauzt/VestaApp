@@ -62,6 +62,9 @@ export default function ReconciliacionEstados() {
   const [reconciliationData, setReconciliationData] = useState(null);
   const [selectedItems, setSelectedItems] = useState([]);
   const [confirmingMatches, setConfirmingMatches] = useState(false);
+  const [history, setHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-EC', {
