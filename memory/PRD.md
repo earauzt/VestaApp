@@ -253,21 +253,38 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
    - La burbuja aparece correctamente mostrando la meta mensual de ahorro para viajes
    - El Total Mensual Necesario incluye Gastos + Ahorro + Inversión + Viajes
 
-### 30 Enero 2026 (Noche) - Rediseño del Resumen en Mi Presupuesto ✅
-1. **Nueva visualización tipo "Resta Matemática"**:
-   - Ingresos Proyectados (primera línea, verde)
-   - − Gastos Fijos (con signo menos)
-   - − Ahorro (con botón editar)
-   - − Inversión (con botón editar)
-   - − Meta Viajes (con enlace a /viajes)
-   - ═══════════════════════════════
-   - = Flujo Libre (verde) / Faltante (rojo)
+### 26 Febrero 2026 - Inputs de Fecha Manual + Auto-Categorización ✅
+1. **Inputs de Fecha Manual**:
+   - Creado componente reutilizable `DateInput` en `/app/frontend/src/components/ui/date-input.jsx`
+   - Formato DD/MM/YYYY con soporte para escribir manualmente
+   - Incluye input nativo de fecha oculto para móviles
+   - Reemplazados todos los Popover+Calendar por DateInput en:
+     - Ingresos.js (4 calendarios)
+     - MetasViaje.js (1 calendario)
+     - Transactions.js (1 calendario)
 
-2. **Lógica actualizada**:
-   - El balance ahora incluye la meta de viajes en el cálculo
-   - Formula: Ingresos - Gastos - Ahorro - Inversión - Meta Viajes
-   - Si el resultado es positivo: "Flujo Libre" (verde)
-   - Si el resultado es negativo: "Faltante" (rojo)
+2. **Sistema de Auto-Categorización (Known Vendors)**:
+   - Nuevo modelo `KnownVendor` en backend
+   - Endpoints implementados:
+     - `GET /api/known-vendors` - Lista todos los vendors conocidos
+     - `POST /api/known-vendors` - Crear/actualizar vendor
+     - `GET /api/known-vendors/lookup?establishment=X` - Buscar vendor y devolver categorías
+     - `PUT /api/known-vendors/{id}` - Actualizar vendor
+     - `DELETE /api/known-vendors/{id}` - Eliminar vendor
+     - `POST /api/known-vendors/learn-from-transaction` - Aprender de una transacción
+   - **Auto-categorización activa**: Al procesar estados de cuenta o recibos:
+     - Si el establecimiento es conocido → Asigna categorías automáticamente
+     - Si es nuevo → Se procesa normalmente y aprende al aprobar
+   - **Aprendizaje automático**: Al aprobar una transacción, el sistema guarda el vendor para futuras transacciones
+
+3. **Mejoras en Planificación de Flujo**:
+   - Vista por categoría con progreso vs presupuesto
+   - Filtro por semana (Semana 1-4)
+   - Campos de tarjeta de crédito (nombre, pago mínimo, saldo total)
+   - Subcategorías en pagos programados
+
+4. **Filtros de Transacciones**:
+   - Nuevo filtro de período: Todo el tiempo, Este mes, Mes anterior, Este año
 
 ### 29 Enero 2026 - Fondo de Viajes Completado ✅
 1. **Fondo de Viajes (Travel Fund)**:
