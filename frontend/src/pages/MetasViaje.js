@@ -622,30 +622,12 @@ export default function MetasViaje() {
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Label>Fecha Objetivo</Label>
-              <Popover open={calendarOpen} onOpenChange={setCalendarOpen}>
-                <PopoverTrigger asChild>
-                  <Button variant="outline" className="w-full justify-start font-normal">
-                    <CalendarBlank size={16} className="mr-2" />
-                    {format(formData.target_date, "PPP", { locale: es })}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0 z-[250]" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={formData.target_date}
-                    onSelect={(date) => {
-                      if (date) {
-                        setFormData({ ...formData, target_date: date });
-                        setCalendarOpen(false);
-                      }
-                    }}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            <DateInput
+              label="Fecha Objetivo"
+              value={formData.target_date}
+              onChange={(date) => setFormData({ ...formData, target_date: date })}
+              data-testid="goal-date"
+            />
             
             <div className="space-y-2">
               <Label>Notas (opcional)</Label>
