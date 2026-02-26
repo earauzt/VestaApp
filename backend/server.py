@@ -2402,6 +2402,8 @@ async def upload_statement_for_reconciliation(
         
         # Process and reconcile transactions
         transactions = result.get("transactions", [])
+        logger.info(f"Reconciliation: Processing {len(transactions)} transactions from AI result")
+        
         reconciled_transactions = []
         matched_count = 0
         new_count = 0
@@ -2410,11 +2412,20 @@ async def upload_statement_for_reconciliation(
         for t in transactions:
             amount = abs(t.get("amount", 0))
             if amount == 0:
+                logger.debug(f"Skipping transaction with zero amount: {t}")
                 continue
             
-            # Skip payments to the card
-            is_payment = t.get("amount", 0) < 0 or "pago" in t.get("description", "").lower()
+            # Skip payments to the card (negative amounts or containing "pago")
+            description_lower = t.get("description", "").lower()
+            is_payment = t.get("amount", 0) < 0 or "pago" in description_lower or "abono" in description_lower
             if is_payment and detected_type == "credit_card":
+                logger.debug(f"Skipping payment transaction: {description_lower}")
+                continue
+            
+            # Skip fees
+            is_fee = t.get("is_fee", False) or any(fee in description_lower for fee in ["interes", "comision", "solca", "contrib"])
+            if is_fee:
+                logger.debug(f"Skipping fee transaction: {description_lower}")
                 continue
             
             date = t.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
