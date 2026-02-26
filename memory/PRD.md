@@ -286,6 +286,29 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
 4. **Filtros de Transacciones**:
    - Nuevo filtro de período: Todo el tiempo, Este mes, Mes anterior, Este año
 
+### 26 Febrero 2026 (PM) - Reconciliación de Estados de Cuenta ✅
+1. **Nueva pestaña "Estados de Cuenta"** en Cargar y Validar:
+   - Selector de banco/tarjeta con detección automática
+   - Bancos soportados: Diners, Pichincha, Pacificard, Apple Card, Banco Pacífico, Bolivariano
+   - Upload de PDFs/imágenes de estados de cuenta
+
+2. **Endpoints de Reconciliación**:
+   - `POST /api/reconciliation/upload-statement` - Sube y analiza estado de cuenta
+   - `POST /api/reconciliation/confirm-matches` - Confirma coincidencias
+   - `GET /api/reconciliation/history` - Historial de estados subidos
+   - `GET /api/credit-cards` - Obtiene tarjetas de crédito
+   - `GET /api/bank-accounts` - Obtiene cuentas bancarias
+
+3. **Lógica de Match**:
+   - Busca transacciones existentes por monto, fecha y establecimiento
+   - Scoring de confianza (0-100%)
+   - Estados: Coincide (verde), Nueva (azul), Sin match (amarillo)
+   - Auto-categorización usando Known Vendors
+
+4. **Actualización automática de información de tarjetas**:
+   - Saldo actual, pago mínimo, límite de crédito
+   - Fecha de pago y fecha de corte
+
 ### 29 Enero 2026 - Fondo de Viajes Completado ✅
 1. **Fondo de Viajes (Travel Fund)**:
    - Widget en /metas-viaje con nueva lógica de ahorro:
