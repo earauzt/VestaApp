@@ -2694,9 +2694,16 @@ async def approve_transaction(
     transaction_id: str,
     category: Optional[str] = None,
     subcategory: Optional[str] = None,
+    sri_category: Optional[str] = None,
+    learn_vendor: bool = True,  # Auto-learn vendor by default
     user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))
 ):
-    """Approve a transaction (mark as reconciled)"""
+    """Approve a transaction (mark as reconciled) and optionally learn the vendor"""
+    # Get the transaction first to learn from it
+    tx = await db.transactions.find_one({"id": transaction_id}, {"_id": 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    
     update_data = {
         "status": TransactionStatus.APPROVED,
         "reviewed_by": user["id"],
@@ -2704,11 +2711,18 @@ async def approve_transaction(
     }
     
     # Allow category correction
+    final_category = category or tx.get("category", "otros")
+    final_subcategory = subcategory or tx.get("subcategory")
+    final_sri_category = sri_category or tx.get("sri_category")
+    
     if category:
         update_data["category"] = category
+        update_data["personal_category"] = category
         update_data["is_deductible"] = SRI_CATEGORIES.get(category, {}).get("deductible", False)
     if subcategory:
         update_data["subcategory"] = subcategory
+    if sri_category:
+        update_data["sri_category"] = sri_category
     
     result = await db.transactions.update_one(
         {"id": transaction_id},
@@ -2718,7 +2732,54 @@ async def approve_transaction(
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="Transacción no encontrada")
     
-    return {"message": "Transacción aprobada", "status": TransactionStatus.APPROVED}
+    # Auto-learn vendor if enabled and has establishment
+    vendor_learned = False
+    establishment = tx.get("establishment") or tx.get("description", "")
+    
+    if learn_vendor and establishment and final_category:
+        # Check if vendor already exists
+        normalized_name = establishment.strip().lower()
+        existing_vendor = await db.known_vendors.find_one({
+            "user_id": user["id"],
+            "establishment": {"$regex": f"^{re.escape(normalized_name)}$", "$options": "i"}
+        })
+        
+        if existing_vendor:
+            # Update existing vendor
+            await db.known_vendors.update_one(
+                {"id": existing_vendor["id"]},
+                {"$set": {
+                    "personal_category": final_category,
+                    "sri_category": final_sri_category,
+                    "subcategory": final_subcategory,
+                    "is_deductible": update_data.get("is_deductible", existing_vendor.get("is_deductible", False)),
+                    "last_used": datetime.now(timezone.utc).isoformat()
+                },
+                "$inc": {"times_used": 1}}
+            )
+            vendor_learned = True
+        else:
+            # Create new vendor
+            vendor_data = {
+                "id": str(uuid.uuid4()),
+                "user_id": user["id"],
+                "establishment": establishment.strip(),
+                "personal_category": final_category,
+                "sri_category": final_sri_category,
+                "subcategory": final_subcategory,
+                "is_deductible": update_data.get("is_deductible", False),
+                "times_used": 1,
+                "last_used": datetime.now(timezone.utc).isoformat(),
+                "created_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.known_vendors.insert_one(vendor_data)
+            vendor_learned = True
+    
+    return {
+        "message": "Transacción aprobada", 
+        "status": TransactionStatus.APPROVED,
+        "vendor_learned": vendor_learned
+    }
 
 @api_router.put("/reconciliation/reject/{transaction_id}")
 async def reject_transaction(
