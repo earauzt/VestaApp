@@ -908,6 +908,30 @@ class DashboardStats(BaseModel):
 
 # ================= AUTH HELPERS =================
 
+# ================= KNOWN VENDORS MODEL =================
+
+class KnownVendorCreate(BaseModel):
+    establishment: str  # Nombre del establecimiento
+    personal_category: str  # Categoría personal del presupuesto
+    sri_category: Optional[str] = None  # Categoría SRI
+    subcategory: Optional[str] = None  # Subcategoría
+    is_deductible: bool = False
+
+class KnownVendorResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    user_id: str
+    establishment: str
+    personal_category: str
+    sri_category: Optional[str] = None
+    subcategory: Optional[str] = None
+    is_deductible: bool
+    times_used: int = 1
+    last_used: str
+    created_at: str
+
+# ================= AUTH HELPERS IMPLEMENTATION =================
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     return pwd_context.verify(plain_password, hashed_password)
 
