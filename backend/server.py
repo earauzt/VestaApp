@@ -2174,6 +2174,9 @@ async def process_bank_statement(
             establishment = t.get("establishment", t.get("description", "")[:50])
             description = t.get("description", "")
             
+            # *** AUTO-CATEGORIZATION: Look up known vendor ***
+            vendor_lookup = await lookup_known_vendor(user["id"], establishment, description)
+            
             # Detect subscriptions
             is_subscription = t.get("is_subscription", False)
             desc_lower = description.lower()
@@ -2184,10 +2187,25 @@ async def process_bank_statement(
                     is_subscription = True
                     break
             
-            # Override category for subscriptions - they are local, not international
-            category = t.get("category", "otros")
-            if is_subscription:
+            # Determine category based on vendor lookup, subscription detection, or AI
+            if vendor_lookup["found"]:
+                category = vendor_lookup.get("personal_category") or t.get("category", "otros")
+                sri_category = vendor_lookup.get("sri_category")
+                subcategory = vendor_lookup.get("subcategory") or t.get("subcategory", "Varios")
+                is_deductible = vendor_lookup.get("is_deductible", False)
+                auto_categorized_by = "known_vendor"
+            elif is_subscription:
                 category = "suscripciones"
+                sri_category = None
+                subcategory = t.get("subcategory", "Varios")
+                is_deductible = False
+                auto_categorized_by = "subscription_detection"
+            else:
+                category = t.get("category", "otros")
+                sri_category = t.get("sri_category")
+                subcategory = t.get("subcategory", "Varios")
+                is_deductible = SRI_CATEGORIES.get(category, {}).get("deductible", False)
+                auto_categorized_by = "ai" if t.get("category") else None
             
             # Check for duplicates
             duplicates = await find_potential_duplicates(user["id"], amount, date, establishment, description)
@@ -2199,17 +2217,21 @@ async def process_bank_statement(
                 "amount": amount,
                 "description": description,
                 "category": category,
-                "subcategory": t.get("subcategory", "Varios"),
+                "personal_category": category,
+                "sri_category": sri_category,
+                "subcategory": subcategory,
                 "date": date,
                 "transaction_type": "expense",
                 "establishment": establishment,
                 "is_international": t.get("is_international", False) if not is_subscription else False,
                 "is_subscription": is_subscription,
                 "is_recurring": is_subscription,
+                "is_deductible": is_deductible,
                 "tags": ["recurrente", "suscripcion"] if is_subscription else [],
                 "payment_method": "tarjeta",
                 "card_name": card_info.get("card_name") or card_info.get("bank_name") if card_info else None,
                 "ai_classified": True,
+                "auto_categorized_by": auto_categorized_by,
                 "status": TransactionStatus.DUPLICATE_SUSPECT if duplicates else TransactionStatus.PENDING_REVIEW,
                 "source_type": SourceType.BANK_STATEMENT,
                 "duplicate_of": duplicates[0]["transaction"]["id"] if duplicates else None,
