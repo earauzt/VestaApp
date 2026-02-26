@@ -1029,54 +1029,16 @@ export default function Ingresos() {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label>Fecha Factura</Label>
-                <Popover open={calendarOpen3} onOpenChange={setCalendarOpen3}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start gap-2">
-                      <CalendarBlank size={16} />
-                      {format(receivableForm.invoice_date, "d MMM", { locale: es })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[250]" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={receivableForm.invoice_date}
-                      onSelect={(date) => {
-                        if (date) {
-                          setReceivableForm({ ...receivableForm, invoice_date: date });
-                          setCalendarOpen3(false);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
-              <div className="space-y-2">
-                <Label>Fecha Vencimiento</Label>
-                <Popover open={calendarOpen4} onOpenChange={setCalendarOpen4}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="w-full justify-start gap-2">
-                      <CalendarBlank size={16} />
-                      {format(receivableForm.due_date, "d MMM", { locale: es })}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0 z-[250]" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={receivableForm.due_date}
-                      onSelect={(date) => {
-                        if (date) {
-                          setReceivableForm({ ...receivableForm, due_date: date });
-                          setCalendarOpen4(false);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-              </div>
+              <DateInput
+                label="Fecha Factura"
+                value={receivableForm.invoice_date}
+                onChange={(date) => setReceivableForm({ ...receivableForm, invoice_date: date })}
+              />
+              <DateInput
+                label="Fecha Vencimiento"
+                value={receivableForm.due_date}
+                onChange={(date) => setReceivableForm({ ...receivableForm, due_date: date })}
+              />
             </div>
 
             <div className="space-y-2">
