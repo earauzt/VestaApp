@@ -1906,13 +1906,29 @@ async def process_multiple_receipts(
                 # Check if international
                 country = t.get("country", "Ecuador")
                 is_international = any(c.lower() in country.lower() for c in INTERNATIONAL_COUNTRIES) if country else False
-                category = "viajes_internacionales" if is_international else t.get("category", "otros")
-                is_deductible = SRI_CATEGORIES.get(category, {}).get("deductible", False)
                 
                 amount = t.get("amount", 0)
                 date = t.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
                 establishment = t.get("establishment", "")
                 description = t.get("description", "")
+                
+                # *** AUTO-CATEGORIZATION: Look up known vendor ***
+                vendor_lookup = await lookup_known_vendor(user["id"], establishment, description)
+                
+                if vendor_lookup["found"]:
+                    # Use categories from known vendor
+                    category = vendor_lookup.get("personal_category") or t.get("category", "otros")
+                    sri_category = vendor_lookup.get("sri_category")
+                    subcategory = vendor_lookup.get("subcategory") or t.get("subcategory", "Varios")
+                    is_deductible = vendor_lookup.get("is_deductible", False)
+                    auto_categorized_by = "known_vendor"
+                else:
+                    # Use AI classification or default
+                    category = "viajes_internacionales" if is_international else t.get("category", "otros")
+                    sri_category = t.get("sri_category")
+                    subcategory = t.get("subcategory", "Varios")
+                    is_deductible = SRI_CATEGORIES.get(category, {}).get("deductible", False)
+                    auto_categorized_by = "ai" if t.get("category") else None
                 
                 # Check for duplicates
                 duplicates = await find_potential_duplicates(user["id"], amount, date, establishment, description)
@@ -1924,7 +1940,9 @@ async def process_multiple_receipts(
                     "amount": amount,
                     "description": description,
                     "category": category,
-                    "subcategory": t.get("subcategory", "Varios"),
+                    "personal_category": category,
+                    "sri_category": sri_category,
+                    "subcategory": subcategory,
                     "date": date,
                     "transaction_type": "expense",
                     "establishment": establishment,
@@ -1933,6 +1951,7 @@ async def process_multiple_receipts(
                     "payment_source": "internacional" if is_international else "local",
                     "is_deductible": is_deductible,
                     "ai_classified": True,
+                    "auto_categorized_by": auto_categorized_by,
                     "status": TransactionStatus.DUPLICATE_SUSPECT if duplicates else TransactionStatus.PENDING_REVIEW,
                     "source_type": SourceType.RECEIPT,
                     "has_receipt": True,
