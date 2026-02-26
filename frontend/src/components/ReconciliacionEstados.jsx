@@ -73,6 +73,19 @@ export default function ReconciliacionEstados() {
     }).format(value || 0);
   };
 
+  const loadHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      const response = await axios.get(`${API}/reconciliation/history`, { headers: getAuthHeaders() });
+      setHistory(response.data.statements || []);
+      setShowHistory(true);
+    } catch (error) {
+      toast.error("Error al cargar historial");
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
