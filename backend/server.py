@@ -2493,6 +2493,14 @@ async def upload_statement_for_reconciliation(
             # Look up known vendor for category suggestion
             vendor_lookup = await lookup_known_vendor(user["id"], establishment, description)
             
+            # Check if this is a deferred payment (diferido)
+            is_deferred = t.get("is_deferred", False) or "dif" in description.lower() or "cuota" in description.lower()
+            deferred_info = None
+            
+            if is_deferred:
+                # Try to match with existing deferred payment
+                deferred_info = await find_matching_deferred(user["id"], establishment, amount, date)
+            
             recon_item = {
                 "temp_id": str(uuid.uuid4()),
                 "amount": amount,
@@ -2504,12 +2512,15 @@ async def upload_statement_for_reconciliation(
                 "confidence": match_result.get("confidence", 0),
                 "matched_transaction_id": match_result.get("matched_id"),
                 "matched_transaction": match_result.get("matched_transaction"),
-                "suggested_category": vendor_lookup.get("personal_category") if vendor_lookup["found"] else t.get("category"),
+                "suggested_category": vendor_lookup.get("personal_category") if vendor_lookup["found"] else (t.get("category") or ("diferido" if is_deferred else "otros")),
                 "suggested_sri_category": vendor_lookup.get("sri_category") if vendor_lookup["found"] else t.get("sri_category"),
                 "suggested_subcategory": vendor_lookup.get("subcategory") if vendor_lookup["found"] else t.get("subcategory"),
                 "is_deductible": vendor_lookup.get("is_deductible", False) if vendor_lookup["found"] else False,
                 "auto_categorized": vendor_lookup["found"],
-                "vendor_known": vendor_lookup["found"]
+                "vendor_known": vendor_lookup["found"],
+                "vendor_match_type": vendor_lookup.get("match_type") if vendor_lookup["found"] else None,
+                "is_deferred": is_deferred,
+                "deferred_info": deferred_info
             }
             
             if match_result["status"] == "matched":
