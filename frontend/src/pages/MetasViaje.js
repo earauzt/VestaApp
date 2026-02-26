@@ -68,7 +68,6 @@ export default function MetasViaje() {
   const [fundDepositDialogOpen, setFundDepositDialogOpen] = useState(false);
   const [fundSettingsDialogOpen, setFundSettingsDialogOpen] = useState(false);
   const [transactionDetailOpen, setTransactionDetailOpen] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
   
   const [editingGoal, setEditingGoal] = useState(null);
   const [selectedGoal, setSelectedGoal] = useState(null);
