@@ -1265,51 +1265,106 @@ async def lookup_known_vendor(user_id: str, establishment: str, description: str
     """
     Look up a vendor by establishment name and return categories if known.
     This function is used during transaction processing to auto-categorize.
+    Uses multiple matching strategies for better results.
     """
     if not establishment and not description:
         return {"found": False}
     
-    search_text = (establishment or description).strip().lower()
+    search_text = (establishment or description).strip()
+    search_lower = search_text.lower()
     
-    # Try exact match first
+    # Strategy 1: Exact match (case-insensitive)
     vendor = await db.known_vendors.find_one({
         "user_id": user_id,
-        "establishment": {"$regex": f"^{re.escape(search_text)}$", "$options": "i"}
+        "establishment": {"$regex": f"^{re.escape(search_lower)}$", "$options": "i"}
     }, {"_id": 0})
     
-    if not vendor:
-        # Try partial match
-        vendor = await db.known_vendors.find_one({
-            "user_id": user_id,
-            "establishment": {"$regex": re.escape(search_text), "$options": "i"}
-        }, {"_id": 0})
+    if vendor:
+        await _update_vendor_usage(vendor["id"])
+        return _format_vendor_result(vendor, "exact")
     
-    if not vendor and description:
-        # Try with description
-        desc_text = description.strip().lower()
-        vendor = await db.known_vendors.find_one({
-            "user_id": user_id,
-            "establishment": {"$regex": re.escape(desc_text), "$options": "i"}
-        }, {"_id": 0})
+    # Strategy 2: Partial match - establishment contains search or vice versa
+    vendor = await db.known_vendors.find_one({
+        "user_id": user_id,
+        "$or": [
+            {"establishment": {"$regex": re.escape(search_lower), "$options": "i"}},
+        ]
+    }, {"_id": 0})
     
     if vendor:
-        # Update usage stats
-        await db.known_vendors.update_one(
-            {"id": vendor["id"]},
-            {
-                "$set": {"last_used": datetime.now(timezone.utc).isoformat()},
-                "$inc": {"times_used": 1}
-            }
-        )
-        return {
-            "found": True,
-            "personal_category": vendor.get("personal_category"),
-            "sri_category": vendor.get("sri_category"),
-            "subcategory": vendor.get("subcategory"),
-            "is_deductible": vendor.get("is_deductible", False)
-        }
+        await _update_vendor_usage(vendor["id"])
+        return _format_vendor_result(vendor, "partial")
+    
+    # Strategy 3: Word-based matching - check if key words match
+    # Remove common words and check individual words
+    stop_words = {"de", "la", "el", "los", "las", "y", "en", "sa", "cia", "ltda", "inc", "ec", "com"}
+    search_words = set(search_lower.split()) - stop_words
+    
+    if search_words:
+        # Find vendors that contain any of the significant words
+        all_vendors = await db.known_vendors.find(
+            {"user_id": user_id},
+            {"_id": 0}
+        ).to_list(500)
+        
+        best_match = None
+        best_score = 0
+        
+        for v in all_vendors:
+            vendor_lower = v.get("establishment", "").lower()
+            vendor_words = set(vendor_lower.split()) - stop_words
+            
+            # Calculate word overlap
+            common_words = search_words & vendor_words
+            if common_words:
+                score = len(common_words) / max(len(search_words), len(vendor_words))
+                # Bonus for exact word matches at start
+                if search_lower.startswith(vendor_lower[:5]) or vendor_lower.startswith(search_lower[:5]):
+                    score += 0.3
+                
+                if score > best_score and score >= 0.4:  # Minimum 40% match
+                    best_score = score
+                    best_match = v
+        
+        if best_match:
+            await _update_vendor_usage(best_match["id"])
+            return _format_vendor_result(best_match, f"word_match_{int(best_score*100)}%")
+    
+    # Strategy 4: Try with description if establishment didn't match
+    if description and description != establishment:
+        desc_lower = description.strip().lower()
+        vendor = await db.known_vendors.find_one({
+            "user_id": user_id,
+            "establishment": {"$regex": re.escape(desc_lower[:20]), "$options": "i"}
+        }, {"_id": 0})
+        
+        if vendor:
+            await _update_vendor_usage(vendor["id"])
+            return _format_vendor_result(vendor, "description")
     
     return {"found": False}
+
+async def _update_vendor_usage(vendor_id: str):
+    """Update vendor usage statistics"""
+    await db.known_vendors.update_one(
+        {"id": vendor_id},
+        {
+            "$set": {"last_used": datetime.now(timezone.utc).isoformat()},
+            "$inc": {"times_used": 1}
+        }
+    )
+
+def _format_vendor_result(vendor: dict, match_type: str) -> dict:
+    """Format vendor lookup result"""
+    return {
+        "found": True,
+        "match_type": match_type,
+        "personal_category": vendor.get("personal_category"),
+        "sri_category": vendor.get("sri_category"),
+        "subcategory": vendor.get("subcategory"),
+        "is_deductible": vendor.get("is_deductible", False),
+        "vendor_name": vendor.get("establishment")
+    }
 
 # ================= TRANSACTIONS ENDPOINTS =================
 
