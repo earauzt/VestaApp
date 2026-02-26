@@ -294,9 +294,9 @@ export default function ReconciliacionEstados() {
           </div>
 
           {/* Bank logos hint */}
-          <div className="flex items-center gap-4 text-sm text-muted-foreground">
-            <span>Bancos soportados:</span>
-            <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-muted-foreground">
+            <div className="flex flex-wrap items-center gap-2">
+              <span>Bancos soportados:</span>
               <Badge variant="outline" className="gap-1"><CreditCard size={12} /> Diners</Badge>
               <Badge variant="outline" className="gap-1"><CreditCard size={12} /> Pichincha</Badge>
               <Badge variant="outline" className="gap-1"><CreditCard size={12} /> Pacificard</Badge>
@@ -304,9 +304,76 @@ export default function ReconciliacionEstados() {
               <Badge variant="outline" className="gap-1"><Bank size={12} /> Pacífico</Badge>
               <Badge variant="outline" className="gap-1"><Bank size={12} /> Bolivariano</Badge>
             </div>
+            <Button variant="ghost" size="sm" onClick={loadHistory} disabled={loadingHistory}>
+              {loadingHistory ? (
+                <SpinnerGap size={16} className="animate-spin mr-2" />
+              ) : (
+                <Eye size={16} className="mr-2" />
+              )}
+              Ver historial
+            </Button>
           </div>
         </CardContent>
       </Card>
+
+      {/* History Section */}
+      <AnimatePresence>
+        {showHistory && history.length > 0 && !reconciliationData && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+          >
+            <Card className="bento-card">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-base">Historial de Estados</CardTitle>
+                  <Button variant="ghost" size="sm" onClick={() => setShowHistory(false)}>
+                    <X size={16} />
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2">
+                  {history.map((statement) => (
+                    <div
+                      key={statement.id}
+                      className="flex items-center justify-between p-3 rounded-lg border bg-muted/30"
+                    >
+                      <div className="flex items-center gap-3">
+                        {statement.statement_type === "credit_card" ? (
+                          <CreditCard size={20} className="text-primary" />
+                        ) : (
+                          <Bank size={20} className="text-primary" />
+                        )}
+                        <div>
+                          <p className="font-medium">{statement.file_name}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {BANKS.find(b => b.value === statement.bank_name)?.label || statement.bank_name} • 
+                            {statement.period}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-sm font-medium">{statement.total_transactions} transacciones</p>
+                          <p className="text-xs text-muted-foreground">
+                            <span className="text-emerald-600">{statement.matched} coinciden</span> • 
+                            <span className="text-blue-600">{statement.new} nuevas</span>
+                          </p>
+                        </div>
+                        <Badge variant={statement.status === "completed" ? "default" : "secondary"}>
+                          {statement.status === "completed" ? "Completado" : statement.status === "ready" ? "Pendiente" : statement.status}
+                        </Badge>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Reconciliation Results */}
       <AnimatePresence>
