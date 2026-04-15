@@ -36,8 +36,14 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - 8 console.log wrapped in NODE_ENV === 'development' guards
   - 29/29 backend + frontend login flow verified
 - [2026-04-15] useRef pattern extended to ChatBot.js, CargarValidar.js, Flujo.js
-  - All getAuthHeaders() calls migrated to getAuthHeadersRef.current()
-  - All 3 files pass lint, frontend smoke test passed
+- [2026-04-15] Gmail service receipts feature:
+  - SERVICE_DOMAINS whitelist (Apple, Netflix, Spotify, Google, Amazon, Adobe)
+  - _classify_service_receipt GPT-4o classifier for tipo=recibo_servicio
+  - New fields: es_suscripcion, proxima_renovacion
+  - /dashboard/subscription-renewals endpoint
+  - UI: orange icon + "Servicio Digital" badge in Gmail tab
+  - Dashboard: subscription renewal widget below reminders
+  - 20/20 tests passed
 
 ## Tech Stack
 - Backend: FastAPI, Python, Motor (async MongoDB), JWT httpOnly cookies
