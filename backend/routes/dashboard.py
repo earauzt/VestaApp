@@ -120,3 +120,24 @@ async def get_sri_deduction_limits(cargas_familiares: int = 0, user: dict = Depe
         "category_progress": category_progress,
         "alerts": generate_sri_alerts(category_progress, total_deductible, limite_global)
     }
+
+
+@router.get("/dashboard/subscription-renewals")
+async def get_subscription_renewals(user: dict = Depends(get_current_user)):
+    week_end = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d")
+
+    subs = await db.gmail_transactions.find({
+        "user_id": user["id"],
+        "es_suscripcion": True,
+        "estado": {"$ne": "descartado"},
+    }, {"_id": 0}).sort("proxima_renovacion", 1).to_list(50)
+
+    upcoming = []
+    for s in subs:
+        renewal = s.get("proxima_renovacion")
+        if renewal and renewal <= week_end:
+            upcoming.append(s)
+        elif not renewal and s.get("comercio"):
+            upcoming.append(s)
+
+    return {"subscriptions": subs, "upcoming_this_week": upcoming}

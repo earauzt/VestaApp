@@ -90,6 +90,7 @@ export default function Dashboard() {
 
   const [travelFund, setTravelFund] = useState(null);
   const [sriDeductible, setSriDeductible] = useState(0);
+  const [subscriptionRenewals, setSubscriptionRenewals] = useState([]);
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
   useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
@@ -97,14 +98,15 @@ export default function Dashboard() {
   const fetchData = useCallback(async () => {
     try {
       const headers = getAuthHeadersRef.current();
-      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes, txRes] = await Promise.all([
+      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes, txRes, subsRes] = await Promise.all([
         axios.get(`${API}/dashboard/stats`, { headers }),
         axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers }),
         axios.get(`${API}/reminders`, { headers }).catch(() => ({ data: [] })),
         axios.get(`${API}/cashflow/projection`, { headers }).catch(() => ({ data: null })),
         axios.get(`${API}/travel-goals`, { headers }).catch(() => ({ data: { goals: [] } })),
         axios.get(`${API}/travel-fund`, { headers }).catch(() => ({ data: null })),
-        axios.get(`${API}/transactions?limit=5000`, { headers }).catch(() => ({ data: { transactions: [] } }))
+        axios.get(`${API}/transactions?limit=5000`, { headers }).catch(() => ({ data: { transactions: [] } })),
+        axios.get(`${API}/dashboard/subscription-renewals`, { headers }).catch(() => ({ data: { upcoming_this_week: [] } }))
       ]);
       
       setStats(statsRes.data);
@@ -142,6 +144,9 @@ export default function Dashboard() {
         .filter(t => t.is_deductible && t.status === "approved" && new Date(t.date).getFullYear() === currentYear)
         .reduce((sum, t) => sum + (t.amount || 0), 0);
       setSriDeductible(deductibleTotal);
+
+      // Subscription renewals
+      setSubscriptionRenewals(subsRes.data?.upcoming_this_week || []);
     } catch (error) {
       toast.error("Error al cargar datos del dashboard");
     } finally {
@@ -249,7 +254,7 @@ export default function Dashboard() {
             const originalIndex = reminders.indexOf(reminder);
             return (
               <div 
-                key={index}
+                key={`${reminder.type}-${reminder.title}`}
                 className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${getReminderColor(reminder.priority)}`}
               >
                 <div className="flex items-center gap-3 flex-1">
@@ -285,6 +290,41 @@ export default function Dashboard() {
               </div>
             );
           })}
+        </motion.div>
+      )}
+
+      {/* Subscription Renewals This Week */}
+      {subscriptionRenewals.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-2"
+        >
+          {subscriptionRenewals.map((sub) => (
+            <div 
+              key={`sub-${sub.gmail_id || sub.comercio}`}
+              className="p-4 rounded-xl border flex items-center justify-between gap-4 bg-orange-50 dark:bg-orange-900/20 border-orange-200 text-orange-800 dark:text-orange-200"
+              data-testid={`subscription-renewal-${sub.comercio}`}
+            >
+              <div className="flex items-center gap-3 flex-1">
+                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-lg">
+                  🔄
+                </div>
+                <div>
+                  <p className="font-medium">{sub.comercio || "Suscripcion"}</p>
+                  <p className="text-sm opacity-80">
+                    {sub.proxima_renovacion 
+                      ? `Renueva el ${sub.proxima_renovacion}` 
+                      : "Suscripcion activa"}
+                    {sub.monto ? ` · $${sub.monto.toFixed(2)}` : ""}
+                  </p>
+                </div>
+              </div>
+              <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-xs shrink-0">
+                Suscripcion
+              </Badge>
+            </div>
+          ))}
         </motion.div>
       )}
 

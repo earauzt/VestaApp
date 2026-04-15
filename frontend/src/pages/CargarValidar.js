@@ -1154,13 +1154,20 @@ export default function CargarValidar() {
                               tx.tipo === "consumo" ? "bg-blue-500" : 
                               tx.tipo === "alerta" ? "bg-red-500" : 
                               tx.tipo === "estado_de_cuenta" ? "bg-violet-500" : 
-                              tx.tipo === "factura_sri" ? "bg-emerald-500" : "bg-gray-300"
+                              tx.tipo === "factura_sri" ? "bg-emerald-500" :
+                              tx.tipo === "recibo_servicio" ? "bg-orange-500" : "bg-gray-300"
                             }`} />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {tx.tipo === "factura_sri" && <span className="text-base" title="Factura SRI">🧾</span>}
+                                {tx.tipo === "recibo_servicio" && <span className="text-base" title="Recibo servicio digital">🔄</span>}
                                 <span className="font-medium text-sm truncate">{tx.descripcion_corta || tx.subject}</span>
-                                <Badge variant="outline" className={`text-xs shrink-0 ${tx.tipo === "factura_sri" ? "border-emerald-300 text-emerald-700" : ""}`}>{tx.tipo === "factura_sri" ? "Factura SRI" : tx.tipo}</Badge>
+                                <Badge variant="outline" className={`text-xs shrink-0 ${
+                                  tx.tipo === "factura_sri" ? "border-emerald-300 text-emerald-700" :
+                                  tx.tipo === "recibo_servicio" ? "border-orange-300 text-orange-700" : ""
+                                }`}>
+                                  {tx.tipo === "factura_sri" ? "Factura SRI" : tx.tipo === "recibo_servicio" ? "Servicio Digital" : tx.tipo}
+                                </Badge>
                                 {tx.nivel_urgencia === "alta" && (
                                   <Badge className="text-xs bg-red-100 text-red-700 border-red-200 hover:bg-red-100">Urgente</Badge>
                                 )}
@@ -1175,6 +1182,10 @@ export default function CargarValidar() {
                                 {tx.fecha_transaccion && <span>· {tx.fecha_transaccion}</span>}
                                 {tx.numero_factura && <span>· Fact. {tx.numero_factura}</span>}
                                 {tx.ruc_emisor && <span>· RUC: {tx.ruc_emisor}</span>}
+                                {tx.es_suscripcion && (
+                                  <Badge className="text-xs bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-50">Suscripcion</Badge>
+                                )}
+                                {tx.proxima_renovacion && <span>· Renueva: {tx.proxima_renovacion}</span>}
                               </div>
                             </div>
                             {tx.monto && (

@@ -370,6 +370,15 @@ DISCARD_SUBJECTS = [
     "actualiza tus datos", "encuesta", "bienvenido"
 ]
 
+SERVICE_DOMAINS = [
+    "email.apple.com", "apple.com",
+    "netflix.com",
+    "spotify.com",
+    "google.com", "youtube.com",
+    "amazon.com",
+    "adobe.com"
+]
+
 # ================= STATUS LABELS =================
 STATUS_LABELS = {
     TransactionStatus.PENDING_REVIEW: "Pendiente",

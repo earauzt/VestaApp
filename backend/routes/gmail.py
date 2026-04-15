@@ -14,7 +14,7 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from database import db
-from models import GMAIL_SCOPES, BANK_DOMAINS, BANK_SENDERS, DISCARD_SUBJECTS
+from models import GMAIL_SCOPES, BANK_DOMAINS, BANK_SENDERS, DISCARD_SUBJECTS, SERVICE_DOMAINS
 from utils import (
     get_current_user, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
     GOOGLE_REDIRECT_URI, EMERGENT_LLM_KEY, extract_text_from_pdf,
@@ -74,6 +74,35 @@ async def _classify_email_with_ai(subject: str, body_snippet: str, force_type: s
     except Exception as e:
         logger.error(f"Gmail AI classification error: {e}")
     return {"tipo": force_type or "descarte", "monto": None, "comercio": None, "fecha": None, "tarjeta_ultimos4": None, "banco": "desconocido", "descripcion_corta": subject[:60], "nivel_urgencia": "ninguna", "numero_factura": None, "ruc_emisor": None}
+
+
+async def _classify_service_receipt(subject: str, body_snippet: str) -> dict:
+    system_prompt = (
+        'Eres un clasificador de recibos de servicios digitales. '
+        'Analiza el subject y body de un email de un servicio digital (Apple, Netflix, Spotify, Google, Amazon, Adobe) '
+        'y devuelve SOLO JSON sin texto adicional: '
+        '{"tipo": "recibo_servicio", '
+        '"comercio": string (nombre del servicio, ej: "Netflix", "Apple iCloud", "Spotify Premium"), '
+        '"monto": numero o null, '
+        '"tarjeta_ultimos4": string o null, '
+        '"fecha": "YYYY-MM-DD" o null (fecha del cobro), '
+        '"descripcion_corta": string (resumen de 1 linea), '
+        '"es_suscripcion": boolean (true si es cobro recurrente/subscription), '
+        '"proxima_renovacion": "YYYY-MM-DD" o null (siguiente fecha de cobro si se menciona)}'
+    )
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"gmail_service_{uuid.uuid4()}",
+            system_message=system_prompt
+        ).with_model("openai", "gpt-4o")
+        response = await chat.send_message(UserMessage(text=f"Subject: {subject}\n\nBody: {body_snippet[:2000]}"))
+        json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group())
+    except Exception as e:
+        logger.error(f"Service receipt classification error: {e}")
+    return {"tipo": "recibo_servicio", "comercio": None, "monto": None, "tarjeta_ultimos4": None, "fecha": None, "descripcion_corta": subject[:60], "es_suscripcion": False, "proxima_renovacion": None}
 
 
 async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, tipo: str, banco: str, fecha: str, numero_factura: str = None) -> dict:
@@ -218,18 +247,49 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         is_factura_subject = "factura" in subject_lower
         sender_lower = sender.lower()
         is_bank_email = any(domain in sender_lower for domain in BANK_DOMAINS) or any(addr in sender_lower for addr in BANK_SENDERS)
+        is_service_email = any(domain in sender_lower for domain in SERVICE_DOMAINS)
 
-        if not is_bank_email and not is_factura_subject:
-            await db.gmail_transactions.insert_one({"user_id": user["id"], "gmail_id": gmail_id, "remitente": sender, "subject": subject, "fecha_email": date_str, "tipo": "descarte", "monto": None, "comercio": None, "fecha_transaccion": None, "tarjeta_ultimos4": None, "banco": None, "descripcion_corta": "No es email bancario", "nivel_urgencia": "ninguna", "estado": "descartado", "numero_factura": None, "ruc_emisor": None, "es_deducible": False, "procesado_at": datetime.now(timezone.utc).isoformat()})
+        if not is_bank_email and not is_factura_subject and not is_service_email:
+            await db.gmail_transactions.insert_one({"user_id": user["id"], "gmail_id": gmail_id, "remitente": sender, "subject": subject, "fecha_email": date_str, "tipo": "descarte", "monto": None, "comercio": None, "fecha_transaccion": None, "tarjeta_ultimos4": None, "banco": None, "descripcion_corta": "No es email bancario ni de servicio", "nivel_urgencia": "ninguna", "estado": "descartado", "numero_factura": None, "ruc_emisor": None, "es_deducible": False, "es_suscripcion": False, "proxima_renovacion": None, "procesado_at": datetime.now(timezone.utc).isoformat()})
             descartados += 1
             continue
 
-        is_marketing = not is_factura_subject and any(kw in subject_lower for kw in DISCARD_SUBJECTS)
+        is_marketing = not is_factura_subject and not is_service_email and any(kw in subject_lower for kw in DISCARD_SUBJECTS)
         if is_marketing:
-            await db.gmail_transactions.insert_one({"user_id": user["id"], "gmail_id": gmail_id, "remitente": sender, "subject": subject, "fecha_email": date_str, "tipo": "descarte", "monto": None, "comercio": None, "fecha_transaccion": None, "tarjeta_ultimos4": None, "banco": None, "descripcion_corta": "Email promocional descartado", "nivel_urgencia": "ninguna", "estado": "descartado", "numero_factura": None, "ruc_emisor": None, "es_deducible": False, "procesado_at": datetime.now(timezone.utc).isoformat()})
+            await db.gmail_transactions.insert_one({"user_id": user["id"], "gmail_id": gmail_id, "remitente": sender, "subject": subject, "fecha_email": date_str, "tipo": "descarte", "monto": None, "comercio": None, "fecha_transaccion": None, "tarjeta_ultimos4": None, "banco": None, "descripcion_corta": "Email promocional descartado", "nivel_urgencia": "ninguna", "estado": "descartado", "numero_factura": None, "ruc_emisor": None, "es_deducible": False, "es_suscripcion": False, "proxima_renovacion": None, "procesado_at": datetime.now(timezone.utc).isoformat()})
             descartados += 1
             continue
 
+        # Branch: service receipt vs bank/invoice
+        if is_service_email and not is_bank_email:
+            classification = await _classify_service_receipt(subject, body_snippet)
+            doc = {
+                "user_id": user["id"], "gmail_id": gmail_id, "remitente": sender,
+                "subject": subject, "fecha_email": date_str,
+                "tipo": "recibo_servicio",
+                "monto": classification.get("monto"),
+                "comercio": classification.get("comercio"),
+                "fecha_transaccion": classification.get("fecha"),
+                "tarjeta_ultimos4": classification.get("tarjeta_ultimos4"),
+                "banco": None,
+                "descripcion_corta": classification.get("descripcion_corta", subject[:60]),
+                "nivel_urgencia": "baja",
+                "estado": "pendiente",
+                "personal_category": "suscripciones" if classification.get("es_suscripcion") else "otros",
+                "sri_category": None,
+                "numero_factura": None, "ruc_emisor": None,
+                "es_deducible": False,
+                "es_suscripcion": classification.get("es_suscripcion", False),
+                "proxima_renovacion": classification.get("proxima_renovacion"),
+                "procesado_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.gmail_transactions.insert_one(doc)
+            doc.pop("_id", None)
+            nuevos.append(doc)
+            procesados += 1
+            continue
+
+        # Bank / invoice path (existing logic)
         force_type = "factura_sri" if is_factura_subject else None
         classification = await _classify_email_with_ai(subject, body_snippet, force_type=force_type)
         tipo = classification.get("tipo", "descarte")
@@ -252,7 +312,7 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
             banco_name = classification.get("banco", "desconocido")
             pdf_result = await _download_gmail_pdf_attachment(service, gmail_id, user["id"], tipo=tipo, banco=banco_name, fecha=classification.get("fecha") or date_str, numero_factura=numero_factura)
 
-        doc = {"user_id": user["id"], "gmail_id": gmail_id, "remitente": sender, "subject": subject, "fecha_email": date_str, "tipo": tipo, "monto": classification.get("monto"), "comercio": classification.get("comercio"), "fecha_transaccion": classification.get("fecha"), "tarjeta_ultimos4": classification.get("tarjeta_ultimos4"), "banco": classification.get("banco"), "descripcion_corta": classification.get("descripcion_corta", subject[:60]), "nivel_urgencia": classification.get("nivel_urgencia", "ninguna"), "estado": "pendiente", "personal_category": vendor_category, "sri_category": vendor_sri, "numero_factura": numero_factura, "ruc_emisor": ruc_emisor, "es_deducible": es_deducible, "pdf_filepath": pdf_result.get("filepath"), "pdf_doc_id": pdf_result.get("doc_id"), "extracted_transactions": pdf_result.get("extracted_transactions", 0), "procesado_at": datetime.now(timezone.utc).isoformat()}
+        doc = {"user_id": user["id"], "gmail_id": gmail_id, "remitente": sender, "subject": subject, "fecha_email": date_str, "tipo": tipo, "monto": classification.get("monto"), "comercio": classification.get("comercio"), "fecha_transaccion": classification.get("fecha"), "tarjeta_ultimos4": classification.get("tarjeta_ultimos4"), "banco": classification.get("banco"), "descripcion_corta": classification.get("descripcion_corta", subject[:60]), "nivel_urgencia": classification.get("nivel_urgencia", "ninguna"), "estado": "pendiente", "personal_category": vendor_category, "sri_category": vendor_sri, "numero_factura": numero_factura, "ruc_emisor": ruc_emisor, "es_deducible": es_deducible, "es_suscripcion": False, "proxima_renovacion": None, "pdf_filepath": pdf_result.get("filepath"), "pdf_doc_id": pdf_result.get("doc_id"), "extracted_transactions": pdf_result.get("extracted_transactions", 0), "procesado_at": datetime.now(timezone.utc).isoformat()}
         await db.gmail_transactions.insert_one(doc)
         doc.pop("_id", None)
         nuevos.append(doc)
