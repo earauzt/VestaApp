@@ -2511,12 +2511,25 @@ async def upload_statement_for_reconciliation(
             vendor_lookup = await lookup_known_vendor(user["id"], establishment, description)
             
             # Check if this is a deferred payment (diferido)
-            is_deferred = t.get("is_deferred", False) or "dif" in description.lower() or "cuota" in description.lower()
+            is_deferred = t.get("is_deferred", False) or "dif" in description.lower() or "cuota" in description.lower() or "diferido" in description.lower()
             deferred_info = None
+            deferred_deduction = None
             
             if is_deferred:
-                # Try to match with existing deferred payment
-                deferred_info = await find_matching_deferred(user["id"], establishment, amount, date)
+                # Get card_name from statement card_info
+                stmt_card_name = (card_info.get("card_name") or card_info.get("bank_name") or detected_bank or "") if card_info else ""
+                deferred_info = await find_matching_deferred(user["id"], stmt_card_name, amount, description)
+                
+                if deferred_info and deferred_info.get("found"):
+                    # Apply automatic deduction
+                    deferred_deduction = await apply_deferred_deduction(
+                        deferred_info["deferred_id"], amount, statement_id
+                    )
+            
+            # Determine status for deferred with no match
+            item_status = match_result["status"]
+            if is_deferred and not deferred_info:
+                item_status = "pending_deferred_match"
             
             recon_item = {
                 "temp_id": str(uuid.uuid4()),
@@ -2525,7 +2538,7 @@ async def upload_statement_for_reconciliation(
                 "description": description,
                 "establishment": establishment,
                 "original_data": t,
-                "status": match_result["status"],
+                "status": item_status,
                 "confidence": match_result.get("confidence", 0),
                 "matched_transaction_id": match_result.get("matched_id"),
                 "matched_transaction": match_result.get("matched_transaction"),
@@ -2537,7 +2550,8 @@ async def upload_statement_for_reconciliation(
                 "vendor_known": vendor_lookup["found"],
                 "vendor_match_type": vendor_lookup.get("match_type") if vendor_lookup["found"] else None,
                 "is_deferred": is_deferred,
-                "deferred_info": deferred_info
+                "deferred_info": deferred_info,
+                "deferred_deduction": deferred_deduction
             }
             
             if match_result["status"] == "matched":
@@ -2715,66 +2729,164 @@ async def update_card_from_statement(user_id: str, bank_name: str, card_info: di
     
     return None
 
-async def find_matching_deferred(user_id: str, establishment: str, amount: float, date: str) -> dict:
+async def find_matching_deferred(user_id: str, card_name: str, amount: float, description: str) -> dict:
     """
-    Find a matching deferred payment based on establishment and amount.
-    Returns deferred info if found, including remaining balance.
+    Find a matching deferred payment using prioritized matching:
+    1. card_name + monthly_amount ±5% tolerance (tiebreak: highest remaining_balance)
+    2. card_name + keyword match in description against deferred.description
+    Returns deferred info if found, None otherwise.
     """
-    # Get all active deferred payments
+    AMOUNT_TOLERANCE = 0.05
+
+    # Get all active deferred payments for this user
     deferred_payments = await db.deferred_payments.find(
-        {"user_id": user_id, "remaining_installments": {"$gt": 0}},
+        {
+            "user_id": user_id,
+            "$or": [
+                {"remaining_installments": {"$gt": 0}},
+                {"is_active": True}
+            ]
+        },
         {"_id": 0}
-    ).to_list(100)
-    
+    ).to_list(200)
+
     if not deferred_payments:
         return None
-    
-    estab_lower = establishment.lower() if establishment else ""
-    
-    best_match = None
-    best_score = 0
-    
+
+    desc_lower = (description or "").lower()
+    card_lower = (card_name or "").lower()
+
+    # Filter by card_name first (fuzzy: card_name contains or is contained)
+    card_matches = []
     for dp in deferred_payments:
-        score = 0
-        dp_desc = (dp.get("description", "") or dp.get("establishment", "")).lower()
+        dp_card = (dp.get("card_name") or "").lower()
+        if not dp_card or not card_lower:
+            card_matches.append(dp)  # include if no card info available
+            continue
+        if dp_card in card_lower or card_lower in dp_card or any(
+            w in dp_card for w in card_lower.split() if len(w) > 3
+        ):
+            card_matches.append(dp)
+
+    if not card_matches:
+        card_matches = deferred_payments  # fall back to all if no card filter
+
+    # Priority 1: Match by amount ±5%
+    amount_matches = []
+    for dp in card_matches:
         monthly = dp.get("monthly_payment", 0)
-        
-        # Check amount match (within 5%)
-        if monthly > 0 and abs(amount - monthly) / monthly < 0.05:
-            score += 50
-        elif monthly > 0 and abs(amount - monthly) / monthly < 0.15:
-            score += 30
-        
-        # Check establishment match
-        if estab_lower and dp_desc:
-            if estab_lower in dp_desc or dp_desc in estab_lower:
-                score += 40
-            else:
-                # Check common words
-                estab_words = set(estab_lower.split())
-                dp_words = set(dp_desc.split())
-                common = estab_words & dp_words
-                if common:
-                    score += len(common) * 10
-        
-        if score > best_score and score >= 40:
-            best_score = score
-            best_match = dp
-    
-    if best_match:
-        return {
-            "found": True,
-            "deferred_id": best_match.get("id"),
-            "description": best_match.get("description"),
-            "original_amount": best_match.get("original_amount"),
-            "monthly_payment": best_match.get("monthly_payment"),
-            "remaining_installments": best_match.get("remaining_installments"),
-            "remaining_amount": best_match.get("remaining_amount") or (best_match.get("monthly_payment", 0) * best_match.get("remaining_installments", 0)),
-            "total_installments": best_match.get("total_installments"),
-            "confidence": best_score / 100
-        }
-    
+        if monthly > 0 and abs(amount - monthly) / monthly < AMOUNT_TOLERANCE:
+            remaining_bal = dp.get("remaining_amount") or (monthly * dp.get("remaining_installments", 0))
+            amount_matches.append((dp, remaining_bal))
+
+    if amount_matches:
+        # Tiebreaker: highest remaining_balance
+        amount_matches.sort(key=lambda x: x[1], reverse=True)
+        best = amount_matches[0][0]
+        return _format_deferred_match(best, "amount_match")
+
+    # Priority 2: Keyword match in description
+    deferred_keywords = {"diferido", "cuota", "dif", "plazo"}
+    desc_words = set(desc_lower.split())
+
+    keyword_matches = []
+    for dp in card_matches:
+        dp_desc = (dp.get("description") or "").lower()
+        dp_words = set(dp_desc.split())
+
+        # Check overlapping significant words (>3 chars)
+        significant_overlap = sum(
+            1 for w in desc_words
+            if len(w) > 3 and w not in {"cuota", "diferido", "pago"} and w in dp_desc
+        )
+        # Also check if deferred description words appear in transaction description
+        reverse_overlap = sum(
+            1 for w in dp_words
+            if len(w) > 3 and w not in {"cuota", "diferido", "pago"} and w in desc_lower
+        )
+        score = significant_overlap + reverse_overlap
+        if score > 0:
+            remaining_bal = dp.get("remaining_amount") or (dp.get("monthly_payment", 0) * dp.get("remaining_installments", 0))
+            keyword_matches.append((dp, score, remaining_bal))
+
+    if keyword_matches:
+        # Sort by score desc, then remaining_balance desc
+        keyword_matches.sort(key=lambda x: (x[1], x[2]), reverse=True)
+        best = keyword_matches[0][0]
+        return _format_deferred_match(best, "keyword_match")
+
     return None
+
+
+def _format_deferred_match(dp: dict, match_type: str) -> dict:
+    """Format a deferred payment match result."""
+    monthly = dp.get("monthly_payment", 0)
+    remaining = dp.get("remaining_installments", 0)
+    return {
+        "found": True,
+        "deferred_id": dp.get("id"),
+        "description": dp.get("description"),
+        "original_amount": dp.get("original_amount") or dp.get("total_amount"),
+        "monthly_payment": monthly,
+        "remaining_installments": remaining,
+        "remaining_amount": dp.get("remaining_amount") or (monthly * remaining),
+        "total_installments": dp.get("total_installments"),
+        "match_type": match_type,
+        "confidence": 0.95 if match_type == "amount_match" else 0.70
+    }
+
+
+async def apply_deferred_deduction(deferred_id: str, amount: float, statement_id: str) -> dict:
+    """
+    Deduct an installment from a deferred payment.
+    Adds payment_history entry and updates balance.
+    Returns updated deferred info.
+    """
+    dp = await db.deferred_payments.find_one({"id": deferred_id}, {"_id": 0})
+    if not dp:
+        return {"success": False, "reason": "Diferido no encontrado"}
+
+    monthly = dp.get("monthly_payment", 0)
+    remaining_inst = dp.get("remaining_installments", 0)
+    current_remaining = dp.get("remaining_amount") or (monthly * remaining_inst)
+
+    new_remaining_amount = max(0, current_remaining - amount)
+    new_remaining_inst = max(0, remaining_inst - 1)
+
+    payment_entry = {
+        "date": datetime.now(timezone.utc).isoformat(),
+        "amount": amount,
+        "statement_id": statement_id,
+        "detected_from": "auto"
+    }
+
+    update_fields = {
+        "remaining_installments": new_remaining_inst,
+        "remaining_amount": new_remaining_amount,
+        "last_payment_date": datetime.now(timezone.utc).isoformat(),
+        "paid_installments": dp.get("paid_installments", 0) + 1
+    }
+
+    if new_remaining_amount <= 0 or new_remaining_inst <= 0:
+        update_fields["is_active"] = False
+        update_fields["completed_at"] = datetime.now(timezone.utc).isoformat()
+
+    await db.deferred_payments.update_one(
+        {"id": deferred_id},
+        {
+            "$set": update_fields,
+            "$push": {"payment_history": payment_entry}
+        }
+    )
+
+    return {
+        "success": True,
+        "deferred_id": deferred_id,
+        "amount_deducted": amount,
+        "new_remaining_amount": new_remaining_amount,
+        "new_remaining_installments": new_remaining_inst,
+        "completed": new_remaining_amount <= 0 or new_remaining_inst <= 0
+    }
 
 @api_router.post("/reconciliation/confirm-matches")
 async def confirm_reconciliation_matches(
