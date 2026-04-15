@@ -369,8 +369,19 @@ export default function CargarValidar() {
       return;
     }
     try {
-      await axios.put(`${API}/reconciliation/bulk-approve`, selectedItems, { headers: getAuthHeaders() });
-      toast.success(`${selectedItems.length} transacciones aprobadas`);
+      const response = await axios.put(
+        `${API}/reconciliation/bulk-approve`, 
+        { transaction_ids: selectedItems }, 
+        { headers: getAuthHeaders() }
+      );
+      const { approved, failed, total } = response.data;
+      if (failed > 0 && approved > 0) {
+        toast.warning(`${approved} aprobadas, ${failed} fallaron de ${total}`);
+      } else if (failed > 0) {
+        toast.error(`${failed} transacciones fallaron`);
+      } else {
+        toast.success(`${approved} transacciones aprobadas`);
+      }
       setSelectedItems([]);
       fetchPendingData();
     } catch (error) {
