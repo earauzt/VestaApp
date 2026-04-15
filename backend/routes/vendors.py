@@ -202,9 +202,9 @@ async def learn_vendors_from_history(user: dict = Depends(get_current_user)):
     for canonical_name, data in vendor_groups.items():
         if not data["categories"]:
             continue
-        best_category = max(data["categories"].keys(), key=lambda k: data["categories"][k])
-        best_sri = max(data["sri_categories"].keys(), key=lambda k: data["sri_categories"][k]) if data["sri_categories"] else None
-        best_sub = max(data["subcategories"].keys(), key=lambda k: data["subcategories"][k]) if data["subcategories"] else None
+        best_category = max(data["categories"].keys(), key=lambda k, _d=data: _d["categories"][k])
+        best_sri = max(data["sri_categories"].keys(), key=lambda k, _d=data: _d["sri_categories"][k]) if data["sri_categories"] else None
+        best_sub = max(data["subcategories"].keys(), key=lambda k, _d=data: _d["subcategories"][k]) if data["subcategories"] else None
         all_name_variants = list(data["all_names"])
 
         matched_vendor_id = None

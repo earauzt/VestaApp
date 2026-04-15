@@ -336,15 +336,14 @@ async def get_cashflow_projection(user: dict = Depends(get_current_user)):
     total_inflow = total_expected_income + total_receivables
     projected_balance = total_inflow - total_outflow
 
+    status = "healthy"
+    message = "Flujo de caja saludable para los proximos 30 dias"
     if projected_balance < 0:
         status = "critical"
         message = f"Deficit proyectado de ${abs(projected_balance):,.2f} en 30 dias"
     elif projected_balance < total_outflow * 0.2:
         status = "warning"
         message = "Flujo ajustado - considera postergar gastos no esenciales"
-    else:
-        status = "healthy"
-        message = "Flujo de caja saludable para los proximos 30 dias"
 
     return {"projection": {"expected_income": total_expected_income, "receivables": total_receivables, "total_inflow": total_inflow, "scheduled_payments": total_scheduled, "card_minimums": total_card_minimums, "deferred_payments": total_deferred, "total_outflow": total_outflow, "projected_balance": projected_balance}, "status": status, "message": message, "details": {"expected_income_count": len(expected_income), "receivables_count": len(receivables), "scheduled_count": len(scheduled), "cards_count": len(cards), "deferred_count": len(deferred)}}
 

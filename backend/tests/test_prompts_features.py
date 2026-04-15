@@ -17,9 +17,10 @@ class TestAuth:
     @pytest.fixture(scope="class")
     def auth_token(self):
         """Get authentication token for admin user"""
+        from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD
         response = requests.post(f"{BASE_URL}/api/auth/login", json={
-            "email": "earauzt@gmail.com",
-            "password": "Realmadrid2011"
+            "email": ADMIN_EMAIL,
+            "password": ADMIN_PASSWORD
         })
         assert response.status_code == 200, f"Login failed: {response.text}"
         data = response.json()

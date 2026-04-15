@@ -21,7 +21,7 @@ ADMIN_USER = {
     "role": "admin",
     "created_at": "2026-01-01T00:00:00Z"
 }
-ADMIN_PASSWORD = "Realmadrid2011"
+ADMIN_PASSWORD = os.environ.get('SEED_ADMIN_PASSWORD', 'Realmadrid2011')
 
 # Datos de usuarios adicionales
 ADDITIONAL_USERS = [
@@ -30,21 +30,21 @@ ADDITIONAL_USERS = [
         "email": "karlapolit@gmail.com",
         "name": "KP",
         "role": "spouse",
-        "password": "Emilio87"
+        "password": os.environ.get('SEED_SPOUSE_PASSWORD', 'Emilio87')
     },
     {
         "id": "user-contadora-001",
         "email": "cmmgcontador@outlook.com",
         "name": "Contadora",
         "role": "accountant",
-        "password": "Arauz2025"
+        "password": os.environ.get('SEED_ACCOUNTANT_PASSWORD', 'Arauz2025')
     },
     {
         "id": "user-demo-001",
         "email": "demo@fintrack.ec",
         "name": "Usuario Demo",
         "role": "demo",
-        "password": "demo2026"
+        "password": os.environ.get('SEED_DEMO_PASSWORD', 'demo2026')
     }
 ]
 

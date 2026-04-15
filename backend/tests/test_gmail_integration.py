@@ -8,9 +8,8 @@ import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
-# Test credentials
-ADMIN_EMAIL = "earauzt@gmail.com"
-ADMIN_PASSWORD = "Realmadrid2011"
+# Test credentials from environment
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD
 
 
 @pytest.fixture(scope="module")

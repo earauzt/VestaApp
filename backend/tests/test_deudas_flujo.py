@@ -8,9 +8,10 @@ import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
-# Test credentials
-TEST_EMAIL = "emilio@test.com"
-TEST_PASSWORD = "test1234"
+# Test credentials from environment
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, DEMO_EMAIL, DEMO_PASSWORD
+TEST_EMAIL = ADMIN_EMAIL
+TEST_PASSWORD = ADMIN_PASSWORD
 
 
 class TestAuthentication:

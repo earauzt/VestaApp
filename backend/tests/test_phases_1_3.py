@@ -9,12 +9,10 @@ from datetime import datetime, timedelta
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
-# Test credentials - admin user
-TEST_EMAIL = "earauzt@gmail.com"
-TEST_PASSWORD = "Realmadrid2011"
-
-# Note: test@finanzas.com user does not exist in the database
-# Use the admin credentials for all tests
+# Test credentials from environment
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, DEMO_EMAIL, DEMO_PASSWORD
+TEST_EMAIL = ADMIN_EMAIL
+TEST_PASSWORD = ADMIN_PASSWORD
 
 
 class TestAuthentication:
@@ -27,10 +25,10 @@ class TestAuthentication:
             "password": TEST_PASSWORD
         })
         if response.status_code != 200:
-            # Try alternative credentials
+            # Try demo credentials as fallback
             response = requests.post(f"{BASE_URL}/api/auth/login", json={
-                "email": ALT_EMAIL,
-                "password": ALT_PASSWORD
+                "email": DEMO_EMAIL,
+                "password": DEMO_PASSWORD
             })
         assert response.status_code == 200, f"Login failed: {response.text}"
         data = response.json()

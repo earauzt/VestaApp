@@ -8,9 +8,10 @@ import os
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://finanzas-ecuador-2.preview.emergentagent.com').rstrip('/')
 
-# Test credentials
-TEST_EMAIL = "test@finanzas.com"
-TEST_PASSWORD = "test1234"
+# Test credentials from environment
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD
+TEST_EMAIL = ADMIN_EMAIL
+TEST_PASSWORD = ADMIN_PASSWORD
 
 
 @pytest.fixture(scope="module")
