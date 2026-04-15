@@ -22,6 +22,7 @@ import tempfile
 import openpyxl
 from io import BytesIO
 import re
+import difflib
 import xlsxwriter
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import letter, A4
@@ -928,6 +929,9 @@ class KnownVendorResponse(BaseModel):
     subcategory: Optional[str] = None
     is_deductible: bool
     times_used: int = 1
+    match_count: int = 1
+    aliases: List[str] = []
+    source: Optional[str] = None
     last_used: str
     created_at: str
 
@@ -1283,6 +1287,16 @@ async def lookup_known_vendor(user_id: str, establishment: str, description: str
         await _update_vendor_usage(vendor["id"])
         return _format_vendor_result(vendor, "exact")
     
+    # Strategy 1.5: Check aliases array
+    vendor = await db.known_vendors.find_one({
+        "user_id": user_id,
+        "aliases": {"$regex": f"^{re.escape(search_lower)}$", "$options": "i"}
+    }, {"_id": 0})
+    
+    if vendor:
+        await _update_vendor_usage(vendor["id"])
+        return _format_vendor_result(vendor, "alias")
+    
     # Strategy 2: Partial match - establishment contains search or vice versa
     vendor = await db.known_vendors.find_one({
         "user_id": user_id,
@@ -1312,19 +1326,22 @@ async def lookup_known_vendor(user_id: str, establishment: str, description: str
         
         for v in all_vendors:
             vendor_lower = v.get("establishment", "").lower()
-            vendor_words = set(vendor_lower.split()) - stop_words
+            # Also check aliases
+            all_names = [vendor_lower] + [a.lower() for a in v.get("aliases", [])]
             
-            # Calculate word overlap
-            common_words = search_words & vendor_words
-            if common_words:
-                score = len(common_words) / max(len(search_words), len(vendor_words))
-                # Bonus for exact word matches at start
-                if search_lower.startswith(vendor_lower[:5]) or vendor_lower.startswith(search_lower[:5]):
-                    score += 0.3
-                
-                if score > best_score and score >= 0.4:  # Minimum 40% match
-                    best_score = score
-                    best_match = v
+            best_vendor_score = 0
+            for name_variant in all_names:
+                variant_words = set(name_variant.split()) - stop_words
+                common_words = search_words & variant_words
+                if common_words:
+                    score = len(common_words) / max(len(search_words), len(variant_words))
+                    if search_lower.startswith(name_variant[:5]) or name_variant.startswith(search_lower[:5]):
+                        score += 0.3
+                    best_vendor_score = max(best_vendor_score, score)
+            
+            if best_vendor_score > best_score and best_vendor_score >= 0.4:
+                best_score = best_vendor_score
+                best_match = v
         
         if best_match:
             await _update_vendor_usage(best_match["id"])
@@ -3180,16 +3197,9 @@ async def get_predictions(user: dict = Depends(get_current_user)):
             Analiza los gastos y proporciona:
             1. Predicciones de gastos para el próximo mes por categoría
             2. Consejos específicos para optimizar recursos
-            3. Recomendaciones para maximizar deducciones SRI
-            
-            Responde en formato JSON:
-            {
-                "predictions": [{"category": "...", "predicted_amount": numero, "trend": "up/down/stable"}],
-                "advice": ["consejo1", "consejo2", ...],
-                "sri_tips": ["tip1", "tip2", ...]
-            }"""
-        ).with_model("openai", "gpt-5.2")
-        
+            3. Recomendaciones para maximizar deducciones SRI"""
+        )
+       
         response = await chat.send_message(UserMessage(
             text=f"Analiza estos gastos de los últimos 3 meses y proporciona predicciones: {json.dumps(summary)}"
         ))
@@ -4117,6 +4127,28 @@ async def lookup_vendor(
             "is_deductible": vendor.get("is_deductible", False)
         }
     
+    # Try alias match
+    vendor = await db.known_vendors.find_one({
+        "user_id": user["id"],
+        "aliases": {"$regex": f"^{re.escape(normalized)}$", "$options": "i"}
+    }, {"_id": 0})
+    
+    if vendor:
+        await db.known_vendors.update_one(
+            {"id": vendor["id"]},
+            {"$set": {"last_used": datetime.now(timezone.utc).isoformat()},
+             "$inc": {"times_used": 1}}
+        )
+        return {
+            "found": True,
+            "alias_match": True,
+            "vendor": KnownVendorResponse(**vendor),
+            "personal_category": vendor["personal_category"],
+            "sri_category": vendor.get("sri_category"),
+            "subcategory": vendor.get("subcategory"),
+            "is_deductible": vendor.get("is_deductible", False)
+        }
+    
     # Try partial match (contains)
     vendor = await db.known_vendors.find_one({
         "user_id": user["id"],
@@ -4172,110 +4204,211 @@ async def delete_known_vendor(
         raise HTTPException(status_code=404, detail="Vendor no encontrado")
     return {"message": "Vendor eliminado"}
 
-@api_router.post("/known-vendors/learn-from-history")
+@api_router.post("/transactions/learn-vendors")
 async def learn_vendors_from_history(
     user: dict = Depends(get_current_user)
 ):
     """
-    Learn vendors from ALL historical approved transactions.
-    This imports categories from transactions that have been manually categorized.
+    Learn vendors from ALL historical transactions using fuzzy matching.
+    Normalizes names via difflib.SequenceMatcher (threshold >= 0.85).
     """
-    # Get all approved transactions with establishments
+    FUZZY_THRESHOLD = 0.85
+
+    def clean_vendor_name(raw: str) -> str:
+        """Remove transaction codes, dates, numbers from description to extract vendor name."""
+        cleaned = re.sub(r'\b\d{2,4}[/-]\d{2}[/-]\d{2,4}\b', '', raw)
+        cleaned = re.sub(r'\b[A-Z]{2,4}\d{6,}\b', '', cleaned)
+        cleaned = re.sub(r'\b\d{6,}\b', '', cleaned)
+        cleaned = re.sub(r'[*#]+\d+', '', cleaned)
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        return cleaned[:40].strip()
+
+    def fuzzy_best_match(name: str, existing_names: list) -> tuple:
+        """Find best fuzzy match among existing vendor names. Returns (best_name, ratio).
+        Uses SequenceMatcher + common prefix heuristic for brand-based matching.
+        """
+        name_upper = name.upper().strip()
+        best_ratio = 0.0
+        best_name = None
+        for existing in existing_names:
+            existing_upper = existing.upper().strip()
+            ratio = difflib.SequenceMatcher(None, name_upper, existing_upper).ratio()
+            # Secondary heuristic: common brand prefix (≥8 chars, ≥50% of shorter)
+            common_prefix_len = 0
+            for c1, c2 in zip(name_upper, existing_upper):
+                if c1 == c2:
+                    common_prefix_len += 1
+                else:
+                    break
+            shorter_len = min(len(name_upper), len(existing_upper))
+            if shorter_len > 0 and common_prefix_len >= 8 and (common_prefix_len / shorter_len) >= 0.50:
+                ratio = max(ratio, FUZZY_THRESHOLD)
+            if ratio > best_ratio:
+                best_ratio = ratio
+                best_name = existing
+        return best_name, best_ratio
+
+    # Fetch all approved transactions (use both establishment and vendor fields)
     transactions = await db.transactions.find(
         {
             "user_id": user["id"],
-            "status": {"$in": ["approved", TransactionStatus.APPROVED]},
-            "establishment": {"$exists": True, "$ne": "", "$ne": None}
+            "status": {"$in": ["approved", "Approved", TransactionStatus.APPROVED]}
         },
         {"_id": 0}
-    ).to_list(5000)
-    
-    learned_count = 0
-    updated_count = 0
-    
-    # Group by establishment and get the most common category
-    vendor_categories = {}
+    ).to_list(10000)
+
+    # Phase 1: Extract vendor name from each transaction and group by normalized name
+    vendor_groups = {}
     for tx in transactions:
-        estab = tx.get("establishment", "").strip()
-        if not estab or len(estab) < 3:
+        # Priority: vendor > establishment > cleaned description
+        raw_name = (tx.get("vendor") or "").strip()
+        if not raw_name:
+            raw_name = (tx.get("establishment") or "").strip()
+        if not raw_name:
+            desc = (tx.get("description") or "").strip()
+            if desc:
+                raw_name = clean_vendor_name(desc)
+        if not raw_name or len(raw_name) < 3:
             continue
-        
-        estab_lower = estab.lower()
+
         category = tx.get("personal_category") or tx.get("category", "otros")
         sri_category = tx.get("sri_category")
         subcategory = tx.get("subcategory")
         is_deductible = tx.get("is_deductible", False)
-        
-        if estab_lower not in vendor_categories:
-            vendor_categories[estab_lower] = {
-                "establishment": estab,
-                "categories": {},
-                "sri_categories": {},
-                "subcategories": {},
-                "is_deductible": is_deductible
-            }
-        
-        # Count category occurrences
-        if category:
-            vendor_categories[estab_lower]["categories"][category] = vendor_categories[estab_lower]["categories"].get(category, 0) + 1
-        if sri_category:
-            vendor_categories[estab_lower]["sri_categories"][sri_category] = vendor_categories[estab_lower]["sri_categories"].get(sri_category, 0) + 1
-        if subcategory:
-            vendor_categories[estab_lower]["subcategories"][subcategory] = vendor_categories[estab_lower]["subcategories"].get(subcategory, 0) + 1
-    
-    # Create or update vendors with most common categories
-    for estab_lower, data in vendor_categories.items():
-        # Get most common category
-        categories = data["categories"]
-        if not categories:
-            continue
-        
-        best_category = max(categories.keys(), key=lambda k: categories[k])
-        best_sri = max(data["sri_categories"].keys(), key=lambda k: data["sri_categories"][k]) if data["sri_categories"] else None
-        best_subcategory = max(data["subcategories"].keys(), key=lambda k: data["subcategories"][k]) if data["subcategories"] else None
-        
-        # Check if vendor exists
-        existing = await db.known_vendors.find_one({
-            "user_id": user["id"],
-            "establishment": {"$regex": f"^{re.escape(estab_lower)}$", "$options": "i"}
-        })
-        
-        if existing:
-            # Update existing
-            await db.known_vendors.update_one(
-                {"id": existing["id"]},
-                {"$set": {
-                    "personal_category": best_category,
-                    "sri_category": best_sri,
-                    "subcategory": best_subcategory,
-                    "is_deductible": data["is_deductible"],
-                    "times_used": sum(categories.values()),
-                    "last_used": datetime.now(timezone.utc).isoformat()
-                }}
-            )
-            updated_count += 1
+
+        # Fuzzy match against already-grouped names
+        matched_key = None
+        if vendor_groups:
+            best_name, best_ratio = fuzzy_best_match(raw_name, list(vendor_groups.keys()))
+            if best_ratio >= FUZZY_THRESHOLD:
+                matched_key = best_name
+
+        if matched_key:
+            group = vendor_groups[matched_key]
+            group["all_names"].add(raw_name)
+            if category:
+                group["categories"][category] = group["categories"].get(category, 0) + 1
+            if sri_category:
+                group["sri_categories"][sri_category] = group["sri_categories"].get(sri_category, 0) + 1
+            if subcategory:
+                group["subcategories"][subcategory] = group["subcategories"].get(subcategory, 0) + 1
+            group["is_deductible"] = group["is_deductible"] or is_deductible
+            group["tx_count"] += 1
         else:
-            # Create new
+            vendor_groups[raw_name] = {
+                "all_names": {raw_name},
+                "categories": {category: 1} if category else {},
+                "sri_categories": {sri_category: 1} if sri_category else {},
+                "subcategories": {subcategory: 1} if subcategory else {},
+                "is_deductible": is_deductible,
+                "tx_count": 1
+            }
+
+    # Phase 2: Load existing known_vendors for this user
+    existing_vendors = await db.known_vendors.find(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    ).to_list(5000)
+
+    existing_by_id = {v["id"]: v for v in existing_vendors}
+    existing_names_map = {}
+    for v in existing_vendors:
+        existing_names_map[v["establishment"].upper()] = v["id"]
+        for alias in v.get("aliases", []):
+            existing_names_map[alias.upper()] = v["id"]
+
+    vendors_nuevos = 0
+    vendors_actualizados = 0
+
+    # Phase 3: For each grouped vendor, fuzzy match against DB vendors
+    for canonical_name, data in vendor_groups.items():
+        if not data["categories"]:
+            continue
+
+        best_category = max(data["categories"].keys(), key=lambda k: data["categories"][k])
+        best_sri = max(data["sri_categories"].keys(), key=lambda k: data["sri_categories"][k]) if data["sri_categories"] else None
+        best_sub = max(data["subcategories"].keys(), key=lambda k: data["subcategories"][k]) if data["subcategories"] else None
+
+        all_name_variants = list(data["all_names"])
+
+        # Try to fuzzy match against existing DB vendors
+        matched_vendor_id = None
+        # First exact check
+        for name_variant in all_name_variants:
+            if name_variant.upper() in existing_names_map:
+                matched_vendor_id = existing_names_map[name_variant.upper()]
+                break
+
+        # If no exact, try fuzzy against all existing vendor names
+        if not matched_vendor_id and existing_names_map:
+            best_existing, best_ratio = fuzzy_best_match(canonical_name, list(existing_names_map.keys()))
+            if best_ratio >= FUZZY_THRESHOLD and best_existing:
+                matched_vendor_id = existing_names_map[best_existing]
+
+        if matched_vendor_id:
+            # Update existing vendor
+            existing_v = existing_by_id.get(matched_vendor_id, {})
+            current_aliases = set(existing_v.get("aliases", []))
+            for variant in all_name_variants:
+                if variant.upper() != existing_v.get("establishment", "").upper():
+                    current_aliases.add(variant)
+
+            await db.known_vendors.update_one(
+                {"id": matched_vendor_id},
+                {
+                    "$set": {
+                        "personal_category": best_category,
+                        "sri_category": best_sri,
+                        "subcategory": best_sub,
+                        "is_deductible": data["is_deductible"],
+                        "aliases": list(current_aliases),
+                        "last_used": datetime.now(timezone.utc).isoformat()
+                    },
+                    "$inc": {"match_count": data["tx_count"], "times_used": data["tx_count"]}
+                }
+            )
+            vendors_actualizados += 1
+
+            # Register all name variants in the map for subsequent iterations
+            for variant in all_name_variants:
+                existing_names_map[variant.upper()] = matched_vendor_id
+        else:
+            # Create new vendor
+            new_id = str(uuid.uuid4())
+            primary_name = canonical_name
+            aliases = [n for n in all_name_variants if n != primary_name]
+
             vendor_doc = {
-                "id": str(uuid.uuid4()),
+                "id": new_id,
                 "user_id": user["id"],
-                "establishment": data["establishment"],
+                "establishment": primary_name,
                 "personal_category": best_category,
                 "sri_category": best_sri,
-                "subcategory": best_subcategory,
+                "subcategory": best_sub,
                 "is_deductible": data["is_deductible"],
-                "times_used": sum(categories.values()),
+                "match_count": data["tx_count"],
+                "times_used": data["tx_count"],
+                "aliases": aliases,
+                "source": "historical_import",
                 "last_used": datetime.now(timezone.utc).isoformat(),
                 "created_at": datetime.now(timezone.utc).isoformat()
             }
             await db.known_vendors.insert_one(vendor_doc)
-            learned_count += 1
-    
+            vendors_nuevos += 1
+
+            # Register in maps for subsequent fuzzy matches
+            existing_names_map[primary_name.upper()] = new_id
+            for a in aliases:
+                existing_names_map[a.upper()] = new_id
+            existing_by_id[new_id] = vendor_doc
+
+    total_en_db = await db.known_vendors.count_documents({"user_id": user["id"]})
+
     return {
-        "message": f"Aprendizaje completado: {learned_count} nuevos vendors, {updated_count} actualizados",
-        "new_vendors": learned_count,
-        "updated_vendors": updated_count,
-        "total_transactions_processed": len(transactions)
+        "status": "success",
+        "vendors_nuevos": vendors_nuevos,
+        "vendors_actualizados": vendors_actualizados,
+        "total_en_db": total_en_db
     }
 
 @api_router.post("/deferred-payments/{payment_id}/register-installment")
