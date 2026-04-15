@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -65,6 +65,9 @@ const STATUS_CONFIG = {
 
 export default function Ingresos() {
   const { getAuthHeaders, user } = useAuth();
+
+  const getAuthHeadersRef = useRef(getAuthHeaders);
+  useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
   const [activeTab, setActiveTab] = useState("ingresos");
   const [incomes, setIncomes] = useState([]);
   const [expectedIncomes, setExpectedIncomes] = useState([]);
@@ -114,11 +117,12 @@ export default function Ingresos() {
 
   const fetchData = useCallback(async () => {
     try {
+      const headers = getAuthHeadersRef.current();
       const [incomesRes, summaryRes, expectedRes, receivableRes] = await Promise.all([
-        axios.get(`${API}/income?year=${selectedYear}`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/income/summary?year=${selectedYear}`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/expected-income`, { headers: getAuthHeaders() }).catch(() => ({ data: { items: [] } })),
-        axios.get(`${API}/accounts-receivable`, { headers: getAuthHeaders() }).catch(() => ({ data: { items: [] } }))
+        axios.get(`${API}/income?year=${selectedYear}`, { headers }),
+        axios.get(`${API}/income/summary?year=${selectedYear}`, { headers }),
+        axios.get(`${API}/expected-income`, { headers }).catch(() => ({ data: { items: [] } })),
+        axios.get(`${API}/accounts-receivable`, { headers }).catch(() => ({ data: { items: [] } }))
       ]);
       setIncomes(incomesRes.data);
       setSummary(summaryRes.data);
@@ -129,7 +133,7 @@ export default function Ingresos() {
     } finally {
       setLoading(false);
     }
-  }, [selectedYear, getAuthHeaders]);
+  }, [selectedYear]);
 
   useEffect(() => {
     fetchData();

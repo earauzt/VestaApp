@@ -203,7 +203,7 @@ export default function CargarValidar() {
       const res = await axios.get(`${API}/gmail/status`, { headers: getAuthHeaders() });
       setGmailStatus(res.data);
     } catch (e) {
-      console.log("Gmail status error");
+      if (process.env.NODE_ENV === 'development') console.log("Gmail status error");
     }
   };
 
@@ -214,7 +214,7 @@ export default function CargarValidar() {
       setGmailTransactions(res.data.transactions || []);
       setGmailSummary(res.data.summary || {});
     } catch (e) {
-      console.log("Gmail transactions error");
+      if (process.env.NODE_ENV === 'development') console.log("Gmail transactions error");
     } finally {
       setGmailLoading(false);
     }
@@ -225,7 +225,7 @@ export default function CargarValidar() {
       const res = await axios.get(`${API}/gmail/documents`, { headers: getAuthHeaders() });
       setGmailDocuments(res.data.documents || []);
     } catch (e) {
-      console.log("Gmail documents error");
+      if (process.env.NODE_ENV === 'development') console.log("Gmail documents error");
     }
   };
 
@@ -935,7 +935,7 @@ export default function CargarValidar() {
                           const isStatement = isBankStatement(file);
                           const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
                           return (
-                            <div key={index} className={`flex items-center justify-between p-3 rounded-lg ${isStatement ? 'bg-primary/10 border border-primary/20' : 'bg-muted'}`}>
+                            <div key={`${file.name}-${file.size}`} className={`flex items-center justify-between p-3 rounded-lg ${isStatement ? 'bg-primary/10 border border-primary/20' : 'bg-muted'}`}>
                               <div className="flex items-center gap-3">
                                 {isExcel ? (
                                   <FileXls size={20} className="text-emerald-600" />
@@ -1043,7 +1043,7 @@ export default function CargarValidar() {
                         <div className="space-y-2 max-h-[300px] overflow-y-auto">
                           <p className="text-sm text-muted-foreground">{result.transactions.length} transacciones extraídas:</p>
                           {result.transactions.map((t, i) => (
-                            <div key={i} className="p-3 rounded-lg bg-muted">
+                            <div key={t.id || `${t.description}-${t.amount}`} className="p-3 rounded-lg bg-muted">
                               <div className="flex justify-between">
                                 <p className="font-medium truncate">{t.description || t.establishment}</p>
                                 <span className="font-mono">{formatCurrency(t.amount)}</span>

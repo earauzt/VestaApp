@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -127,6 +127,9 @@ const INCOME_SOURCES = ["Personal", "APX", "USA"];
 
 export default function Transactions() {
   const { getAuthHeaders, user } = useAuth();
+
+  const getAuthHeadersRef = useRef(getAuthHeaders);
+  useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
   const [transactions, setTransactions] = useState([]);
   const [categories, setCategories] = useState(FALLBACK_CATEGORIES);
   const [loading, setLoading] = useState(true);
@@ -168,7 +171,7 @@ export default function Transactions() {
   // Fetch categories from budget
   const fetchCategories = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/budget/categories`, { headers: getAuthHeaders() });
+      const response = await axios.get(`${API}/budget/categories`, { headers: getAuthHeadersRef.current() });
       if (response.data?.categories) {
         // Transform budget categories to transaction categories format
         const budgetCats = response.data.categories;
@@ -193,20 +196,20 @@ export default function Transactions() {
         setCategories(transformedCats);
       }
     } catch (error) {
-      console.log("Using fallback categories");
+      if (process.env.NODE_ENV === 'development') console.log("Using fallback categories");
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   const fetchTransactions = useCallback(async () => {
     try {
-      const response = await axios.get(`${API}/transactions`, { headers: getAuthHeaders() });
+      const response = await axios.get(`${API}/transactions`, { headers: getAuthHeadersRef.current() });
       setTransactions(response.data);
     } catch (error) {
       toast.error("Error al cargar transacciones");
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   useEffect(() => {
     fetchCategories();

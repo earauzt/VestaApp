@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import axios from "axios";
@@ -91,16 +91,20 @@ export default function Dashboard() {
   const [travelFund, setTravelFund] = useState(null);
   const [sriDeductible, setSriDeductible] = useState(0);
 
+  const getAuthHeadersRef = useRef(getAuthHeaders);
+  useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
+
   const fetchData = useCallback(async () => {
     try {
+      const headers = getAuthHeadersRef.current();
       const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes, txRes] = await Promise.all([
-        axios.get(`${API}/dashboard/stats`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/reminders`, { headers: getAuthHeaders() }).catch(() => ({ data: [] })),
-        axios.get(`${API}/cashflow/projection`, { headers: getAuthHeaders() }).catch(() => ({ data: null })),
-        axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() }).catch(() => ({ data: { goals: [] } })),
-        axios.get(`${API}/travel-fund`, { headers: getAuthHeaders() }).catch(() => ({ data: null })),
-        axios.get(`${API}/transactions?limit=5000`, { headers: getAuthHeaders() }).catch(() => ({ data: { transactions: [] } }))
+        axios.get(`${API}/dashboard/stats`, { headers }),
+        axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers }),
+        axios.get(`${API}/reminders`, { headers }).catch(() => ({ data: [] })),
+        axios.get(`${API}/cashflow/projection`, { headers }).catch(() => ({ data: null })),
+        axios.get(`${API}/travel-goals`, { headers }).catch(() => ({ data: { goals: [] } })),
+        axios.get(`${API}/travel-fund`, { headers }).catch(() => ({ data: null })),
+        axios.get(`${API}/transactions?limit=5000`, { headers }).catch(() => ({ data: { transactions: [] } }))
       ]);
       
       setStats(statsRes.data);
@@ -143,7 +147,7 @@ export default function Dashboard() {
     } finally {
       setLoading(false);
     }
-  }, [period, getAuthHeaders, user?.email]);
+  }, [period, user?.email]);
 
   useEffect(() => {
     fetchData();
@@ -450,7 +454,7 @@ export default function Dashboard() {
                     />
                     <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                       {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
+                        <Cell key={`cell-${entry.key}`} fill={entry.color} />
                       ))}
                     </Bar>
                   </BarChart>

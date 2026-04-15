@@ -3,6 +3,9 @@ import axios from "axios";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// Configure axios to always send cookies
+axios.defaults.withCredentials = true;
+
 const AuthContext = createContext(null);
 
 export const useAuth = () => {
@@ -16,22 +19,17 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem("token"));
+  const [token, setToken] = useState(null);
 
   useEffect(() => {
     const initAuth = async () => {
-      const storedToken = localStorage.getItem("token");
-      if (storedToken) {
-        try {
-          const response = await axios.get(`${API}/auth/me`, {
-            headers: { Authorization: `Bearer ${storedToken}` }
-          });
-          setUser(response.data);
-          setToken(storedToken);
-        } catch (error) {
-          localStorage.removeItem("token");
-          setToken(null);
-        }
+      try {
+        // Cookie is sent automatically via withCredentials
+        const response = await axios.get(`${API}/auth/me`);
+        setUser(response.data);
+      } catch {
+        setUser(null);
+        setToken(null);
       }
       setLoading(false);
     };
@@ -41,7 +39,7 @@ export const AuthProvider = ({ children }) => {
   const login = async (email, password) => {
     const response = await axios.post(`${API}/auth/login`, { email, password });
     const { access_token, user: userData } = response.data;
-    localStorage.setItem("token", access_token);
+    // Keep token in memory for backward-compat getAuthHeaders
     setToken(access_token);
     setUser(userData);
     return userData;
@@ -55,14 +53,17 @@ export const AuthProvider = ({ children }) => {
       role 
     });
     const { access_token, user: userData } = response.data;
-    localStorage.setItem("token", access_token);
     setToken(access_token);
     setUser(userData);
     return userData;
   };
 
-  const logout = () => {
-    localStorage.removeItem("token");
+  const logout = async () => {
+    try {
+      await axios.post(`${API}/auth/logout`);
+    } catch {
+      // Ignore errors — clear local state regardless
+    }
     setToken(null);
     setUser(null);
   };

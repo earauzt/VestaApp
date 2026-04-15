@@ -110,7 +110,7 @@ export default function ReconciliacionEstados() {
         }
       );
 
-      console.log("Reconciliation response:", response.data);
+      if (process.env.NODE_ENV === 'development') console.log("Reconciliation response:", response.data);
       
       if (response.data.transactions && response.data.transactions.length > 0) {
         setReconciliationData(response.data);

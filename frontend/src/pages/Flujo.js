@@ -112,7 +112,7 @@ export default function Flujo() {
       const response = await axios.get(`${API}/budget/config`, { headers: getAuthHeaders() });
       setBudgetData(response.data);
     } catch (error) {
-      console.log("Error loading budget data");
+      if (process.env.NODE_ENV === 'development') console.log("Error loading budget data");
     }
   };
 
@@ -121,7 +121,7 @@ export default function Flujo() {
       const response = await axios.get(`${API}/deferred-payments`, { headers: getAuthHeaders() });
       setDeferredPayments(response.data?.payments || []);
     } catch (error) {
-      console.log("Error loading deferred payments");
+      if (process.env.NODE_ENV === 'development') console.log("Error loading deferred payments");
     }
   };
 
@@ -130,7 +130,7 @@ export default function Flujo() {
       const response = await axios.get(`${API}/income/summary`, { headers: getAuthHeaders() });
       setIncomeData(response.data);
     } catch (error) {
-      console.log("Error loading income data");
+      if (process.env.NODE_ENV === 'development') console.log("Error loading income data");
     }
   };
 

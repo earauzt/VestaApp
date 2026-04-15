@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -55,6 +55,9 @@ const STATUS_CONFIG = {
 
 export default function MetasViaje() {
   const { getAuthHeaders, user } = useAuth();
+
+  const getAuthHeadersRef = useRef(getAuthHeaders);
+  useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
   const [goals, setGoals] = useState([]);
   const [travelFund, setTravelFund] = useState(null);
   const [transactions, setTransactions] = useState([]);
@@ -106,7 +109,7 @@ export default function MetasViaje() {
     } finally {
       setLoading(false);
     }
-  }, [getAuthHeaders]);
+  }, []);
 
   useEffect(() => {
     fetchData();

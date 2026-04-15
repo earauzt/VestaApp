@@ -515,7 +515,7 @@ export default function Upload() {
                 {result.transactions && result.transactions.length > 0 && (
                   <div className="space-y-2 max-h-[400px] overflow-y-auto">
                     {result.transactions.map((t, i) => (
-                      <TransactionCard key={i} transaction={t} formatCurrency={formatCurrency} />
+                      <TransactionCard key={t.id || `tx-${i}`} transaction={t} formatCurrency={formatCurrency} />
                     ))}
                   </div>
                 )}
@@ -524,7 +524,7 @@ export default function Upload() {
                   <div className="p-4 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800">
                     <p className="text-sm font-medium text-red-800 dark:text-red-200">Errores:</p>
                     {result.errors.map((err, i) => (
-                      <p key={i} className="text-sm text-red-600 dark:text-red-300">
+                      <p key={`err-${err.file}`} className="text-sm text-red-600 dark:text-red-300">
                         {err.file}: {err.error}
                       </p>
                     ))}

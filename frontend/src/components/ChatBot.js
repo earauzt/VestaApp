@@ -129,7 +129,7 @@ export default function ChatBot() {
               <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-muted/30">
                 {messages.map((msg, index) => (
                   <motion.div
-                    key={index}
+                    key={`${msg.role}-${msg.timestamp || index}`}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     className={`flex gap-3 ${msg.role === "user" ? "flex-row-reverse" : ""}`}
@@ -176,7 +176,7 @@ export default function ChatBot() {
                   <div className="flex flex-wrap gap-1">
                     {quickQuestions.map((q, i) => (
                       <button
-                        key={i}
+                        key={q}
                         onClick={() => { setMessage(q); }}
                         className="text-xs px-2 py-1 rounded-full bg-muted hover:bg-primary/10 transition-colors"
                       >
