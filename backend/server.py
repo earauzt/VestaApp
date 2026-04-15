@@ -3638,25 +3638,64 @@ async def mark_not_duplicate(
 
 @api_router.put("/reconciliation/bulk-approve")
 async def bulk_approve_transactions(
-    transaction_ids: List[str],
+    body: Dict[str, Any],
     user: dict = Depends(get_current_user)
 ):
-    """Bulk approve multiple transactions"""
-    # Admin and accountant can approve any transaction, spouse only their own
-    filter_query = {"id": {"$in": transaction_ids}}
-    if user["role"] not in ["admin", "accountant"]:
-        filter_query["user_id"] = user["id"]
-    
-    result = await db.transactions.update_many(
-        filter_query,
-        {"$set": {
-            "status": TransactionStatus.APPROVED,
-            "reviewed_by": user["id"],
-            "reviewed_at": datetime.now(timezone.utc).isoformat()
-        }}
-    )
-    
-    return {"message": f"{result.modified_count} transacciones aprobadas"}
+    """Bulk approve multiple transactions. Accepts both id and _id."""
+    transaction_ids = body.get("transaction_ids", [])
+    if not transaction_ids:
+        raise HTTPException(status_code=400, detail="No se proporcionaron IDs de transacciones")
+
+    approved = 0
+    failed = 0
+
+    for id_str in transaction_ids:
+        try:
+            # Try by custom 'id' field first
+            filter_query = {"id": id_str}
+            if user["role"] not in ["admin", "accountant"]:
+                filter_query["user_id"] = user["id"]
+
+            result = await db.transactions.update_one(
+                filter_query,
+                {"$set": {
+                    "status": TransactionStatus.APPROVED,
+                    "reviewed_by": user["id"],
+                    "reviewed_at": datetime.now(timezone.utc).isoformat()
+                }}
+            )
+
+            if result.modified_count > 0:
+                approved += 1
+                continue
+
+            # Fallback: try by MongoDB _id (ObjectId)
+            from bson import ObjectId
+            try:
+                oid = ObjectId(id_str)
+                filter_query_oid = {"_id": oid}
+                if user["role"] not in ["admin", "accountant"]:
+                    filter_query_oid["user_id"] = user["id"]
+
+                result_oid = await db.transactions.update_one(
+                    filter_query_oid,
+                    {"$set": {
+                        "status": TransactionStatus.APPROVED,
+                        "reviewed_by": user["id"],
+                        "reviewed_at": datetime.now(timezone.utc).isoformat()
+                    }}
+                )
+                if result_oid.modified_count > 0:
+                    approved += 1
+                else:
+                    failed += 1
+            except Exception:
+                failed += 1
+        except Exception as e:
+            logger.warning(f"Bulk approve failed for {id_str}: {e}")
+            failed += 1
+
+    return {"approved": approved, "failed": failed, "total": len(transaction_ids)}
 
 @api_router.get("/reconciliation/stats")
 async def get_reconciliation_stats(

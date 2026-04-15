@@ -488,8 +488,9 @@ export default function CargarValidar() {
     }
   };
 
-  const toggleSelectItem = (id) => {
-    setSelectedItems(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  const toggleSelectItem = (transaction) => {
+    const txId = transaction._id || transaction.id || transaction;
+    setSelectedItems(prev => prev.includes(txId) ? prev.filter(i => i !== txId) : [...prev, txId]);
   };
 
   const formatCurrency = (value) => {
@@ -1025,7 +1026,7 @@ export default function CargarValidar() {
                                 .filter(t => !searchFilter || 
                                   t.description?.toLowerCase().includes(searchFilter.toLowerCase()) ||
                                   t.establishment?.toLowerCase().includes(searchFilter.toLowerCase()))
-                                .map(t => t.id);
+                                .map(t => t._id || t.id);
                               setSelectedItems(filtered);
                             }}>
                               Seleccionar {searchFilter ? "filtradas" : "todas"}
@@ -1063,11 +1064,11 @@ export default function CargarValidar() {
                           animate={{ opacity: 1, x: 0 }}
                           transition={{ delay: index * 0.02 }}
                           className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border transition-all ${
-                            selectedItems.includes(t.id) ? "bg-primary/5 border-primary" : "bg-muted/50 border-transparent hover:bg-muted"
+                            selectedItems.includes(t._id || t.id) ? "bg-primary/5 border-primary" : "bg-muted/50 border-transparent hover:bg-muted"
                           }`}
                         >
                           <div className="flex items-center gap-3 flex-1">
-                            <Checkbox checked={selectedItems.includes(t.id)} onCheckedChange={() => toggleSelectItem(t.id)} />
+                            <Checkbox checked={selectedItems.includes(t._id || t.id)} onCheckedChange={() => toggleSelectItem(t)} />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
                                 {t.establishment && <span className="font-semibold text-primary">{t.establishment}</span>}
