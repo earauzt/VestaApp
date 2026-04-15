@@ -65,7 +65,9 @@ const CATEGORIES = [
 export default function Flujo() {
   const { getAuthHeaders, user } = useAuth();
   const [payments, setPayments] = useState([]);
+  const [deferredPayments, setDeferredPayments] = useState([]);
   const [budgetData, setBudgetData] = useState(null);
+  const [incomeData, setIncomeData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingPayment, setEditingPayment] = useState(null);
@@ -90,6 +92,8 @@ export default function Flujo() {
   useEffect(() => {
     fetchData();
     fetchBudgetData();
+    fetchDeferredPayments();
+    fetchIncomeData();
   }, []);
 
   const fetchData = async () => {
@@ -109,6 +113,24 @@ export default function Flujo() {
       setBudgetData(response.data);
     } catch (error) {
       console.log("Error loading budget data");
+    }
+  };
+
+  const fetchDeferredPayments = async () => {
+    try {
+      const response = await axios.get(`${API}/deferred-payments`, { headers: getAuthHeaders() });
+      setDeferredPayments(response.data?.payments || []);
+    } catch (error) {
+      console.log("Error loading deferred payments");
+    }
+  };
+
+  const fetchIncomeData = async () => {
+    try {
+      const response = await axios.get(`${API}/income/summary`, { headers: getAuthHeaders() });
+      setIncomeData(response.data);
+    } catch (error) {
+      console.log("Error loading income data");
     }
   };
 
@@ -267,6 +289,26 @@ export default function Flujo() {
   const weeks = groupByWeek(filteredPayments);
   const byCategory = groupByCategory(payments);
   const totalMonthly = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
+  const monthlyIncome = incomeData?.total_monthly || incomeData?.total || 0;
+  const weeklyIncome = monthlyIncome / 4;
+
+  // Semaphore: color for weekly card based on projected balance
+  const getWeekSemaphore = (weekPayments) => {
+    const weekTotal = weekPayments.reduce((s, p) => s + (p.amount || 0), 0);
+    const balance = weeklyIncome - weekTotal;
+    const ratio = weeklyIncome > 0 ? balance / weeklyIncome : 0;
+    if (balance < 0) return { color: "#ef4444", label: "Déficit" };        // red
+    if (ratio < 0.20) return { color: "#f59e0b", label: "Ajustado" };       // yellow
+    return { color: "#22c55e", label: "Holgado" };                           // green
+  };
+
+  // Estimate completion date for a deferred payment
+  const getEstimatedEndDate = (dp) => {
+    const remaining = dp.remaining_installments || 0;
+    const now = new Date();
+    const endDate = new Date(now.getFullYear(), now.getMonth() + remaining, now.getDate());
+    return endDate.toLocaleDateString("es-EC", { month: "short", year: "numeric" });
+  };
 
   // Get method icon
   const getMethodIcon = (method) => {
@@ -338,8 +380,10 @@ export default function Flujo() {
       {/* VIEW: By Week */}
       {viewMode === "week" && (
         <div className="space-y-6">
-          {Object.entries(weeks).map(([key, week]) => (
-            <div key={key}>
+          {Object.entries(weeks).map(([key, week]) => {
+            const semaphore = getWeekSemaphore(week.payments);
+            return (
+            <div key={key} style={{ borderLeft: `4px solid ${semaphore.color}` }} className="rounded-lg pl-4">
               {/* Week Header */}
               <div className="flex items-center justify-between mb-3 sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
                 <div className="flex items-center gap-3">
@@ -351,9 +395,14 @@ export default function Flujo() {
                     <p className="text-sm text-muted-foreground">{week.payments.length} pagos</p>
                   </div>
                 </div>
-                <Badge variant="outline" className="text-base font-mono">
-                  {formatCurrency(week.payments.reduce((s, p) => s + p.amount, 0))}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs" style={{ borderColor: semaphore.color, color: semaphore.color }}>
+                    {semaphore.label}
+                  </Badge>
+                  <Badge variant="outline" className="text-base font-mono">
+                    {formatCurrency(week.payments.reduce((s, p) => s + p.amount, 0))}
+                  </Badge>
+                </div>
               </div>
 
               {/* Payments List */}
@@ -476,7 +525,7 @@ export default function Flujo() {
                 </div>
               )}
             </div>
-          ))}
+          )})}
         </div>
       )}
 
@@ -551,6 +600,47 @@ export default function Flujo() {
             );
           })}
         </div>
+      )}
+
+      {/* Deferred Payments Progress */}
+      {deferredPayments.length > 0 && (
+        <Card className="bento-card" data-testid="deferred-progress-section">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <CreditCard size={20} className="text-primary" />
+              Diferidos Activos
+            </CardTitle>
+            <CardDescription>Progreso de tus compras a plazos</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              {deferredPayments.map((dp) => {
+                const total = dp.total_installments || 1;
+                const paid = dp.paid_installments || (total - (dp.remaining_installments || 0));
+                const pct = Math.round((paid / total) * 100);
+                const remaining = dp.remaining_amount || ((dp.monthly_payment || 0) * (dp.remaining_installments || 0));
+                return (
+                  <div key={dp.id} className="p-3 rounded-lg bg-muted/50 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-medium text-sm">{dp.description}</p>
+                        <p className="text-xs text-muted-foreground">{dp.card_name}</p>
+                      </div>
+                      <Badge variant="outline" className="font-mono text-xs">
+                        {formatCurrency(dp.monthly_payment)}/mes
+                      </Badge>
+                    </div>
+                    <Progress value={pct} className="h-2" />
+                    <div className="flex justify-between text-xs text-muted-foreground">
+                      <span>Cuota {paid} de {total} — Quedan {formatCurrency(remaining)}</span>
+                      <span>Termina {getEstimatedEndDate(dp)}</span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Quick Actions */}

@@ -89,16 +89,18 @@ export default function Dashboard() {
   const visibleReminders = reminders.filter((_, index) => !dismissedReminders.includes(index));
 
   const [travelFund, setTravelFund] = useState(null);
+  const [sriDeductible, setSriDeductible] = useState(0);
 
   const fetchData = useCallback(async () => {
     try {
-      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes] = await Promise.all([
+      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes, txRes] = await Promise.all([
         axios.get(`${API}/dashboard/stats`, { headers: getAuthHeaders() }),
         axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers: getAuthHeaders() }),
         axios.get(`${API}/reminders`, { headers: getAuthHeaders() }).catch(() => ({ data: [] })),
         axios.get(`${API}/cashflow/projection`, { headers: getAuthHeaders() }).catch(() => ({ data: null })),
         axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() }).catch(() => ({ data: { goals: [] } })),
-        axios.get(`${API}/travel-fund`, { headers: getAuthHeaders() }).catch(() => ({ data: null }))
+        axios.get(`${API}/travel-fund`, { headers: getAuthHeaders() }).catch(() => ({ data: null })),
+        axios.get(`${API}/transactions?limit=5000`, { headers: getAuthHeaders() }).catch(() => ({ data: { transactions: [] } }))
       ]);
       
       setStats(statsRes.data);
@@ -128,6 +130,14 @@ export default function Dashboard() {
       }).filter(d => d.value > 0 || d.budget > 0);
       
       setCategoryData(transformed);
+
+      // Calculate SRI deductible total for the year
+      const allTx = txRes.data?.transactions || txRes.data?.items || (Array.isArray(txRes.data) ? txRes.data : []);
+      const currentYear = new Date().getFullYear();
+      const deductibleTotal = allTx
+        .filter(t => t.is_deductible && t.status === "approved" && new Date(t.date).getFullYear() === currentYear)
+        .reduce((sum, t) => sum + (t.amount || 0), 0);
+      setSriDeductible(deductibleTotal);
     } catch (error) {
       toast.error("Error al cargar datos del dashboard");
     } finally {
@@ -301,6 +311,36 @@ export default function Dashboard() {
           </motion.div>
         ))}
       </div>
+
+      {/* SRI Deductible Widget */}
+      <Card className="bento-card" data-testid="sri-deductible-widget">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 shrink-0">
+                <Receipt size={18} weight="duotone" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Gastos deducibles SRI {new Date().getFullYear()}</p>
+                <p className="text-xs text-muted-foreground">Límite: 20% de ingresos gravados (tope $2,784)</p>
+              </div>
+            </div>
+            <span className="text-lg font-bold font-mono text-emerald-600">
+              {formatCurrency(sriDeductible)}
+            </span>
+          </div>
+          <div className="space-y-1">
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>{formatCurrency(sriDeductible)} de $2,784 máx.</span>
+              <span className={sriDeductible > 2784 ? "text-amber-600 font-semibold" : ""}>{Math.min(100, Math.round((sriDeductible / 2784) * 100))}%</span>
+            </div>
+            <Progress 
+              value={Math.min(100, (sriDeductible / 2784) * 100)} 
+              className={`h-2 ${sriDeductible > 2784 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`}
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Charts Row - Responsive */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">

@@ -494,10 +494,22 @@ export default function ReconciliacionEstados() {
                           <div className="flex items-center gap-2 flex-wrap">
                             <span className="font-medium truncate">{tx.establishment || tx.description}</span>
                             {getStatusBadge(tx.status, tx.confidence)}
-                            {tx.vendor_known && (
+                            {tx.vendor_known && tx.auto_categorized && (
+                              tx.vendor_match_type === "exact" || (tx.deferred_info?.match_type === "amount_match") ? (
+                                <Badge className="text-xs gap-1 bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
+                                  <CheckCircle size={10} />
+                                  Auto
+                                </Badge>
+                              ) : (
+                                <Badge className="text-xs gap-1 bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
+                                  <Warning size={10} />
+                                  Sugerido
+                                </Badge>
+                              )
+                            )}
+                            {!tx.vendor_known && !tx.auto_categorized && tx.suggested_category && (
                               <Badge variant="secondary" className="text-xs gap-1">
-                                <CheckCircle size={10} />
-                                Auto-categorizado
+                                Manual
                               </Badge>
                             )}
                           </div>
