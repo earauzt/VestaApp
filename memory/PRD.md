@@ -326,6 +326,15 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
    - Usuario Demo: Contraseña corregida a "demopass"
 
 ### 15 Abril 2026 - Prompts 1-4: Learn Vendors, Diferidos, Bulk Approve, UX ✅
+
+### 15 Abril 2026 - Prompt 5: Integración Gmail + Clasificador IA ✅
+- OAuth2 con Google para Gmail (gmail.readonly, gmail.modify)
+- Endpoints: auth-url, callback, sync, status, transactions, approve, discard
+- Pre-filtro por dominios bancarios (pichincha, guayaquil, pacifico, etc.)
+- Descarte automático de emails promocionales
+- Clasificación con GPT-4o: tipo, monto, comercio, fecha, tarjeta, banco, urgencia
+- Auto-categorización con known_vendors via SequenceMatcher
+- Frontend: nueva pestaña "Gmail" en Cargar y Validar con flujo connect/sync/approve
 1. **PROMPT 1 - Learn Vendors con Fuzzy Matching**:
    - Endpoint `POST /api/transactions/learn-vendors` con difflib.SequenceMatcher ≥ 0.85 + heurístico de prefijo de marca
    - Campos: aliases[], source:'historical_import', match_count
