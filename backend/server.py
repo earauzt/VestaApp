@@ -68,6 +68,11 @@ BANK_DOMAINS = [
     "pichincha.com", "bancoguayaquil.com", "pacifico.fin.ec",
     "produbanco.com", "internacional.fin.ec", "bolivariano.com", "diners.com.ec"
 ]
+BANK_SENDERS = [
+    "notificaciones@infopacificard.com.ec",
+    "servicios@dinersclub.com.ec",
+    "notifications@degeremcia.com"
+]
 DISCARD_SUBJECTS = [
     "oferta", "promoción", "sorteo", "puntos canjeables",
     "actualiza tus datos", "encuesta", "bienvenido"
@@ -6568,16 +6573,17 @@ async def _get_gmail_credentials(user_id: str) -> Credentials:
     return creds
 
 
-async def _classify_email_with_ai(subject: str, body_snippet: str) -> dict:
+async def _classify_email_with_ai(subject: str, body_snippet: str, force_type: str = None) -> dict:
     """Classify a bank email using GPT-4o."""
     system_prompt = (
         'Eres un clasificador financiero de bancos ecuatorianos. '
         'Analiza el subject y body y devuelve SOLO JSON sin texto adicional: '
-        '{"tipo": "consumo|estado_de_cuenta|alerta|descarte", '
+        '{"tipo": "consumo|estado_de_cuenta|alerta|factura_sri|descarte", '
         '"monto": número o null, "comercio": string o null, '
         '"fecha": "YYYY-MM-DD" o null, "tarjeta_ultimos4": string o null, '
         '"banco": string, "descripcion_corta": string, '
-        '"nivel_urgencia": "alta|media|baja|ninguna"}'
+        '"nivel_urgencia": "alta|media|baja|ninguna", '
+        '"numero_factura": string o null, "ruc_emisor": string o null}'
     )
 
     try:
@@ -6593,20 +6599,83 @@ async def _classify_email_with_ai(subject: str, body_snippet: str) -> dict:
 
         json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
         if json_match:
-            return json.loads(json_match.group())
+            result = json.loads(json_match.group())
+            if force_type:
+                result["tipo"] = force_type
+            return result
     except Exception as e:
         logger.error(f"Gmail AI classification error: {e}")
 
     return {
-        "tipo": "descarte",
+        "tipo": force_type or "descarte",
         "monto": None,
         "comercio": None,
         "fecha": None,
         "tarjeta_ultimos4": None,
         "banco": "desconocido",
         "descripcion_corta": subject[:60],
-        "nivel_urgencia": "ninguna"
+        "nivel_urgencia": "ninguna",
+        "numero_factura": None,
+        "ruc_emisor": None
     }
+
+
+async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, numero_factura: str, fecha: str) -> str:
+    """Download PDF attachment from a Gmail message and save to disk."""
+    import base64
+    try:
+        msg = service.users().messages().get(userId='me', id=gmail_id, format='full').execute()
+        parts = msg.get('payload', {}).get('parts', [])
+
+        for part in parts:
+            filename = part.get('filename', '')
+            if not filename.lower().endswith('.pdf'):
+                continue
+
+            attachment_id = part.get('body', {}).get('attachmentId')
+            if not attachment_id:
+                continue
+
+            att = service.users().messages().attachments().get(
+                userId='me', messageId=gmail_id, id=attachment_id
+            ).execute()
+
+            data = att.get('data', '')
+            pdf_bytes = base64.urlsafe_b64decode(data)
+
+            # Build filepath
+            upload_dir = f"/app/uploads/gmail_pdfs"
+            os.makedirs(upload_dir, exist_ok=True)
+
+            safe_factura = re.sub(r'[^\w\-]', '_', (numero_factura or 'sin_numero'))
+            safe_fecha = re.sub(r'[^\w\-]', '_', (fecha or 'sin_fecha'))
+            filepath = f"{upload_dir}/{user_id}_{safe_factura}_{safe_fecha}.pdf"
+
+            with open(filepath, 'wb') as f:
+                f.write(pdf_bytes)
+
+            # Register in gmail_documents collection
+            await db.gmail_documents.insert_one({
+                "user_id": user_id,
+                "gmail_id": gmail_id,
+                "filename": filename,
+                "filepath": filepath,
+                "tipo": "factura_sri",
+                "numero_factura": numero_factura,
+                "ruc_emisor": None,
+                "monto": None,
+                "fecha_email": fecha,
+                "procesado": False,
+                "created_at": datetime.now(timezone.utc).isoformat()
+            })
+
+            logger.info(f"PDF saved: {filepath}")
+            return filepath
+
+    except Exception as e:
+        logger.error(f"Error downloading Gmail PDF attachment: {e}")
+
+    return None
 
 
 @api_router.post("/gmail/sync")
@@ -6648,11 +6717,19 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         # Extract body snippet
         body_snippet = msg.get('snippet', '')
 
-        # Pre-filter: check domain
-        sender_lower = sender.lower()
-        is_bank_email = any(domain in sender_lower for domain in BANK_DOMAINS)
+        subject_lower = subject.lower()
 
-        if not is_bank_email:
+        # === FACTURA BYPASS: if subject contains "factura", process directly ===
+        is_factura_subject = "factura" in subject_lower
+        
+        # Pre-filter: check domain OR exact sender whitelist
+        sender_lower = sender.lower()
+        is_bank_email = (
+            any(domain in sender_lower for domain in BANK_DOMAINS) or
+            any(addr in sender_lower for addr in BANK_SENDERS)
+        )
+
+        if not is_bank_email and not is_factura_subject:
             await db.gmail_transactions.insert_one({
                 "user_id": user["id"],
                 "gmail_id": gmail_id,
@@ -6668,14 +6745,16 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
                 "descripcion_corta": "No es email bancario",
                 "nivel_urgencia": "ninguna",
                 "estado": "descartado",
+                "numero_factura": None,
+                "ruc_emisor": None,
+                "es_deducible": False,
                 "procesado_at": datetime.now(timezone.utc).isoformat()
             })
             descartados += 1
             continue
 
-        # Pre-filter: discard marketing subjects
-        subject_lower = subject.lower()
-        is_marketing = any(kw in subject_lower for kw in DISCARD_SUBJECTS)
+        # Pre-filter: discard marketing subjects (but NOT if it's a factura)
+        is_marketing = not is_factura_subject and any(kw in subject_lower for kw in DISCARD_SUBJECTS)
 
         if is_marketing:
             await db.gmail_transactions.insert_one({
@@ -6693,23 +6772,40 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
                 "descripcion_corta": "Email promocional descartado",
                 "nivel_urgencia": "ninguna",
                 "estado": "descartado",
+                "numero_factura": None,
+                "ruc_emisor": None,
+                "es_deducible": False,
                 "procesado_at": datetime.now(timezone.utc).isoformat()
             })
             descartados += 1
             continue
 
-        # Classify with AI
-        classification = await _classify_email_with_ai(subject, body_snippet)
+        # Classify with AI (force factura_sri if subject contains "factura")
+        force_type = "factura_sri" if is_factura_subject else None
+        classification = await _classify_email_with_ai(subject, body_snippet, force_type=force_type)
+
+        tipo = classification.get("tipo", "descarte")
+        numero_factura = classification.get("numero_factura")
+        ruc_emisor = classification.get("ruc_emisor")
+        es_deducible = True if tipo == "factura_sri" else False
 
         # Auto-categorize if tipo=consumo using known_vendors
         vendor_category = None
         vendor_sri = None
-        if classification.get("tipo") == "consumo" and classification.get("comercio"):
+        if tipo == "consumo" and classification.get("comercio"):
             comercio = classification["comercio"]
             vendor_match = await _lookup_vendor_for_categorization(user["id"], comercio)
             if vendor_match:
                 vendor_category = vendor_match.get("personal_category")
                 vendor_sri = vendor_match.get("sri_category")
+
+        # Download PDF attachments for factura_sri
+        pdf_filepath = None
+        if tipo == "factura_sri":
+            pdf_filepath = await _download_gmail_pdf_attachment(
+                service, gmail_id, user["id"], numero_factura,
+                classification.get("fecha") or date_str
+            )
 
         doc = {
             "user_id": user["id"],
@@ -6717,7 +6813,7 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
             "remitente": sender,
             "subject": subject,
             "fecha_email": date_str,
-            "tipo": classification.get("tipo", "descarte"),
+            "tipo": tipo,
             "monto": classification.get("monto"),
             "comercio": classification.get("comercio"),
             "fecha_transaccion": classification.get("fecha"),
@@ -6728,6 +6824,10 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
             "estado": "pendiente",
             "personal_category": vendor_category,
             "sri_category": vendor_sri,
+            "numero_factura": numero_factura,
+            "ruc_emisor": ruc_emisor,
+            "es_deducible": es_deducible,
+            "pdf_filepath": pdf_filepath,
             "procesado_at": datetime.now(timezone.utc).isoformat()
         }
         await db.gmail_transactions.insert_one(doc)

@@ -1139,14 +1139,19 @@ export default function CargarValidar() {
                             <div className={`w-2 h-2 rounded-full shrink-0 ${
                               tx.tipo === "consumo" ? "bg-blue-500" : 
                               tx.tipo === "alerta" ? "bg-red-500" : 
-                              tx.tipo === "estado_de_cuenta" ? "bg-violet-500" : "bg-gray-300"
+                              tx.tipo === "estado_de_cuenta" ? "bg-violet-500" : 
+                              tx.tipo === "factura_sri" ? "bg-emerald-500" : "bg-gray-300"
                             }`} />
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
+                                {tx.tipo === "factura_sri" && <span className="text-base" title="Factura SRI">🧾</span>}
                                 <span className="font-medium text-sm truncate">{tx.descripcion_corta || tx.subject}</span>
-                                <Badge variant="outline" className="text-xs shrink-0">{tx.tipo}</Badge>
+                                <Badge variant="outline" className={`text-xs shrink-0 ${tx.tipo === "factura_sri" ? "border-emerald-300 text-emerald-700" : ""}`}>{tx.tipo === "factura_sri" ? "Factura SRI" : tx.tipo}</Badge>
                                 {tx.nivel_urgencia === "alta" && (
                                   <Badge className="text-xs bg-red-100 text-red-700 border-red-200 hover:bg-red-100">Urgente</Badge>
+                                )}
+                                {tx.es_deducible && (
+                                  <Badge className="text-xs bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-50">Deducible</Badge>
                                 )}
                               </div>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
@@ -1154,6 +1159,8 @@ export default function CargarValidar() {
                                 {tx.tarjeta_ultimos4 && <span>****{tx.tarjeta_ultimos4}</span>}
                                 {tx.comercio && <span>· {tx.comercio}</span>}
                                 {tx.fecha_transaccion && <span>· {tx.fecha_transaccion}</span>}
+                                {tx.numero_factura && <span>· Fact. {tx.numero_factura}</span>}
+                                {tx.ruc_emisor && <span>· RUC: {tx.ruc_emisor}</span>}
                               </div>
                             </div>
                             {tx.monto && (

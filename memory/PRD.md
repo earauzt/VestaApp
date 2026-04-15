@@ -331,10 +331,13 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
 - OAuth2 con Google para Gmail (gmail.readonly, gmail.modify)
 - Endpoints: auth-url, callback, sync, status, transactions, approve, discard
 - Pre-filtro por dominios bancarios (pichincha, guayaquil, pacifico, etc.)
+- Senders adicionales: infopacificard, dinersclub, degeremcia
 - Descarte automático de emails promocionales
 - Clasificación con GPT-4o: tipo, monto, comercio, fecha, tarjeta, banco, urgencia
+- Tipo factura_sri: bypass por subject "factura", campos numero_factura/ruc_emisor/es_deducible
+- Descarga automática de PDFs adjuntos → /app/uploads/gmail_pdfs/ + colección gmail_documents
 - Auto-categorización con known_vendors via SequenceMatcher
-- Frontend: nueva pestaña "Gmail" en Cargar y Validar con flujo connect/sync/approve
+- Frontend: pestaña "Gmail" con ícono 🧾 para facturas, badges verdes, campos adicionales
 1. **PROMPT 1 - Learn Vendors con Fuzzy Matching**:
    - Endpoint `POST /api/transactions/learn-vendors` con difflib.SequenceMatcher ≥ 0.85 + heurístico de prefijo de marca
    - Campos: aliases[], source:'historical_import', match_count
