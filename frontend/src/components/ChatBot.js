@@ -19,6 +19,9 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function ChatBot() {
   const { getAuthHeaders, user } = useAuth();
+
+  const getAuthHeadersRef = useRef(getAuthHeaders);
+  useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
   const [isOpen, setIsOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
@@ -56,7 +59,7 @@ export default function ChatBot() {
       const response = await axios.post(
         `${API}/chat`,
         { message: userMessage, session_id: sessionId },
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeadersRef.current() }
       );
 
       setSessionId(response.data.session_id);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -132,6 +132,9 @@ const STATUS_LABELS = {
 
 export default function CargarValidar() {
   const { getAuthHeaders, user } = useAuth();
+
+  const getAuthHeadersRef = useRef(getAuthHeaders);
+  useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
   const [activeTab, setActiveTab] = useState("upload");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
@@ -185,9 +188,9 @@ export default function CargarValidar() {
   const fetchPendingData = async () => {
     try {
       const [pendingRes, duplicatesRes, statsRes] = await Promise.all([
-        axios.get(`${API}/reconciliation/pending`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/reconciliation/duplicates`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/reconciliation/stats`, { headers: getAuthHeaders() })
+        axios.get(`${API}/reconciliation/pending`, { headers: getAuthHeadersRef.current() }),
+        axios.get(`${API}/reconciliation/duplicates`, { headers: getAuthHeadersRef.current() }),
+        axios.get(`${API}/reconciliation/stats`, { headers: getAuthHeadersRef.current() })
       ]);
       setPendingTransactions(pendingRes.data.pending_review || []);
       setDuplicatePairs(duplicatesRes.data.pairs || []);
@@ -200,7 +203,7 @@ export default function CargarValidar() {
   // Gmail functions
   const fetchGmailStatus = async () => {
     try {
-      const res = await axios.get(`${API}/gmail/status`, { headers: getAuthHeaders() });
+      const res = await axios.get(`${API}/gmail/status`, { headers: getAuthHeadersRef.current() });
       setGmailStatus(res.data);
     } catch (e) {
       if (process.env.NODE_ENV === 'development') console.log("Gmail status error");
@@ -210,7 +213,7 @@ export default function CargarValidar() {
   const fetchGmailTransactions = async () => {
     setGmailLoading(true);
     try {
-      const res = await axios.get(`${API}/gmail/transactions`, { headers: getAuthHeaders() });
+      const res = await axios.get(`${API}/gmail/transactions`, { headers: getAuthHeadersRef.current() });
       setGmailTransactions(res.data.transactions || []);
       setGmailSummary(res.data.summary || {});
     } catch (e) {
@@ -222,7 +225,7 @@ export default function CargarValidar() {
 
   const fetchGmailDocuments = async () => {
     try {
-      const res = await axios.get(`${API}/gmail/documents`, { headers: getAuthHeaders() });
+      const res = await axios.get(`${API}/gmail/documents`, { headers: getAuthHeadersRef.current() });
       setGmailDocuments(res.data.documents || []);
     } catch (e) {
       if (process.env.NODE_ENV === 'development') console.log("Gmail documents error");
@@ -231,7 +234,7 @@ export default function CargarValidar() {
 
   const handleConnectGmail = async () => {
     try {
-      const res = await axios.get(`${API}/gmail/auth-url`, { headers: getAuthHeaders() });
+      const res = await axios.get(`${API}/gmail/auth-url`, { headers: getAuthHeadersRef.current() });
       window.open(res.data.auth_url, '_blank', 'width=600,height=700');
     } catch (e) {
       toast.error("Error al generar URL de autorización");
@@ -241,7 +244,7 @@ export default function CargarValidar() {
   const handleGmailSync = async () => {
     setGmailSyncing(true);
     try {
-      const res = await axios.post(`${API}/gmail/sync`, {}, { headers: getAuthHeaders() });
+      const res = await axios.post(`${API}/gmail/sync`, {}, { headers: getAuthHeadersRef.current() });
       const { procesados, descartados } = res.data;
       if (procesados > 0) {
         toast.success(`${procesados} emails procesados, ${descartados} descartados`);
@@ -260,7 +263,7 @@ export default function CargarValidar() {
 
   const handleApproveGmail = async (gmailId) => {
     try {
-      await axios.put(`${API}/gmail/transactions/${gmailId}/approve`, {}, { headers: getAuthHeaders() });
+      await axios.put(`${API}/gmail/transactions/${gmailId}/approve`, {}, { headers: getAuthHeadersRef.current() });
       toast.success("Transacción aprobada");
       fetchGmailTransactions();
     } catch (e) {
@@ -270,7 +273,7 @@ export default function CargarValidar() {
 
   const handleDiscardGmail = async (gmailId) => {
     try {
-      await axios.put(`${API}/gmail/transactions/${gmailId}/discard`, {}, { headers: getAuthHeaders() });
+      await axios.put(`${API}/gmail/transactions/${gmailId}/discard`, {}, { headers: getAuthHeadersRef.current() });
       setGmailTransactions(prev => prev.filter(t => t.gmail_id !== gmailId));
     } catch (e) {
       toast.error("Error al descartar");
@@ -315,7 +318,7 @@ export default function CargarValidar() {
         
         try {
           const response = await axios.post(`${API}/process/bank-statement`, formData, {
-            headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" },
+            headers: { ...getAuthHeadersRef.current(), "Content-Type": "multipart/form-data" },
             timeout: 300000 // 5 minutes timeout for bank statement processing
           });
           
@@ -339,7 +342,7 @@ export default function CargarValidar() {
         receipts.forEach(file => formData.append("files", file));
         
         const response = await axios.post(`${API}/process/receipts-multiple`, formData, {
-          headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" }
+          headers: { ...getAuthHeadersRef.current(), "Content-Type": "multipart/form-data" }
         });
         
         if (response.data.transactions) {
@@ -384,7 +387,7 @@ export default function CargarValidar() {
       formData.append("file", excelFile);
 
       const response = await axios.post(`${API}/process/excel`, formData, {
-        headers: { ...getAuthHeaders(), "Content-Type": "multipart/form-data" }
+        headers: { ...getAuthHeadersRef.current(), "Content-Type": "multipart/form-data" }
       });
 
       setResult(response.data);
@@ -435,7 +438,7 @@ export default function CargarValidar() {
       if (subcategory) params.append("subcategory", subcategory);
       if (params.toString()) url += `?${params.toString()}`;
       
-      await axios.put(url, {}, { headers: getAuthHeaders() });
+      await axios.put(url, {}, { headers: getAuthHeadersRef.current() });
       toast.success("Transacción aprobada");
       fetchPendingData();
       setShowDetailDialog(false);
@@ -449,7 +452,7 @@ export default function CargarValidar() {
       await axios.put(
         `${API}/reconciliation/reject/${transactionId}?reason=${encodeURIComponent(reason)}`,
         {},
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeadersRef.current() }
       );
       toast.success("Transacción rechazada");
       fetchPendingData();
@@ -468,7 +471,7 @@ export default function CargarValidar() {
       const response = await axios.put(
         `${API}/reconciliation/bulk-approve`, 
         { transaction_ids: selectedItems }, 
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeadersRef.current() }
       );
       const { approved, failed, total } = response.data;
       if (failed > 0 && approved > 0) {
@@ -490,7 +493,7 @@ export default function CargarValidar() {
       await axios.put(
         `${API}/reconciliation/confirm-duplicate/${transactionId}?keep_original=${keepOriginal}`,
         {},
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeadersRef.current() }
       );
       toast.success("Duplicado procesado");
       fetchPendingData();
@@ -502,7 +505,7 @@ export default function CargarValidar() {
 
   const handleNotDuplicate = async (transactionId) => {
     try {
-      await axios.put(`${API}/reconciliation/not-duplicate/${transactionId}`, {}, { headers: getAuthHeaders() });
+      await axios.put(`${API}/reconciliation/not-duplicate/${transactionId}`, {}, { headers: getAuthHeadersRef.current() });
       toast.success("Marcado como no duplicado");
       fetchPendingData();
       setShowDuplicateDialog(false);
@@ -530,13 +533,13 @@ export default function CargarValidar() {
             
             // Update category if specified
             if (Object.keys(updateData).length > 0) {
-              await axios.put(`${API}/transactions/${id}`, updateData, { headers: getAuthHeaders() });
+              await axios.put(`${API}/transactions/${id}`, updateData, { headers: getAuthHeadersRef.current() });
             }
             
             // Approve
-            await axios.put(`${API}/reconciliation/approve/${id}`, {}, { headers: getAuthHeaders() });
+            await axios.put(`${API}/reconciliation/approve/${id}`, {}, { headers: getAuthHeadersRef.current() });
           } else {
-            await axios.put(`${API}/reconciliation/reject/${id}`, {}, { headers: getAuthHeaders() });
+            await axios.put(`${API}/reconciliation/reject/${id}`, {}, { headers: getAuthHeadersRef.current() });
           }
           successCount++;
         } catch (e) {
@@ -585,7 +588,7 @@ export default function CargarValidar() {
           sri_category: editForm.sri_category,
           sri_subcategory: editForm.sri_subcategory
         },
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeadersRef.current() }
       );
       toast.success("Transacción actualizada");
       setShowDetailDialog(false);

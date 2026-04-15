@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
@@ -64,6 +64,9 @@ const CATEGORIES = [
 
 export default function Flujo() {
   const { getAuthHeaders, user } = useAuth();
+
+  const getAuthHeadersRef = useRef(getAuthHeaders);
+  useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
   const [payments, setPayments] = useState([]);
   const [deferredPayments, setDeferredPayments] = useState([]);
   const [budgetData, setBudgetData] = useState(null);
@@ -98,7 +101,7 @@ export default function Flujo() {
 
   const fetchData = async () => {
     try {
-      const response = await axios.get(`${API}/scheduled-payments`, { headers: getAuthHeaders() });
+      const response = await axios.get(`${API}/scheduled-payments`, { headers: getAuthHeadersRef.current() });
       setPayments(response.data);
     } catch (error) {
       toast.error("Error al cargar datos");
@@ -109,7 +112,7 @@ export default function Flujo() {
 
   const fetchBudgetData = async () => {
     try {
-      const response = await axios.get(`${API}/budget/config`, { headers: getAuthHeaders() });
+      const response = await axios.get(`${API}/budget/config`, { headers: getAuthHeadersRef.current() });
       setBudgetData(response.data);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') console.log("Error loading budget data");
@@ -118,7 +121,7 @@ export default function Flujo() {
 
   const fetchDeferredPayments = async () => {
     try {
-      const response = await axios.get(`${API}/deferred-payments`, { headers: getAuthHeaders() });
+      const response = await axios.get(`${API}/deferred-payments`, { headers: getAuthHeadersRef.current() });
       setDeferredPayments(response.data?.payments || []);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') console.log("Error loading deferred payments");
@@ -127,7 +130,7 @@ export default function Flujo() {
 
   const fetchIncomeData = async () => {
     try {
-      const response = await axios.get(`${API}/income/summary`, { headers: getAuthHeaders() });
+      const response = await axios.get(`${API}/income/summary`, { headers: getAuthHeadersRef.current() });
       setIncomeData(response.data);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') console.log("Error loading income data");
@@ -153,10 +156,10 @@ export default function Flujo() {
       };
 
       if (editingPayment) {
-        await axios.put(`${API}/scheduled-payments/${editingPayment.id}`, payload, { headers: getAuthHeaders() });
+        await axios.put(`${API}/scheduled-payments/${editingPayment.id}`, payload, { headers: getAuthHeadersRef.current() });
         toast.success("Pago actualizado");
       } else {
-        await axios.post(`${API}/scheduled-payments`, payload, { headers: getAuthHeaders() });
+        await axios.post(`${API}/scheduled-payments`, payload, { headers: getAuthHeadersRef.current() });
         toast.success("Pago programado agregado");
       }
 
@@ -171,7 +174,7 @@ export default function Flujo() {
   const handleDelete = async (id) => {
     if (!window.confirm("¿Eliminar este pago programado?")) return;
     try {
-      await axios.delete(`${API}/scheduled-payments/${id}`, { headers: getAuthHeaders() });
+      await axios.delete(`${API}/scheduled-payments/${id}`, { headers: getAuthHeadersRef.current() });
       toast.success("Pago eliminado");
       fetchData();
     } catch (error) {
@@ -181,7 +184,7 @@ export default function Flujo() {
 
   const handleMarkPaid = async (id) => {
     try {
-      await axios.post(`${API}/scheduled-payments/${id}/mark-paid`, {}, { headers: getAuthHeaders() });
+      await axios.post(`${API}/scheduled-payments/${id}/mark-paid`, {}, { headers: getAuthHeadersRef.current() });
       toast.success("Marcado como pagado");
       fetchData();
     } catch (error) {

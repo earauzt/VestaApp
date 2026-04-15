@@ -35,6 +35,9 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Array index as key replaced in 8 instances (Upload, Dashboard, CargarValidar, ChatBot)
   - 8 console.log wrapped in NODE_ENV === 'development' guards
   - 29/29 backend + frontend login flow verified
+- [2026-04-15] useRef pattern extended to ChatBot.js, CargarValidar.js, Flujo.js
+  - All getAuthHeaders() calls migrated to getAuthHeadersRef.current()
+  - All 3 files pass lint, frontend smoke test passed
 
 ## Tech Stack
 - Backend: FastAPI, Python, Motor (async MongoDB), JWT httpOnly cookies
@@ -45,7 +48,6 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
 ## Upcoming Tasks
 - (P1) Banner de Notificaciones Inteligentes
 - (P1) Widget "Proximas Acciones" en Dashboard
-- (P2) Remaining hook deps warnings (ChatBot, CargarValidar, Flujo)
 
 ## Future Tasks (P2+)
 - Refactor process_bank_statement() (complejidad 48)
