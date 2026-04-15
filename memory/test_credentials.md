@@ -8,5 +8,5 @@
 
 ## Demo User
 - Email: demo@fintrack.ec
-- Password: demopass
+- Password: demo2026
 - Role: demo
