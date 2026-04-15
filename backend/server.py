@@ -30,6 +30,9 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
 import pdfplumber
+from google_auth_oauthlib.flow import Flow
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
 
 ROOT_DIR = Path(__file__).parent
 UPLOADS_DIR = ROOT_DIR / "uploads"
@@ -52,6 +55,23 @@ SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'default_secret_key')
 ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', 1440))
 EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
+
+# Google OAuth2 / Gmail
+GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
+GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
+GOOGLE_REDIRECT_URI = os.environ.get('GOOGLE_REDIRECT_URI')
+GMAIL_SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.modify'
+]
+BANK_DOMAINS = [
+    "pichincha.com", "bancoguayaquil.com", "pacifico.fin.ec",
+    "produbanco.com", "internacional.fin.ec", "bolivariano.com", "diners.com.ec"
+]
+DISCARD_SUBJECTS = [
+    "oferta", "promoción", "sorteo", "puntos canjeables",
+    "actualiza tus datos", "encuesta", "bienvenido"
+]
 
 # Password hashing
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -6404,6 +6424,408 @@ async def get_chat_history(
     return {"history": list(reversed(history)), "count": len(history)}
 
 # ================= HEALTH CHECK =================
+
+# ===== GMAIL INTEGRATION =====
+
+@api_router.get("/gmail/auth-url")
+async def gmail_auth_url(user: dict = Depends(get_current_user)):
+    """Generate Google OAuth2 authorization URL for Gmail access."""
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        raise HTTPException(status_code=500, detail="Google OAuth2 no configurado")
+
+    flow = Flow.from_client_config(
+        {
+            "web": {
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": [GOOGLE_REDIRECT_URI]
+            }
+        },
+        scopes=GMAIL_SCOPES,
+        redirect_uri=GOOGLE_REDIRECT_URI
+    )
+
+    auth_url, state = flow.authorization_url(
+        access_type='offline',
+        include_granted_scopes='true',
+        prompt='consent',
+        state=user["id"]
+    )
+
+    # Save state temporarily for callback validation
+    await db.gmail_oauth_states.update_one(
+        {"state": state},
+        {"$set": {"user_id": user["id"], "created_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True
+    )
+
+    return {"auth_url": auth_url}
+
+
+@api_router.get("/gmail/callback")
+async def gmail_callback(code: str, state: str):
+    """Handle Google OAuth2 callback and store tokens."""
+    from fastapi.responses import HTMLResponse
+
+    # Lookup user_id from state
+    state_doc = await db.gmail_oauth_states.find_one({"state": state})
+    if not state_doc:
+        return HTMLResponse("<html><body><h2>Error: Estado de autorización inválido</h2></body></html>")
+
+    user_id = state_doc["user_id"]
+
+    try:
+        flow = Flow.from_client_config(
+            {
+                "web": {
+                    "client_id": GOOGLE_CLIENT_ID,
+                    "client_secret": GOOGLE_CLIENT_SECRET,
+                    "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                    "token_uri": "https://oauth2.googleapis.com/token",
+                    "redirect_uris": [GOOGLE_REDIRECT_URI]
+                }
+            },
+            scopes=GMAIL_SCOPES,
+            redirect_uri=GOOGLE_REDIRECT_URI
+        )
+        flow.fetch_token(code=code)
+        creds = flow.credentials
+
+        await db.gmail_tokens.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "user_id": user_id,
+                "access_token": creds.token,
+                "refresh_token": creds.refresh_token,
+                "token_uri": creds.token_uri,
+                "client_id": creds.client_id,
+                "client_secret": creds.client_secret,
+                "expires_at": creds.expiry.isoformat() if creds.expiry else None,
+                "connected_at": datetime.now(timezone.utc).isoformat()
+            }},
+            upsert=True
+        )
+
+        # Cleanup state
+        await db.gmail_oauth_states.delete_one({"state": state})
+
+        return HTMLResponse("""<html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;background:#f0fdf4">
+            <div style="text-align:center;padding:40px;background:white;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1)">
+                <h2 style="color:#16a34a">Gmail conectado exitosamente</h2>
+                <p>Puedes cerrar esta ventana y volver a FamilyFinance.</p>
+            </div></body></html>""")
+    except Exception as e:
+        logger.error(f"Gmail OAuth callback error: {e}")
+        return HTMLResponse(f"<html><body><h2>Error al conectar Gmail</h2><p>{str(e)}</p></body></html>")
+
+
+@api_router.get("/gmail/status")
+async def gmail_status(user: dict = Depends(get_current_user)):
+    """Check if user has Gmail connected."""
+    token_doc = await db.gmail_tokens.find_one({"user_id": user["id"]}, {"_id": 0, "access_token": 0, "refresh_token": 0, "client_secret": 0})
+    if token_doc:
+        last_sync = await db.gmail_transactions.find_one(
+            {"user_id": user["id"]},
+            {"_id": 0, "procesado_at": 1},
+            sort=[("procesado_at", -1)]
+        )
+        return {
+            "connected": True,
+            "connected_at": token_doc.get("connected_at"),
+            "last_sync": last_sync.get("procesado_at") if last_sync else None
+        }
+    return {"connected": False}
+
+
+async def _get_gmail_credentials(user_id: str) -> Credentials:
+    """Get valid Gmail credentials for a user, refreshing if needed."""
+    token_doc = await db.gmail_tokens.find_one({"user_id": user_id})
+    if not token_doc:
+        raise HTTPException(status_code=400, detail="Gmail no conectado. Conecta tu cuenta primero.")
+
+    creds = Credentials(
+        token=token_doc["access_token"],
+        refresh_token=token_doc.get("refresh_token"),
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET
+    )
+
+    if creds.expired and creds.refresh_token:
+        from google.auth.transport.requests import Request
+        creds.refresh(Request())
+        # Update stored tokens
+        await db.gmail_tokens.update_one(
+            {"user_id": user_id},
+            {"$set": {
+                "access_token": creds.token,
+                "expires_at": creds.expiry.isoformat() if creds.expiry else None
+            }}
+        )
+
+    return creds
+
+
+async def _classify_email_with_ai(subject: str, body_snippet: str) -> dict:
+    """Classify a bank email using GPT-4o."""
+    system_prompt = (
+        'Eres un clasificador financiero de bancos ecuatorianos. '
+        'Analiza el subject y body y devuelve SOLO JSON sin texto adicional: '
+        '{"tipo": "consumo|estado_de_cuenta|alerta|descarte", '
+        '"monto": número o null, "comercio": string o null, '
+        '"fecha": "YYYY-MM-DD" o null, "tarjeta_ultimos4": string o null, '
+        '"banco": string, "descripcion_corta": string, '
+        '"nivel_urgencia": "alta|media|baja|ninguna"}'
+    )
+
+    try:
+        chat = LlmChat(
+            api_key=EMERGENT_LLM_KEY,
+            session_id=f"gmail_classify_{uuid.uuid4()}",
+            system_message=system_prompt
+        ).with_model("openai", "gpt-4o")
+
+        response = await chat.send_message(
+            UserMessage(text=f"Subject: {subject}\n\nBody: {body_snippet[:2000]}")
+        )
+
+        json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
+        if json_match:
+            return json.loads(json_match.group())
+    except Exception as e:
+        logger.error(f"Gmail AI classification error: {e}")
+
+    return {
+        "tipo": "descarte",
+        "monto": None,
+        "comercio": None,
+        "fecha": None,
+        "tarjeta_ultimos4": None,
+        "banco": "desconocido",
+        "descripcion_corta": subject[:60],
+        "nivel_urgencia": "ninguna"
+    }
+
+
+@api_router.post("/gmail/sync")
+async def gmail_sync(user: dict = Depends(get_current_user)):
+    """Sync last 50 unread emails from Gmail, classify bank emails with AI."""
+    creds = await _get_gmail_credentials(user["id"])
+
+    service = build('gmail', 'v1', credentials=creds)
+
+    # Get last 50 unread messages
+    results = service.users().messages().list(
+        userId='me', q='is:unread', maxResults=50
+    ).execute()
+
+    messages = results.get('messages', [])
+    if not messages:
+        return {"status": "success", "total": 0, "procesados": 0, "descartados": 0, "message": "No hay emails nuevos"}
+
+    procesados = 0
+    descartados = 0
+    nuevos = []
+
+    for msg_info in messages:
+        gmail_id = msg_info['id']
+
+        # Skip already processed
+        existing = await db.gmail_transactions.find_one({"gmail_id": gmail_id, "user_id": user["id"]})
+        if existing:
+            continue
+
+        # Fetch full message
+        msg = service.users().messages().get(userId='me', id=gmail_id, format='full').execute()
+        headers = {h['name'].lower(): h['value'] for h in msg.get('payload', {}).get('headers', [])}
+
+        sender = headers.get('from', '')
+        subject = headers.get('subject', '')
+        date_str = headers.get('date', '')
+
+        # Extract body snippet
+        body_snippet = msg.get('snippet', '')
+
+        # Pre-filter: check domain
+        sender_lower = sender.lower()
+        is_bank_email = any(domain in sender_lower for domain in BANK_DOMAINS)
+
+        if not is_bank_email:
+            await db.gmail_transactions.insert_one({
+                "user_id": user["id"],
+                "gmail_id": gmail_id,
+                "remitente": sender,
+                "subject": subject,
+                "fecha_email": date_str,
+                "tipo": "descarte",
+                "monto": None,
+                "comercio": None,
+                "fecha_transaccion": None,
+                "tarjeta_ultimos4": None,
+                "banco": None,
+                "descripcion_corta": "No es email bancario",
+                "nivel_urgencia": "ninguna",
+                "estado": "descartado",
+                "procesado_at": datetime.now(timezone.utc).isoformat()
+            })
+            descartados += 1
+            continue
+
+        # Pre-filter: discard marketing subjects
+        subject_lower = subject.lower()
+        is_marketing = any(kw in subject_lower for kw in DISCARD_SUBJECTS)
+
+        if is_marketing:
+            await db.gmail_transactions.insert_one({
+                "user_id": user["id"],
+                "gmail_id": gmail_id,
+                "remitente": sender,
+                "subject": subject,
+                "fecha_email": date_str,
+                "tipo": "descarte",
+                "monto": None,
+                "comercio": None,
+                "fecha_transaccion": None,
+                "tarjeta_ultimos4": None,
+                "banco": None,
+                "descripcion_corta": "Email promocional descartado",
+                "nivel_urgencia": "ninguna",
+                "estado": "descartado",
+                "procesado_at": datetime.now(timezone.utc).isoformat()
+            })
+            descartados += 1
+            continue
+
+        # Classify with AI
+        classification = await _classify_email_with_ai(subject, body_snippet)
+
+        # Auto-categorize if tipo=consumo using known_vendors
+        vendor_category = None
+        vendor_sri = None
+        if classification.get("tipo") == "consumo" and classification.get("comercio"):
+            comercio = classification["comercio"]
+            vendor_match = await _lookup_vendor_for_categorization(user["id"], comercio)
+            if vendor_match:
+                vendor_category = vendor_match.get("personal_category")
+                vendor_sri = vendor_match.get("sri_category")
+
+        doc = {
+            "user_id": user["id"],
+            "gmail_id": gmail_id,
+            "remitente": sender,
+            "subject": subject,
+            "fecha_email": date_str,
+            "tipo": classification.get("tipo", "descarte"),
+            "monto": classification.get("monto"),
+            "comercio": classification.get("comercio"),
+            "fecha_transaccion": classification.get("fecha"),
+            "tarjeta_ultimos4": classification.get("tarjeta_ultimos4"),
+            "banco": classification.get("banco"),
+            "descripcion_corta": classification.get("descripcion_corta", subject[:60]),
+            "nivel_urgencia": classification.get("nivel_urgencia", "ninguna"),
+            "estado": "pendiente",
+            "personal_category": vendor_category,
+            "sri_category": vendor_sri,
+            "procesado_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.gmail_transactions.insert_one(doc)
+        doc.pop("_id", None)
+        nuevos.append(doc)
+        procesados += 1
+
+    return {
+        "status": "success",
+        "total": len(messages),
+        "procesados": procesados,
+        "descartados": descartados,
+        "ya_procesados": len(messages) - procesados - descartados,
+        "transacciones": nuevos
+    }
+
+
+@api_router.get("/gmail/transactions")
+async def gmail_transactions(
+    tipo: Optional[str] = None,
+    estado: Optional[str] = None,
+    limit: int = 50,
+    user: dict = Depends(get_current_user)
+):
+    """Get processed Gmail transactions for a user."""
+    query = {"user_id": user["id"]}
+    if tipo:
+        query["tipo"] = tipo
+    if estado:
+        query["estado"] = estado
+    else:
+        query["estado"] = {"$ne": "descartado"}
+
+    txs = await db.gmail_transactions.find(
+        query, {"_id": 0}
+    ).sort("procesado_at", -1).to_list(limit)
+
+    # Summary counts
+    total = await db.gmail_transactions.count_documents({"user_id": user["id"]})
+    pending = await db.gmail_transactions.count_documents({"user_id": user["id"], "estado": "pendiente"})
+    approved = await db.gmail_transactions.count_documents({"user_id": user["id"], "estado": "aprobado"})
+    discarded = await db.gmail_transactions.count_documents({"user_id": user["id"], "estado": "descartado"})
+
+    return {
+        "transactions": txs,
+        "summary": {"total": total, "pendiente": pending, "aprobado": approved, "descartado": discarded}
+    }
+
+
+@api_router.put("/gmail/transactions/{gmail_id}/approve")
+async def approve_gmail_transaction(gmail_id: str, user: dict = Depends(get_current_user)):
+    """Approve a Gmail transaction and create it as a real transaction."""
+    gmail_tx = await db.gmail_transactions.find_one(
+        {"gmail_id": gmail_id, "user_id": user["id"]}, {"_id": 0}
+    )
+    if not gmail_tx:
+        raise HTTPException(status_code=404, detail="Transacción Gmail no encontrada")
+
+    # Create real transaction
+    tx_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "amount": gmail_tx.get("monto") or 0,
+        "description": gmail_tx.get("descripcion_corta", ""),
+        "establishment": gmail_tx.get("comercio", ""),
+        "vendor": gmail_tx.get("comercio", ""),
+        "date": gmail_tx.get("fecha_transaccion") or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "personal_category": gmail_tx.get("personal_category", "otros"),
+        "category": gmail_tx.get("personal_category", "otros"),
+        "sri_category": gmail_tx.get("sri_category"),
+        "source": "gmail",
+        "status": "approved",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.transactions.insert_one(tx_doc)
+
+    # Update Gmail transaction status
+    await db.gmail_transactions.update_one(
+        {"gmail_id": gmail_id, "user_id": user["id"]},
+        {"$set": {"estado": "aprobado"}}
+    )
+
+    return {"status": "success", "transaction_id": tx_doc["id"]}
+
+
+@api_router.put("/gmail/transactions/{gmail_id}/discard")
+async def discard_gmail_transaction(gmail_id: str, user: dict = Depends(get_current_user)):
+    """Discard a Gmail transaction."""
+    result = await db.gmail_transactions.update_one(
+        {"gmail_id": gmail_id, "user_id": user["id"]},
+        {"$set": {"estado": "descartado"}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Transacción no encontrada")
+    return {"status": "success"}
+
+
+# ===== END GMAIL INTEGRATION =====
 
 @api_router.get("/")
 async def root():

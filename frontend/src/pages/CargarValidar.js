@@ -35,7 +35,10 @@ import {
   Copy,
   CheckSquare,
   ArrowRight,
-  Bank
+  Bank,
+  EnvelopeSimple,
+  ArrowsClockwise,
+  GoogleLogo
 } from "@phosphor-icons/react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -160,9 +163,20 @@ export default function CargarValidar() {
   const [bulkSubcategory, setBulkSubcategory] = useState("");
   const [bulkAction, setBulkAction] = useState("approve"); // approve, reject
 
+  // Gmail states
+  const [gmailStatus, setGmailStatus] = useState({ connected: false });
+  const [gmailTransactions, setGmailTransactions] = useState([]);
+  const [gmailSummary, setGmailSummary] = useState({});
+  const [gmailSyncing, setGmailSyncing] = useState(false);
+  const [gmailLoading, setGmailLoading] = useState(false);
+
   useEffect(() => {
     if (activeTab === "validate") {
       fetchPendingData();
+    }
+    if (activeTab === "gmail") {
+      fetchGmailStatus();
+      fetchGmailTransactions();
     }
   }, [activeTab]);
 
@@ -178,6 +192,77 @@ export default function CargarValidar() {
       setStats(statsRes.data);
     } catch (error) {
       console.error("Error fetching pending data:", error);
+    }
+  };
+
+  // Gmail functions
+  const fetchGmailStatus = async () => {
+    try {
+      const res = await axios.get(`${API}/gmail/status`, { headers: getAuthHeaders() });
+      setGmailStatus(res.data);
+    } catch (e) {
+      console.log("Gmail status error");
+    }
+  };
+
+  const fetchGmailTransactions = async () => {
+    setGmailLoading(true);
+    try {
+      const res = await axios.get(`${API}/gmail/transactions`, { headers: getAuthHeaders() });
+      setGmailTransactions(res.data.transactions || []);
+      setGmailSummary(res.data.summary || {});
+    } catch (e) {
+      console.log("Gmail transactions error");
+    } finally {
+      setGmailLoading(false);
+    }
+  };
+
+  const handleConnectGmail = async () => {
+    try {
+      const res = await axios.get(`${API}/gmail/auth-url`, { headers: getAuthHeaders() });
+      window.open(res.data.auth_url, '_blank', 'width=600,height=700');
+    } catch (e) {
+      toast.error("Error al generar URL de autorización");
+    }
+  };
+
+  const handleGmailSync = async () => {
+    setGmailSyncing(true);
+    try {
+      const res = await axios.post(`${API}/gmail/sync`, {}, { headers: getAuthHeaders() });
+      const { procesados, descartados } = res.data;
+      if (procesados > 0) {
+        toast.success(`${procesados} emails procesados, ${descartados} descartados`);
+      } else {
+        toast.info("No hay emails bancarios nuevos");
+      }
+      fetchGmailTransactions();
+      fetchGmailStatus();
+    } catch (e) {
+      const detail = e.response?.data?.detail || "Error al sincronizar Gmail";
+      toast.error(detail);
+    } finally {
+      setGmailSyncing(false);
+    }
+  };
+
+  const handleApproveGmail = async (gmailId) => {
+    try {
+      await axios.put(`${API}/gmail/transactions/${gmailId}/approve`, {}, { headers: getAuthHeaders() });
+      toast.success("Transacción aprobada");
+      fetchGmailTransactions();
+    } catch (e) {
+      toast.error("Error al aprobar");
+    }
+  };
+
+  const handleDiscardGmail = async (gmailId) => {
+    try {
+      await axios.put(`${API}/gmail/transactions/${gmailId}/discard`, {}, { headers: getAuthHeaders() });
+      setGmailTransactions(prev => prev.filter(t => t.gmail_id !== gmailId));
+    } catch (e) {
+      toast.error("Error al descartar");
     }
   };
 
@@ -776,15 +861,22 @@ export default function CargarValidar() {
       <Card className="bento-card">
         <CardContent className="p-4 sm:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsList className="grid w-full grid-cols-4 mb-6">
               <TabsTrigger value="upload" className="gap-2" data-testid="tab-upload">
                 <CloudArrowUp size={18} />
                 <span className="hidden sm:inline">Cargar</span>
               </TabsTrigger>
               <TabsTrigger value="reconcile" className="gap-2" data-testid="tab-reconcile">
                 <Bank size={18} />
-                <span className="hidden sm:inline">Estados de Cuenta</span>
+                <span className="hidden sm:inline">Estados</span>
                 <span className="sm:hidden">Bancos</span>
+              </TabsTrigger>
+              <TabsTrigger value="gmail" className="gap-2" data-testid="tab-gmail">
+                <EnvelopeSimple size={18} />
+                <span className="hidden sm:inline">Gmail</span>
+                {(gmailSummary.pendiente || 0) > 0 && (
+                  <Badge variant="secondary" className="ml-1">{gmailSummary.pendiente}</Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="validate" className="gap-2" data-testid="tab-validate">
                 <CheckSquare size={18} />
@@ -972,6 +1064,135 @@ export default function CargarValidar() {
             {/* Reconcile Tab - Estados de Cuenta */}
             <TabsContent value="reconcile">
               <ReconciliacionEstados />
+            </TabsContent>
+
+            {/* Gmail Tab */}
+            <TabsContent value="gmail">
+              <div className="space-y-6" data-testid="gmail-tab-content">
+                {!gmailStatus.connected ? (
+                  <div className="text-center py-12" data-testid="gmail-connect-prompt">
+                    <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center">
+                      <EnvelopeSimple size={40} className="text-red-500" weight="duotone" />
+                    </div>
+                    <h3 className="text-lg font-semibold mb-2">Conecta tu cuenta de Gmail</h3>
+                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+                      FamilyFinance leerá tus notificaciones bancarias para detectar consumos, alertas y estados de cuenta automáticamente.
+                    </p>
+                    <Button onClick={handleConnectGmail} className="gap-2" data-testid="gmail-connect-btn">
+                      <GoogleLogo size={18} weight="bold" />
+                      Conectar Gmail
+                    </Button>
+                  </div>
+                ) : (
+                  <>
+                    {/* Header */}
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold">Emails Bancarios</h3>
+                        <p className="text-sm text-muted-foreground">
+                          Último sync: {gmailStatus.last_sync ? new Date(gmailStatus.last_sync).toLocaleString("es-EC") : "Nunca"}
+                        </p>
+                      </div>
+                      <Button 
+                        onClick={handleGmailSync} 
+                        disabled={gmailSyncing} 
+                        className="gap-2"
+                        data-testid="gmail-sync-btn"
+                      >
+                        <ArrowsClockwise size={18} className={gmailSyncing ? "animate-spin" : ""} />
+                        {gmailSyncing ? "Sincronizando..." : "Sincronizar ahora"}
+                      </Button>
+                    </div>
+
+                    {/* Summary badges */}
+                    <div className="flex gap-3 flex-wrap">
+                      <Badge variant="outline" className="gap-1">
+                        <EnvelopeSimple size={14} /> Total: {gmailSummary.total || 0}
+                      </Badge>
+                      <Badge className="gap-1 bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
+                        Pendientes: {gmailSummary.pendiente || 0}
+                      </Badge>
+                      <Badge className="gap-1 bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
+                        Aprobados: {gmailSummary.aprobado || 0}
+                      </Badge>
+                    </div>
+
+                    {/* Transaction list */}
+                    {gmailLoading ? (
+                      <div className="text-center py-8">
+                        <SpinnerGap size={32} className="animate-spin mx-auto text-muted-foreground" />
+                      </div>
+                    ) : gmailTransactions.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground">
+                        <CheckCircle size={32} className="mx-auto mb-2 text-emerald-500" />
+                        <p>No hay transacciones pendientes de Gmail</p>
+                        <p className="text-xs mt-1">Pulsa "Sincronizar ahora" para buscar nuevos emails</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {gmailTransactions.map((tx) => (
+                          <div 
+                            key={tx.gmail_id} 
+                            className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                            data-testid={`gmail-tx-${tx.gmail_id}`}
+                          >
+                            <div className={`w-2 h-2 rounded-full shrink-0 ${
+                              tx.tipo === "consumo" ? "bg-blue-500" : 
+                              tx.tipo === "alerta" ? "bg-red-500" : 
+                              tx.tipo === "estado_de_cuenta" ? "bg-violet-500" : "bg-gray-300"
+                            }`} />
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <span className="font-medium text-sm truncate">{tx.descripcion_corta || tx.subject}</span>
+                                <Badge variant="outline" className="text-xs shrink-0">{tx.tipo}</Badge>
+                                {tx.nivel_urgencia === "alta" && (
+                                  <Badge className="text-xs bg-red-100 text-red-700 border-red-200 hover:bg-red-100">Urgente</Badge>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                {tx.banco && <span>{tx.banco}</span>}
+                                {tx.tarjeta_ultimos4 && <span>****{tx.tarjeta_ultimos4}</span>}
+                                {tx.comercio && <span>· {tx.comercio}</span>}
+                                {tx.fecha_transaccion && <span>· {tx.fecha_transaccion}</span>}
+                              </div>
+                            </div>
+                            {tx.monto && (
+                              <span className="font-bold font-mono text-sm shrink-0">
+                                ${tx.monto.toLocaleString("es-EC", { minimumFractionDigits: 2 })}
+                              </span>
+                            )}
+                            {tx.estado === "pendiente" && (
+                              <div className="flex gap-1 shrink-0">
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="h-8 w-8 p-0 text-emerald-600 hover:bg-emerald-50"
+                                  onClick={() => handleApproveGmail(tx.gmail_id)}
+                                  data-testid={`gmail-approve-${tx.gmail_id}`}
+                                >
+                                  <CheckCircle size={18} />
+                                </Button>
+                                <Button 
+                                  size="sm" 
+                                  variant="ghost" 
+                                  className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
+                                  onClick={() => handleDiscardGmail(tx.gmail_id)}
+                                  data-testid={`gmail-discard-${tx.gmail_id}`}
+                                >
+                                  <XCircle size={18} />
+                                </Button>
+                              </div>
+                            )}
+                            {tx.estado === "aprobado" && (
+                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Aprobado</Badge>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             </TabsContent>
 
             {/* Validate Tab */}
