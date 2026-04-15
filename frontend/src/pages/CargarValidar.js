@@ -169,6 +169,7 @@ export default function CargarValidar() {
   const [gmailSummary, setGmailSummary] = useState({});
   const [gmailSyncing, setGmailSyncing] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
+  const [gmailDocuments, setGmailDocuments] = useState([]);
 
   useEffect(() => {
     if (activeTab === "validate") {
@@ -177,6 +178,7 @@ export default function CargarValidar() {
     if (activeTab === "gmail") {
       fetchGmailStatus();
       fetchGmailTransactions();
+      fetchGmailDocuments();
     }
   }, [activeTab]);
 
@@ -215,6 +217,15 @@ export default function CargarValidar() {
       console.log("Gmail transactions error");
     } finally {
       setGmailLoading(false);
+    }
+  };
+
+  const fetchGmailDocuments = async () => {
+    try {
+      const res = await axios.get(`${API}/gmail/documents`, { headers: getAuthHeaders() });
+      setGmailDocuments(res.data.documents || []);
+    } catch (e) {
+      console.log("Gmail documents error");
     }
   };
 
@@ -1195,6 +1206,56 @@ export default function CargarValidar() {
                             )}
                           </div>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Documents Section */}
+                    {gmailDocuments.length > 0 && (
+                      <div className="space-y-3 mt-6" data-testid="gmail-documents-section">
+                        <h4 className="font-semibold flex items-center gap-2">
+                          <FileText size={18} className="text-primary" />
+                          Documentos recibidos
+                          <Badge variant="outline" className="ml-1">{gmailDocuments.length}</Badge>
+                        </h4>
+                        <div className="space-y-2">
+                          {gmailDocuments.map((doc) => (
+                            <div 
+                              key={doc.id} 
+                              className="flex items-center gap-3 p-3 rounded-lg border bg-card"
+                              data-testid={`gmail-doc-${doc.id}`}
+                            >
+                              <div className="p-2 rounded-lg bg-red-50 text-red-500">
+                                <FileText size={20} weight="duotone" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium text-sm truncate">{doc.filename}</p>
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                  {doc.banco && <span>{doc.banco}</span>}
+                                  {doc.fecha_email && <span>· {doc.fecha_email}</span>}
+                                  {doc.tipo === "factura_sri" && doc.numero_factura && <span>· Fact. {doc.numero_factura}</span>}
+                                  {doc.transactions_count > 0 && (
+                                    <Badge className="text-xs bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-50">
+                                      {doc.transactions_count} transacciones
+                                    </Badge>
+                                  )}
+                                  {doc.procesado && (
+                                    <Badge className="text-xs bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-50">Procesado</Badge>
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 shrink-0"
+                                onClick={() => window.open(`${API}/gmail/documents/${doc.id}/view`, '_blank')}
+                                data-testid={`gmail-doc-view-${doc.id}`}
+                              >
+                                <Eye size={14} />
+                                Ver
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
                   </>

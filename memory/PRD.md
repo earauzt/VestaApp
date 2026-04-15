@@ -338,6 +338,12 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
 - Descarga automática de PDFs adjuntos → /app/uploads/gmail_pdfs/ + colección gmail_documents
 - Auto-categorización con known_vendors via SequenceMatcher
 - Frontend: pestaña "Gmail" con ícono 🧾 para facturas, badges verdes, campos adicionales
+
+### 15 Abril 2026 - Prompt 6: Visor de PDFs desde Gmail ✅
+- Descarga automática de PDFs adjuntos para estados de cuenta, facturas y resúmenes mensuales
+- Procesamiento automático via process_bank_statement_text → transacciones con source: "gmail_pdf"
+- Endpoints: GET /gmail/documents, GET /gmail/documents/{id}/view (FileResponse), POST /gmail/documents/{id}/reprocess
+- Frontend: subsección "Documentos recibidos" con lista de PDFs, botón "Ver" abre PDF en nueva ventana
 1. **PROMPT 1 - Learn Vendors con Fuzzy Matching**:
    - Endpoint `POST /api/transactions/learn-vendors` con difflib.SequenceMatcher ≥ 0.85 + heurístico de prefijo de marca
    - Campos: aliases[], source:'historical_import', match_count

@@ -6620,14 +6620,21 @@ async def _classify_email_with_ai(subject: str, body_snippet: str, force_type: s
     }
 
 
-async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, numero_factura: str, fecha: str) -> str:
-    """Download PDF attachment from a Gmail message and save to disk."""
+async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, tipo: str, banco: str, fecha: str, numero_factura: str = None) -> dict:
+    """Download PDF attachment from a Gmail message, save to disk, and optionally process."""
     import base64
+    result = {"filepath": None, "doc_id": None, "extracted_transactions": 0}
+
     try:
         msg = service.users().messages().get(userId='me', id=gmail_id, format='full').execute()
-        parts = msg.get('payload', {}).get('parts', [])
-
+        payload = msg.get('payload', {})
+        parts = payload.get('parts', [])
+        # Also check nested parts (multipart/mixed → multipart/alternative → etc)
+        all_parts = list(parts)
         for part in parts:
+            all_parts.extend(part.get('parts', []))
+
+        for part in all_parts:
             filename = part.get('filename', '')
             if not filename.lower().endswith('.pdf'):
                 continue
@@ -6644,38 +6651,87 @@ async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, n
             pdf_bytes = base64.urlsafe_b64decode(data)
 
             # Build filepath
-            upload_dir = f"/app/uploads/gmail_pdfs"
+            upload_dir = "/app/uploads/gmail_pdfs"
             os.makedirs(upload_dir, exist_ok=True)
 
-            safe_factura = re.sub(r'[^\w\-]', '_', (numero_factura or 'sin_numero'))
+            safe_banco = re.sub(r'[^\w\-]', '_', (banco or 'desconocido'))
             safe_fecha = re.sub(r'[^\w\-]', '_', (fecha or 'sin_fecha'))
-            filepath = f"{upload_dir}/{user_id}_{safe_factura}_{safe_fecha}.pdf"
+            safe_extra = re.sub(r'[^\w\-]', '_', (numero_factura or ''))
+            suffix = f"_{safe_extra}" if safe_extra else ""
+            filepath = f"{upload_dir}/{user_id}_{safe_banco}_{safe_fecha}{suffix}.pdf"
 
             with open(filepath, 'wb') as f:
                 f.write(pdf_bytes)
 
-            # Register in gmail_documents collection
-            await db.gmail_documents.insert_one({
+            doc_id = str(uuid.uuid4())
+            doc_record = {
+                "id": doc_id,
                 "user_id": user_id,
                 "gmail_id": gmail_id,
                 "filename": filename,
                 "filepath": filepath,
-                "tipo": "factura_sri",
+                "tipo": tipo,
+                "banco": banco,
                 "numero_factura": numero_factura,
                 "ruc_emisor": None,
                 "monto": None,
                 "fecha_email": fecha,
                 "procesado": False,
+                "transactions_count": 0,
                 "created_at": datetime.now(timezone.utc).isoformat()
-            })
+            }
 
+            # If it's a bank statement, extract and process transactions
+            if tipo in ("estado_de_cuenta", "resumen_mensual"):
+                try:
+                    extracted_text = extract_text_from_pdf(filepath)
+                    if extracted_text and len(extracted_text) > 50:
+                        ai_result = await process_bank_statement_text(extracted_text)
+                        transactions = ai_result.get("transactions", [])
+                        card_info = ai_result.get("card_info", {})
+
+                        # Create reconciliation items from extracted transactions
+                        tx_count = 0
+                        for t in transactions:
+                            amount = t.get("amount") or t.get("monto", 0)
+                            if not amount or amount == 0:
+                                continue
+                            tx_doc = {
+                                "id": str(uuid.uuid4()),
+                                "user_id": user_id,
+                                "amount": abs(float(amount)),
+                                "description": t.get("description") or t.get("descripcion", ""),
+                                "establishment": t.get("establishment") or t.get("comercio", ""),
+                                "vendor": t.get("establishment") or t.get("comercio", ""),
+                                "date": t.get("date") or t.get("fecha") or fecha,
+                                "personal_category": t.get("category") or "otros",
+                                "category": t.get("category") or "otros",
+                                "source": "gmail_pdf",
+                                "gmail_doc_id": doc_id,
+                                "status": "pending_review",
+                                "created_at": datetime.now(timezone.utc).isoformat()
+                            }
+                            await db.transactions.insert_one(tx_doc)
+                            tx_count += 1
+
+                        doc_record["procesado"] = True
+                        doc_record["transactions_count"] = tx_count
+                        doc_record["card_info"] = card_info
+                        result["extracted_transactions"] = tx_count
+                        logger.info(f"Gmail PDF processed: {tx_count} transactions from {filepath}")
+                except Exception as e:
+                    logger.error(f"Error processing Gmail PDF text: {e}")
+
+            await db.gmail_documents.insert_one(doc_record)
+            result["filepath"] = filepath
+            result["doc_id"] = doc_id
             logger.info(f"PDF saved: {filepath}")
-            return filepath
+            return result
 
     except Exception as e:
         logger.error(f"Error downloading Gmail PDF attachment: {e}")
 
-    return None
+    return result
 
 
 @api_router.post("/gmail/sync")
@@ -6799,12 +6855,22 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
                 vendor_category = vendor_match.get("personal_category")
                 vendor_sri = vendor_match.get("sri_category")
 
-        # Download PDF attachments for factura_sri
-        pdf_filepath = None
-        if tipo == "factura_sri":
-            pdf_filepath = await _download_gmail_pdf_attachment(
-                service, gmail_id, user["id"], numero_factura,
-                classification.get("fecha") or date_str
+        # Download PDF attachments for relevant types
+        pdf_result = {"filepath": None, "doc_id": None, "extracted_transactions": 0}
+        should_download_pdf = (
+            tipo == "factura_sri" or
+            tipo == "estado_de_cuenta" or
+            any(kw in subject_lower for kw in ["estado de cuenta", "resumen mensual", "factura"])
+        )
+
+        if should_download_pdf:
+            banco_name = classification.get("banco", "desconocido")
+            pdf_result = await _download_gmail_pdf_attachment(
+                service, gmail_id, user["id"],
+                tipo=tipo,
+                banco=banco_name,
+                fecha=classification.get("fecha") or date_str,
+                numero_factura=numero_factura
             )
 
         doc = {
@@ -6827,7 +6893,9 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
             "numero_factura": numero_factura,
             "ruc_emisor": ruc_emisor,
             "es_deducible": es_deducible,
-            "pdf_filepath": pdf_filepath,
+            "pdf_filepath": pdf_result.get("filepath"),
+            "pdf_doc_id": pdf_result.get("doc_id"),
+            "extracted_transactions": pdf_result.get("extracted_transactions", 0),
             "procesado_at": datetime.now(timezone.utc).isoformat()
         }
         await db.gmail_transactions.insert_one(doc)
@@ -6923,6 +6991,91 @@ async def discard_gmail_transaction(gmail_id: str, user: dict = Depends(get_curr
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Transacción no encontrada")
     return {"status": "success"}
+
+
+@api_router.get("/gmail/documents")
+async def list_gmail_documents(user: dict = Depends(get_current_user)):
+    """List all PDF documents downloaded from Gmail."""
+    docs = await db.gmail_documents.find(
+        {"user_id": user["id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return {"documents": docs}
+
+
+@api_router.get("/gmail/documents/{doc_id}/view")
+async def view_gmail_document(doc_id: str, user: dict = Depends(get_current_user)):
+    """Serve a downloaded Gmail PDF for viewing."""
+    from fastapi.responses import FileResponse
+
+    doc = await db.gmail_documents.find_one(
+        {"id": doc_id, "user_id": user["id"]},
+        {"_id": 0}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    filepath = doc.get("filepath")
+    if not filepath or not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Archivo PDF no encontrado en el servidor")
+
+    return FileResponse(
+        filepath,
+        media_type="application/pdf",
+        filename=doc.get("filename", "document.pdf")
+    )
+
+
+@api_router.post("/gmail/documents/{doc_id}/reprocess")
+async def reprocess_gmail_document(doc_id: str, user: dict = Depends(get_current_user)):
+    """Re-process a Gmail PDF to extract transactions."""
+    doc = await db.gmail_documents.find_one(
+        {"id": doc_id, "user_id": user["id"]},
+        {"_id": 0}
+    )
+    if not doc:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+
+    filepath = doc.get("filepath")
+    if not filepath or not os.path.exists(filepath):
+        raise HTTPException(status_code=404, detail="Archivo PDF no encontrado")
+
+    extracted_text = extract_text_from_pdf(filepath)
+    if not extracted_text or len(extracted_text) < 50:
+        raise HTTPException(status_code=400, detail="No se pudo extraer texto del PDF")
+
+    ai_result = await process_bank_statement_text(extracted_text)
+    transactions = ai_result.get("transactions", [])
+
+    tx_count = 0
+    for t in transactions:
+        amount = t.get("amount") or t.get("monto", 0)
+        if not amount or amount == 0:
+            continue
+        tx_doc = {
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "amount": abs(float(amount)),
+            "description": t.get("description") or t.get("descripcion", ""),
+            "establishment": t.get("establishment") or t.get("comercio", ""),
+            "vendor": t.get("establishment") or t.get("comercio", ""),
+            "date": t.get("date") or t.get("fecha", ""),
+            "personal_category": t.get("category") or "otros",
+            "category": t.get("category") or "otros",
+            "source": "gmail_pdf",
+            "gmail_doc_id": doc_id,
+            "status": "pending_review",
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.transactions.insert_one(tx_doc)
+        tx_count += 1
+
+    await db.gmail_documents.update_one(
+        {"id": doc_id},
+        {"$set": {"procesado": True, "transactions_count": tx_count}}
+    )
+
+    return {"status": "success", "transactions_extracted": tx_count}
 
 
 # ===== END GMAIL INTEGRATION =====
