@@ -325,6 +325,33 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
    - Dropdowns de categorías: z-index aumentado a 250 para visibilidad en diálogos
    - Usuario Demo: Contraseña corregida a "demopass"
 
+### 15 Abril 2026 - Prompts 1-4: Learn Vendors, Diferidos, Bulk Approve, UX ✅
+1. **PROMPT 1 - Learn Vendors con Fuzzy Matching**:
+   - Endpoint `POST /api/transactions/learn-vendors` con difflib.SequenceMatcher ≥ 0.85 + heurístico de prefijo de marca
+   - Campos: aliases[], source:'historical_import', match_count
+   - Respuesta: {status, vendors_nuevos, vendors_actualizados, total_en_db}
+   - Idempotente (0 nuevos en re-ejecución)
+   - Búsqueda por aliases en lookup_vendor
+
+2. **PROMPT 2 - Lógica de Diferidos Corregida**:
+   - Matching: card_name + monto ±5% (tiebreak: remaining_balance más alto)
+   - Fallback: card_name + keyword match en description
+   - Deducción automática con payment_history[] {date, amount, statement_id, detected_from}
+   - Auto-desactivación (is_active:false) cuando balance ≤ 0
+   - status:'pending_deferred_match' si no hay match
+
+3. **PROMPT 3 - Bulk Approve Arreglado**:
+   - Frontend envía {transaction_ids: [...]} con fallback _id||id
+   - Backend acepta ambos formatos, procesa individualmente sin romper batch
+   - Retorna {approved, failed, total}
+   - Toast verde/amarillo/rojo según resultado
+
+4. **PROMPT 4 - Mejoras UX**:
+   - Badge de confianza: Auto (verde), Sugerido (amarillo), Manual (gris)
+   - Progreso visual diferidos: barras + "Cuota X de Y — Quedan $Z" + fecha término
+   - Semáforo semanal: borde 4px verde/amarillo/rojo + badge Holgado/Déficit
+   - Widget SRI en Dashboard: "$X de $2,784 máx." con barra de progreso
+
 ---
 
 ## Backlog / Próximas Tareas
@@ -332,18 +359,20 @@ La aplicación debe cumplir con las leyes tributarias de Ecuador (SRI) y permiti
 ### P0 (Crítica)
 - [x] ~~Implementar Fases 1-3~~ ✅ COMPLETADO
 - [x] ~~Implementar Fondo de Viajes~~ ✅ COMPLETADO
+- [x] ~~Learn Vendors + Diferidos + Bulk Approve~~ ✅ COMPLETADO
 
 ### P1 (Alta Prioridad)
 - [x] ~~Corregir 403 -> 401 en autenticación fallida~~ ✅ COMPLETADO
 - [x] ~~Corregir visibilidad dropdown de categorías~~ ✅ COMPLETADO
 - [x] ~~Corregir botón "Editar" de Ahorro/Inversión en Mi Presupuesto~~ ✅ COMPLETADO
+- [ ] Recomendación de pagos con IA en Planificación de Flujo
 - [ ] Implementar Banner de Notificaciones Inteligentes (advertencias de flujo de caja, límites SRI)
 
 ### P2 (Media Prioridad)
-- [ ] Mejoras de densidad en Dashboard
 - [ ] Widget de "Próximas Acciones" en Dashboard
 - [ ] Notificaciones push al acercarse a límites SRI (80%)
 - [ ] Corregir advertencias exhaustive-deps en React hooks
+- [ ] Modularizar server.py (6000+ líneas → rutas separadas)
 
 ### P3 (Baja Prioridad)
 - [ ] Investigar integración directa con Apple Card
