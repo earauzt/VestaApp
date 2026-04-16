@@ -12,10 +12,7 @@ import os
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
-ADMIN_EMAIL = "earauzt@gmail.com"
-ADMIN_PASSWORD = "Realmadrid2011"
-DEMO_EMAIL = "demo@fintrack.ec"
-DEMO_PASSWORD = "demo2026"
+from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD, DEMO_EMAIL, DEMO_PASSWORD
 
 
 class TestHealthAndAuth:
