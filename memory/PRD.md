@@ -35,7 +35,12 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Array index as key replaced in 8 instances (Upload, Dashboard, CargarValidar, ChatBot)
   - 8 console.log wrapped in NODE_ENV === 'development' guards
   - 29/29 backend + frontend login flow verified
-- [2026-04-16] Code quality round 7:
+- [2026-04-16] Gmail OAuth fix:
+  - state now uses secrets.token_urlsafe(32) with 10min expiry in DB
+  - callback validates state exists + not expired, deletes after use (one-time)
+  - Invalid/expired state returns HTTP 400 {"detail":"invalid_state"}
+  - Frontend: window.open→window.location.href, loading state + error toast
+  - GOOGLE_REDIRECT_URI verified correct in .env
   - Confirmed all `is` comparisons are correct (is None/is not None)
   - CargarValidar.js:177 already fixed in prior session
   - Split ReconciliacionEstados.jsx (577→184 lines) into 3 sub-components:

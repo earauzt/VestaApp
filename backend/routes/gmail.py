@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import HTMLResponse, FileResponse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 import uuid
 import os
@@ -8,6 +8,7 @@ import re
 import json
 import logging
 import base64
+import secrets as secrets_mod
 
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
@@ -176,12 +177,19 @@ async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, t
 async def gmail_auth_url(user: dict = Depends(get_current_user)):
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise HTTPException(status_code=500, detail="Google OAuth2 no configurado")
+    state = secrets_mod.token_urlsafe(32)
     flow = Flow.from_client_config(
         {"web": {"client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET, "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token", "redirect_uris": [GOOGLE_REDIRECT_URI]}},
         scopes=GMAIL_SCOPES, redirect_uri=GOOGLE_REDIRECT_URI
     )
-    auth_url, state = flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent', state=user["id"])
-    await db.gmail_oauth_states.update_one({"state": state}, {"$set": {"user_id": user["id"], "created_at": datetime.now(timezone.utc).isoformat()}}, upsert=True)
+    auth_url, _ = flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent', state=state)
+    now = datetime.now(timezone.utc)
+    await db.gmail_oauth_states.insert_one({
+        "state": state,
+        "user_id": user["id"],
+        "created_at": now.isoformat(),
+        "expires_at": (now + timedelta(minutes=10)).isoformat()
+    })
     return {"auth_url": auth_url}
 
 
@@ -189,7 +197,12 @@ async def gmail_auth_url(user: dict = Depends(get_current_user)):
 async def gmail_callback(code: str, state: str):
     state_doc = await db.gmail_oauth_states.find_one({"state": state})
     if not state_doc:
-        return HTMLResponse("<html><body><h2>Error: Estado de autorizacion invalido</h2></body></html>")
+        raise HTTPException(status_code=400, detail="invalid_state")
+    expires_at = state_doc.get("expires_at", "")
+    if expires_at and datetime.fromisoformat(expires_at) < datetime.now(timezone.utc):
+        await db.gmail_oauth_states.delete_one({"state": state})
+        raise HTTPException(status_code=400, detail="invalid_state")
+    await db.gmail_oauth_states.delete_one({"state": state})
     user_id = state_doc["user_id"]
     try:
         flow = Flow.from_client_config(
@@ -203,7 +216,6 @@ async def gmail_callback(code: str, state: str):
             {"$set": {"user_id": user_id, "access_token": creds.token, "refresh_token": creds.refresh_token, "token_uri": creds.token_uri, "client_id": creds.client_id, "client_secret": creds.client_secret, "expires_at": creds.expiry.isoformat() if creds.expiry else None, "connected_at": datetime.now(timezone.utc).isoformat()}},
             upsert=True
         )
-        await db.gmail_oauth_states.delete_one({"state": state})
         return HTMLResponse("""<html><body style="font-family:sans-serif;display:flex;align-items:center;justify-content:center;height:100vh;background:#f0fdf4"><div style="text-align:center;padding:40px;background:white;border-radius:16px;box-shadow:0 4px 24px rgba(0,0,0,.1)"><h2 style="color:#16a34a">Gmail conectado exitosamente</h2><p>Puedes cerrar esta ventana y volver a FamilyFinance.</p></div></body></html>""")
     except Exception as e:
         logger.error(f"Gmail OAuth callback error: {e}")

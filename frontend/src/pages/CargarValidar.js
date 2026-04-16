@@ -231,12 +231,20 @@ export default function CargarValidar() {
     }
   }, [activeTab, fetchPendingData, fetchGmailStatus, fetchGmailTransactions, fetchGmailDocuments]);
 
+  const [gmailConnecting, setGmailConnecting] = useState(false);
+
   const handleConnectGmail = async () => {
+    setGmailConnecting(true);
     try {
       const res = await axios.get(`${API}/gmail/auth-url`, { headers: getAuthHeadersRef.current() });
-      window.open(res.data.auth_url, '_blank', 'width=600,height=700');
+      if (res.data?.auth_url) {
+        window.location.href = res.data.auth_url;
+      } else {
+        toast.error("No se pudo iniciar la conexion con Gmail. Intenta de nuevo.");
+      }
     } catch (e) {
-      toast.error("Error al generar URL de autorización");
+      toast.error("No se pudo iniciar la conexion con Gmail. Intenta de nuevo.");
+      setGmailConnecting(false);
     }
   };
 
@@ -1091,9 +1099,18 @@ export default function CargarValidar() {
                     <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                       FamilyFinance leerá tus notificaciones bancarias para detectar consumos, alertas y estados de cuenta automáticamente.
                     </p>
-                    <Button onClick={handleConnectGmail} className="gap-2" data-testid="gmail-connect-btn">
-                      <GoogleLogo size={18} weight="bold" />
-                      Conectar Gmail
+                    <Button onClick={handleConnectGmail} className="gap-2" disabled={gmailConnecting} data-testid="gmail-connect-btn">
+                      {gmailConnecting ? (
+                        <>
+                          <SpinnerGap size={18} className="animate-spin" />
+                          Conectando...
+                        </>
+                      ) : (
+                        <>
+                          <GoogleLogo size={18} weight="bold" />
+                          Conectar Gmail
+                        </>
+                      )}
                     </Button>
                   </div>
                 ) : (
