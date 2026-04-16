@@ -35,10 +35,15 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Array index as key replaced in 8 instances (Upload, Dashboard, CargarValidar, ChatBot)
   - 8 console.log wrapped in NODE_ENV === 'development' guards
   - 29/29 backend + frontend login flow verified
-- [2026-04-16] Code quality round 5:
-  - Flujo.js: fetch functions wrapped in useCallback with proper deps in useEffect
-  - CargarValidar.js: same pattern for fetchPendingData, fetchGmail* functions
-  - Both pass lint, frontend smoke verified
+- [2026-04-16] Code quality round 7:
+  - Confirmed all `is` comparisons are correct (is None/is not None)
+  - CargarValidar.js:177 already fixed in prior session
+  - Split ReconciliacionEstados.jsx (577→184 lines) into 3 sub-components:
+    ReconciliationHeader.jsx (116), TransactionList.jsx (189), MatchingPanel.jsx (142)
+  - Refactored process_bank_statement() (114 lines → 30 lines) with 4 helpers:
+    _upsert_card_from_statement, _save_deferred_purchases, _categorize_transaction,
+    _save_statement_transactions
+  - 19/19 backend + frontend verified (iteration_16)
   - secrets.choice replaces random.choice in cashflow.py reminders
   - Renamed list comprehension variable (item→it) to silence false positive
   - Removed unused import (random) and variable (budget_goals)
