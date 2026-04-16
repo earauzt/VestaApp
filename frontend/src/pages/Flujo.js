@@ -92,14 +92,7 @@ export default function Flujo() {
     card_name: ""
   });
 
-  useEffect(() => {
-    fetchData();
-    fetchBudgetData();
-    fetchDeferredPayments();
-    fetchIncomeData();
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/scheduled-payments`, { headers: getAuthHeadersRef.current() });
       setPayments(response.data);
@@ -108,34 +101,41 @@ export default function Flujo() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const fetchBudgetData = async () => {
+  const fetchBudgetData = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/budget/config`, { headers: getAuthHeadersRef.current() });
       setBudgetData(response.data);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') console.log("Error loading budget data");
     }
-  };
+  }, []);
 
-  const fetchDeferredPayments = async () => {
+  const fetchDeferredPayments = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/deferred-payments`, { headers: getAuthHeadersRef.current() });
       setDeferredPayments(response.data?.payments || []);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') console.log("Error loading deferred payments");
     }
-  };
+  }, []);
 
-  const fetchIncomeData = async () => {
+  const fetchIncomeData = useCallback(async () => {
     try {
       const response = await axios.get(`${API}/income/summary`, { headers: getAuthHeadersRef.current() });
       setIncomeData(response.data);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') console.log("Error loading income data");
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+    fetchBudgetData();
+    fetchDeferredPayments();
+    fetchIncomeData();
+  }, [fetchData, fetchBudgetData, fetchDeferredPayments, fetchIncomeData]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

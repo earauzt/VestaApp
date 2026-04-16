@@ -174,18 +174,7 @@ export default function CargarValidar() {
   const [gmailLoading, setGmailLoading] = useState(false);
   const [gmailDocuments, setGmailDocuments] = useState([]);
 
-  useEffect(() => {
-    if (activeTab === "validate") {
-      fetchPendingData();
-    }
-    if (activeTab === "gmail") {
-      fetchGmailStatus();
-      fetchGmailTransactions();
-      fetchGmailDocuments();
-    }
-  }, [activeTab]);
-
-  const fetchPendingData = async () => {
+  const fetchPendingData = useCallback(async () => {
     try {
       const [pendingRes, duplicatesRes, statsRes] = await Promise.all([
         axios.get(`${API}/reconciliation/pending`, { headers: getAuthHeadersRef.current() }),
@@ -198,19 +187,18 @@ export default function CargarValidar() {
     } catch (error) {
       console.error("Error fetching pending data:", error);
     }
-  };
+  }, []);
 
-  // Gmail functions
-  const fetchGmailStatus = async () => {
+  const fetchGmailStatus = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/gmail/status`, { headers: getAuthHeadersRef.current() });
       setGmailStatus(res.data);
     } catch (e) {
       if (process.env.NODE_ENV === 'development') console.log("Gmail status error");
     }
-  };
+  }, []);
 
-  const fetchGmailTransactions = async () => {
+  const fetchGmailTransactions = useCallback(async () => {
     setGmailLoading(true);
     try {
       const res = await axios.get(`${API}/gmail/transactions`, { headers: getAuthHeadersRef.current() });
@@ -221,16 +209,27 @@ export default function CargarValidar() {
     } finally {
       setGmailLoading(false);
     }
-  };
+  }, []);
 
-  const fetchGmailDocuments = async () => {
+  const fetchGmailDocuments = useCallback(async () => {
     try {
       const res = await axios.get(`${API}/gmail/documents`, { headers: getAuthHeadersRef.current() });
       setGmailDocuments(res.data.documents || []);
     } catch (e) {
       if (process.env.NODE_ENV === 'development') console.log("Gmail documents error");
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "validate") {
+      fetchPendingData();
+    }
+    if (activeTab === "gmail") {
+      fetchGmailStatus();
+      fetchGmailTransactions();
+      fetchGmailDocuments();
+    }
+  }, [activeTab, fetchPendingData, fetchGmailStatus, fetchGmailTransactions, fetchGmailDocuments]);
 
   const handleConnectGmail = async () => {
     try {
