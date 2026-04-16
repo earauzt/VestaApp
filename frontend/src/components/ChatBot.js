@@ -65,7 +65,7 @@ export default function ChatBot() {
       setSessionId(response.data.session_id);
       setMessages(prev => [...prev, { role: "assistant", content: response.data.response }]);
     } catch (error) {
-      console.error("Chat error:", error);
+      if (process.env.NODE_ENV === 'development') console.error("Chat error:", error);
       setMessages(prev => [...prev, { 
         role: "assistant", 
         content: "Lo siento, hubo un error al procesar tu mensaje. Por favor intenta de nuevo." 

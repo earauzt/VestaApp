@@ -83,7 +83,7 @@ class TestTransactionsCRUD:
         data = response.json()
         assert data["amount"] == 45.50
         assert data["category"] == "alimentacion"
-        assert data["is_deductible"] == True  # alimentacion is deductible
+        assert data["is_deductible"]  # alimentacion is deductible
         assert "id" in data
         print(f"✓ Created expense transaction: {data['id']}")
         return data["id"]
@@ -208,7 +208,7 @@ class TestSplitTransactions:
         data = split_response.json()
         assert "splits" in data
         assert len(data["splits"]) == 2
-        assert data["splits"][0]["is_split"] == True
+        assert data["splits"][0]["is_split"]
         assert data["splits"][0]["parent_transaction_id"] == transaction_id
         print(f"✓ Transaction split into {len(data['splits'])} parts")
         
@@ -367,7 +367,7 @@ class TestCategorizationRules:
         assert response.status_code == 200, f"Auto-categorize failed: {response.text}"
         
         data = response.json()
-        assert data["auto_categorized"] == True
+        assert data["auto_categorized"]
         assert data["category"] == "alimentacion"
         assert data["subcategory"] == "Supermercado"
         print(f"✓ Auto-categorized 'Supermaxi' as {data['category']}/{data['subcategory']}")
@@ -383,7 +383,7 @@ class TestCategorizationRules:
         assert response.status_code == 200
         
         data = response.json()
-        assert data["auto_categorized"] == True
+        assert data["auto_categorized"]
         assert data["category"] == "salud"
         print(f"✓ Auto-categorized 'Fybeca' as {data['category']}/{data['subcategory']}")
     
@@ -529,10 +529,10 @@ class TestSRIDeductionLimits:
         non_deductible = ["transporte", "viajes_internacionales", "otros"]
         
         for cat in deductible:
-            assert categories[cat]["deductible"] == True, f"{cat} should be deductible"
+            assert categories[cat]["deductible"], f"{cat} should be deductible"
         
         for cat in non_deductible:
-            assert categories[cat]["deductible"] == False, f"{cat} should NOT be deductible"
+            assert not categories[cat]["deductible"], f"{cat} should NOT be deductible"
         
         print("✓ Deductible vs non-deductible categories verified correctly")
 

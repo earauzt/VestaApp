@@ -230,13 +230,13 @@ class TestSRICategoriesEndpoints:
         deductible_cats = ["alimentacion", "salud", "educacion", "vivienda", "vestimenta", "turismo"]
         for cat in deductible_cats:
             assert cat in categories
-            assert categories[cat]["deductible"] == True
+            assert categories[cat]["deductible"]
             
         # Verify non-deductible categories
         non_deductible_cats = ["transporte", "viajes_internacionales", "otros"]
         for cat in non_deductible_cats:
             assert cat in categories
-            assert categories[cat]["deductible"] == False
+            assert not categories[cat]["deductible"]
             
         # Check income sources
         assert "income_sources" in data

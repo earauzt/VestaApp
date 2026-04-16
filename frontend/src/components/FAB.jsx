@@ -89,7 +89,7 @@ export default function FAB() {
         setShowQuickForm(true);
       }
     } catch (error) {
-      console.error("Upload error:", error);
+      if (process.env.NODE_ENV === 'development') console.error("Upload error:", error);
       toast.error("Error al procesar. Usa entrada manual.");
       setShowQuickForm(true);
     } finally {

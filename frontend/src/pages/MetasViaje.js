@@ -104,7 +104,7 @@ export default function MetasViaje() {
       setTransactions(transactionsRes.data.transactions || []);
       setSubcategorySummary(transactionsRes.data.by_subcategory || []);
     } catch (error) {
-      console.error("Error fetching data:", error);
+      if (process.env.NODE_ENV === 'development') console.error("Error fetching data:", error);
       toast.error("Error al cargar datos de viajes");
     } finally {
       setLoading(false);

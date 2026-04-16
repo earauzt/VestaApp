@@ -123,7 +123,7 @@ class TestKnownVendors(TestAuth):
             )
             assert lookup_response.status_code == 200, f"Lookup failed: {lookup_response.text}"
             lookup_data = lookup_response.json()
-            assert lookup_data.get("found") == True, f"Should find vendor by alias: {lookup_data}"
+            assert lookup_data.get("found"), f"Should find vendor by alias: {lookup_data}"
             print(f"Lookup by alias '{alias}' found vendor: {lookup_data.get('vendor', {}).get('establishment')}")
         else:
             # Try lookup with establishment name
@@ -136,7 +136,7 @@ class TestKnownVendors(TestAuth):
                 )
                 assert lookup_response.status_code == 200
                 lookup_data = lookup_response.json()
-                assert lookup_data.get("found") == True, f"Should find vendor by name: {lookup_data}"
+                assert lookup_data.get("found"), f"Should find vendor by name: {lookup_data}"
                 print(f"Lookup by name '{establishment}' found vendor")
             else:
                 pytest.skip("No vendors to test lookup")

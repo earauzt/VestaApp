@@ -126,7 +126,7 @@ export default function ReconciliacionEstados() {
         toast.warning("No se encontraron transacciones en el estado de cuenta. Verifica que el archivo sea legible.");
       }
     } catch (error) {
-      console.error("Upload error:", error);
+      if (process.env.NODE_ENV === 'development') console.error("Upload error:", error);
       const errorMsg = error.response?.data?.detail || error.message || "Error al procesar estado de cuenta";
       toast.error(errorMsg);
     } finally {

@@ -185,7 +185,7 @@ export default function CargarValidar() {
       setDuplicatePairs(duplicatesRes.data.pairs || []);
       setStats(statsRes.data);
     } catch (error) {
-      console.error("Error fetching pending data:", error);
+      if (process.env.NODE_ENV === 'development') console.error("Error fetching pending data:", error);
     }
   }, []);
 
