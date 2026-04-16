@@ -123,7 +123,7 @@ export default function SRILimits() {
         <div className="space-y-2">
           {data.alerts.map((alert, index) => (
             <Alert 
-              key={index} 
+              key={`${alert.type}-${alert.message?.slice(0, 30)}`} 
               variant={alert.type === "error" ? "destructive" : "default"}
               className={alert.type === "warning" ? "border-amber-500 bg-amber-50 dark:bg-amber-900/10" : ""}
             >

@@ -161,7 +161,7 @@ export default function Predictions() {
                 <div className="space-y-3">
                   {data.advice.map((tip, index) => (
                     <motion.div
-                      key={index}
+                      key={`advice-${tip.slice(0, 20)}`}
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.1 }}
@@ -204,7 +204,7 @@ export default function Predictions() {
               <div className="grid md:grid-cols-2 gap-4">
                 {data.sri_tips.map((tip, index) => (
                   <motion.div
-                    key={index}
+                    key={`sri-${tip.slice(0, 20)}`}
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     transition={{ duration: 0.3, delay: index * 0.1 }}

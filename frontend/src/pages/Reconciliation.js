@@ -576,7 +576,7 @@ export default function Reconciliation() {
                   </Label>
                   <div className="flex flex-wrap gap-2">
                     {detailTransaction.attachments.map((att, i) => (
-                      <Badge key={i} variant="secondary" className="gap-1">
+                      <Badge key={att} variant="secondary" className="gap-1">
                         <Paperclip size={12} />
                         {att.split("_").pop()}
                       </Badge>

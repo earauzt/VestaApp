@@ -157,8 +157,8 @@ export function AttachmentUploader({ open, onOpenChange, transaction, onUploadCo
             <div className="mt-2 pt-2 border-t">
               <p className="text-xs text-muted-foreground mb-1">Archivos adjuntos:</p>
               <div className="flex flex-wrap gap-1">
-                {transaction.attachments.map((att, i) => (
-                  <Badge key={i} variant="secondary" className="text-xs gap-1">
+                {transaction.attachments.map((att) => (
+                  <Badge key={att} variant="secondary" className="text-xs gap-1">
                     <Paperclip size={12} />
                     {att.split("_").pop()}
                   </Badge>
@@ -288,9 +288,9 @@ export function AttachmentViewer({ attachments, transactionId }) {
   return (
     <>
       <div className="flex flex-wrap gap-1">
-        {attachments.map((att, i) => (
+        {attachments.map((att) => (
           <Badge 
-            key={i} 
+            key={att} 
             variant="outline" 
             className="text-xs gap-1 cursor-pointer hover:bg-muted"
             onClick={() => {

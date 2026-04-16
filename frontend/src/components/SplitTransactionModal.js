@@ -184,7 +184,7 @@ export function SplitTransactionModal({ open, onOpenChange, transaction, onSplit
         {/* Splits */}
         <div className="space-y-4">
           {splits.map((split, index) => (
-            <div key={index} className="p-4 rounded-lg border bg-card space-y-3">
+            <div key={`split-${index}-${split.category || ''}`} className="p-4 rounded-lg border bg-card space-y-3">
               <div className="flex items-center justify-between">
                 <span className="font-medium text-sm text-muted-foreground">División {index + 1}</span>
                 {splits.length > 2 && (
