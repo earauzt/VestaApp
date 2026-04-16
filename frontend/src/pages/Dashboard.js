@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Link } from "react-router-dom";
 import axios from "axios";
@@ -157,6 +157,13 @@ export default function Dashboard() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  const sortedCategoryData = useMemo(() => 
+    categoryData
+      .filter(cat => cat.budget > 0 || cat.value > 0)
+      .sort((a, b) => (b.value / (b.budget || 1)) - (a.value / (a.budget || 1))),
+    [categoryData]
+  );
 
   const formatCurrency = (value) => {
     return new Intl.NumberFormat('es-EC', {
@@ -623,7 +630,7 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                       {cashflowProjection.upcoming_items.slice(0, 6).map((item, idx) => (
                         <div 
-                          key={idx} 
+                          key={`upcoming-${item.description}-${item.amount}`} 
                           className="flex items-center justify-between p-2 rounded-lg bg-white/40 dark:bg-black/10"
                         >
                           <div className="flex items-center gap-2">
@@ -730,9 +737,7 @@ export default function Dashboard() {
                   </motion.div>
                 )}
 
-                {categoryData
-                  .filter(cat => cat.budget > 0 || cat.value > 0)
-                  .sort((a, b) => (b.value / (b.budget || 1)) - (a.value / (a.budget || 1)))
+                {sortedCategoryData
                   .map((cat, index) => {
                     const percentage = cat.budget > 0 ? (cat.value / cat.budget) * 100 : 0;
                     const isOverBudget = percentage > 100;

@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import uuid
-import random
+import secrets
 
 from database import db
 from models import (
@@ -88,7 +88,7 @@ async def get_expected_income(user: dict = Depends(get_current_user)):
         if item.get("status") == "pending" and item.get("expected_date", "") < today:
             item["status"] = "overdue"
     total_pending = sum(i.get("amount", 0) for i in items if i.get("status") in ["pending", "overdue"])
-    return {"items": [{k: v for k, v in item.items() if k != "_id"} for item in items], "total_pending": total_pending, "count": len(items)}
+    return {"items": [{k: v for k, v in it.items() if k != "_id"} for it in items], "total_pending": total_pending, "count": len(items)}
 
 
 @router.post("/expected-income")
@@ -136,7 +136,7 @@ async def get_accounts_receivable(user: dict = Depends(get_current_user)):
         if item.get("status") == "pending" and item.get("due_date", "") < today:
             item["status"] = "overdue"
     total_pending = sum(i.get("amount", 0) - i.get("amount_paid", 0) for i in items if i.get("status") in ["pending", "overdue", "partial"])
-    return {"items": [{k: v for k, v in item.items() if k != "_id"} for item in items], "total_pending": total_pending, "count": len(items)}
+    return {"items": [{k: v for k, v in it.items() if k != "_id"} for it in items], "total_pending": total_pending, "count": len(items)}
 
 
 @router.post("/accounts-receivable")
@@ -235,7 +235,6 @@ async def get_travel_fund(year: int = None, user: dict = Depends(get_current_use
     current_year = year or datetime.now().year
     fund = await db.travel_funds.find_one({"user_id": user["id"], "year": current_year}, {"_id": 0})
     if not fund:
-        budget_goals = get_budget_goals(user)
         annual_budget = 16500 if not is_demo_user(user) else 2000
         fund = {"id": str(uuid.uuid4()), "user_id": user["id"], "year": current_year, "annual_budget": annual_budget, "total_deposited": 0, "deposits": [], "created_at": datetime.now(timezone.utc).isoformat()}
         await db.travel_funds.insert_one(fund)
@@ -405,7 +404,7 @@ async def get_reminders(user: dict = Depends(get_current_user)):
 
     if not any(r["priority"] == "high" for r in reminders):
         motivational = ["Vas bien! Sigue controlando tus gastos.", "Recuerda tu meta: Gastos fijos 55-65%", "Tip: Revisa tus suscripciones mensualmente", "Excelente! No tienes pagos urgentes pendientes", "Cada dia sin deuda nueva es un paso adelante"]
-        reminders.append({"type": "motivation", "priority": "low", "title": random.choice(motivational), "message": "", "action": None})
+        reminders.append({"type": "motivation", "priority": "low", "title": secrets.choice(motivational), "message": "", "action": None})
 
     priority_order = {"high": 0, "medium": 1, "low": 2}
     reminders.sort(key=lambda x: priority_order.get(x.get("priority", "low"), 2))

@@ -35,9 +35,13 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Array index as key replaced in 8 instances (Upload, Dashboard, CargarValidar, ChatBot)
   - 8 console.log wrapped in NODE_ENV === 'development' guards
   - 29/29 backend + frontend login flow verified
-- [2026-04-15] Code quality round 3: removed hardcoded secrets from 2 new test files,
-  fixed array index as key in 7 frontend files (Reconciliation, Predictions, SRILimits,
-  SplitTransactionModal, AttachmentUploader). 49/49 pytest passed.
+- [2026-04-16] Code quality round 4:
+  - secrets.choice replaces random.choice in cashflow.py reminders
+  - Renamed list comprehension variable (item→it) to silence false positive
+  - Removed unused import (random) and variable (budget_goals)
+  - Added error logging to AuthContext.js logout catch block
+  - Fixed last array index key (Dashboard.js:626)
+  - Added useMemo for sorted categoryData in Dashboard.js
 - [2026-04-15] Gmail service receipts feature:
   - SERVICE_DOMAINS whitelist (Apple, Netflix, Spotify, Google, Amazon, Adobe)
   - _classify_service_receipt GPT-4o classifier for tipo=recibo_servicio

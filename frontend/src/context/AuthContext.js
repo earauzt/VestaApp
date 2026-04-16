@@ -61,8 +61,8 @@ export const AuthProvider = ({ children }) => {
   const logout = async () => {
     try {
       await axios.post(`${API}/auth/logout`);
-    } catch {
-      // Ignore errors — clear local state regardless
+    } catch (err) {
+      if (process.env.NODE_ENV === 'development') console.error('Logout request failed:', err);
     }
     setToken(null);
     setUser(null);
