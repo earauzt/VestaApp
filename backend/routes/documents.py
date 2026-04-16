@@ -109,6 +109,133 @@ async def process_multiple_receipts(files: List[UploadFile] = File(...), user: d
     return {"message": f"Procesados {len(files)} archivos, {len(all_transactions)} transacciones creadas", "transactions": all_transactions, "errors": errors}
 
 
+async def _upsert_card_from_statement(user_id: str, card_info: dict, response_data: dict):
+    """Extract or update credit card info from statement."""
+    bank_name = card_info.get("bank_name", "").lower()
+    card_number = card_info.get("card_number_last4", "")
+    existing_card = None
+    if bank_name:
+        existing_card = await db.credit_cards.find_one({"user_id": user_id, "$or": [{"name": {"$regex": bank_name, "$options": "i"}}, {"last_four_digits": card_number}]})
+
+    if existing_card:
+        update_data = {"current_balance": card_info.get("current_balance", existing_card.get("current_balance", 0)), "minimum_payment": card_info.get("minimum_payment", existing_card.get("minimum_payment", 0)), "credit_limit": card_info.get("credit_limit", existing_card.get("credit_limit", 0)), "available_credit": card_info.get("available_credit"), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "updated_at": datetime.now(timezone.utc).isoformat()}
+        if card_info.get("apr"):
+            update_data["apr"] = card_info["apr"]
+        await db.credit_cards.update_one({"id": existing_card["id"]}, {"$set": update_data})
+        response_data["card_updated"] = True
+        response_data["card_info"] = {**existing_card, **update_data, "_id": None}
+        card_id = existing_card["id"]
+        card_name_val = existing_card["name"]
+    else:
+        card_id = str(uuid.uuid4())
+        new_card = {"id": card_id, "user_id": user_id, "name": card_info.get("card_name") or card_info.get("bank_name", "Tarjeta Importada"), "bank": card_info.get("bank_name", ""), "last_four_digits": card_number, "credit_limit": card_info.get("credit_limit", 0), "current_balance": card_info.get("current_balance", 0), "minimum_payment": card_info.get("minimum_payment", 0), "apr": card_info.get("apr", 0), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "available_credit": card_info.get("available_credit"), "currency": "USD", "is_international": False, "created_at": datetime.now(timezone.utc).isoformat()}
+        await db.credit_cards.insert_one(new_card)
+        response_data["card_info"] = {k: v for k, v in new_card.items() if k != "_id"}
+        response_data["card_updated"] = True
+        card_name_val = new_card["name"]
+
+    # Schedule payment if due date known
+    if card_info.get("due_date") and card_info.get("current_balance"):
+        due_date = card_info["due_date"]
+        try:
+            due_day = int(due_date.split("-")[2]) if "-" in due_date else 15
+        except Exception:
+            due_day = 15
+        existing_payment = await db.scheduled_payments.find_one({"user_id": user_id, "card_id": card_id, "month": datetime.now().month})
+        if not existing_payment:
+            payment_doc = {"id": str(uuid.uuid4()), "user_id": user_id, "card_id": card_id, "description": f"Pago Tarjeta {card_name_val}", "amount": card_info.get("current_balance", 0), "minimum_amount": card_info.get("minimum_payment", 0), "due_day": due_day, "due_date": due_date, "month": datetime.now().month, "year": datetime.now().year, "payment_method": "transferencia", "category": "tarjeta_credito", "is_recurring": True, "is_card_payment": True, "status": "pending", "created_at": datetime.now(timezone.utc).isoformat()}
+            await db.scheduled_payments.insert_one(payment_doc)
+            response_data["payment_scheduled"] = True
+
+
+async def _save_deferred_purchases(user_id: str, deferred_purchases: list, card_info: dict, response_data: dict, filename: str):
+    """Save deferred purchase records."""
+    deferred_created = []
+    for dp in deferred_purchases:
+        if dp.get("remaining_installments", 0) > 0:
+            deferred_doc = {"id": str(uuid.uuid4()), "user_id": user_id, "description": dp.get("description", "Compra Diferida"), "total_amount": dp.get("total_amount", 0), "monthly_payment": dp.get("monthly_payment", 0), "remaining_installments": dp.get("remaining_installments", 0), "total_installments": dp.get("total_installments", dp.get("remaining_installments", 0)), "card_id": response_data.get("card_info", {}).get("id") if response_data.get("card_info") else None, "card_name": card_info.get("card_name") or card_info.get("bank_name") if card_info else None, "created_at": datetime.now(timezone.utc).isoformat(), "source_file": filename}
+            await db.deferred_payments.insert_one(deferred_doc)
+            deferred_created.append({k: v for k, v in deferred_doc.items() if k != "_id"})
+    response_data["deferred_payments_created"] = len(deferred_created)
+    response_data["deferred_payments"] = deferred_created
+    return deferred_created
+
+
+def _categorize_transaction(t: dict, vendor_lookup: dict, is_subscription: bool) -> dict:
+    """Determine category, sri_category, subcategory, deductibility for a transaction."""
+    if vendor_lookup["found"]:
+        return {
+            "category": vendor_lookup.get("personal_category") or t.get("category", "otros"),
+            "sri_category": vendor_lookup.get("sri_category"),
+            "subcategory": vendor_lookup.get("subcategory") or t.get("subcategory", "Varios"),
+            "is_deductible": vendor_lookup.get("is_deductible", False),
+            "auto_categorized_by": "known_vendor"
+        }
+    if is_subscription:
+        return {
+            "category": "suscripciones", "sri_category": None,
+            "subcategory": t.get("subcategory", "Varios"),
+            "is_deductible": False, "auto_categorized_by": "subscription_detection"
+        }
+    category = t.get("category", "otros")
+    return {
+        "category": category, "sri_category": t.get("sri_category"),
+        "subcategory": t.get("subcategory", "Varios"),
+        "is_deductible": SRI_CATEGORIES.get(category, {}).get("deductible", False),
+        "auto_categorized_by": "ai" if t.get("category") else None
+    }
+
+
+async def _save_statement_transactions(user_id: str, transactions: list, card_info: dict, filename: str) -> list:
+    """Validate, categorize and save each transaction from a bank statement."""
+    created = []
+    for t in transactions:
+        amount = abs(t.get("amount", 0))
+        if amount == 0:
+            continue
+        is_payment = t.get("amount", 0) < 0 or "pago" in t.get("description", "").lower()
+        if is_payment:
+            continue
+
+        date = t.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
+        establishment = t.get("establishment", t.get("description", "")[:50])
+        description = t.get("description", "")
+
+        vendor_lookup = await lookup_known_vendor(user_id, establishment, description)
+        is_subscription = t.get("is_subscription", False)
+        text_lower = f"{description} {establishment}".lower()
+        for sub in SUBSCRIPTION_SERVICES:
+            if sub in text_lower:
+                is_subscription = True
+                break
+
+        cat_info = _categorize_transaction(t, vendor_lookup, is_subscription)
+        duplicates = await find_potential_duplicates(user_id, amount, date, establishment, description)
+
+        doc = {
+            "id": str(uuid.uuid4()), "user_id": user_id, "amount": amount,
+            "description": description, "category": cat_info["category"],
+            "personal_category": cat_info["category"], "sri_category": cat_info["sri_category"],
+            "subcategory": cat_info["subcategory"], "date": date,
+            "transaction_type": "expense", "establishment": establishment,
+            "is_international": t.get("is_international", False) if not is_subscription else False,
+            "is_subscription": is_subscription, "is_recurring": is_subscription,
+            "is_deductible": cat_info["is_deductible"],
+            "tags": ["recurrente", "suscripcion"] if is_subscription else [],
+            "payment_method": "tarjeta",
+            "card_name": card_info.get("card_name") or card_info.get("bank_name") if card_info else None,
+            "ai_classified": True, "auto_categorized_by": cat_info["auto_categorized_by"],
+            "status": TransactionStatus.DUPLICATE_SUSPECT if duplicates else TransactionStatus.PENDING_REVIEW,
+            "source_type": SourceType.BANK_STATEMENT,
+            "duplicate_of": duplicates[0]["transaction"]["id"] if duplicates else None,
+            "match_confidence": duplicates[0]["confidence"] if duplicates else None,
+            "created_at": datetime.now(timezone.utc).isoformat(), "source_file": filename
+        }
+        await db.transactions.insert_one(doc)
+        created.append({k: v for k, v in doc.items() if k != "_id"})
+    return created
+
+
 @router.post("/process/bank-statement")
 async def process_bank_statement(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
     temp_dir = tempfile.mkdtemp()
@@ -117,102 +244,26 @@ async def process_bank_statement(file: UploadFile = File(...), user: dict = Depe
         async with aiofiles.open(file_path, 'wb') as f:
             content = await file.read()
             await f.write(content)
+
         result = await process_image_with_ai(file_path, document_type="bank_statement")
         response_data = {"card_info": None, "card_updated": False, "transactions_created": 0, "transactions": []}
-        card_info = result.get("card_info")
-        if card_info and card_info.get("current_balance"):
-            bank_name = card_info.get("bank_name", "").lower()
-            card_number = card_info.get("card_number_last4", "")
-            existing_card = None
-            if bank_name:
-                existing_card = await db.credit_cards.find_one({"user_id": user["id"], "$or": [{"name": {"$regex": bank_name, "$options": "i"}}, {"last_four_digits": card_number}]})
-            if existing_card:
-                update_data = {"current_balance": card_info.get("current_balance", existing_card.get("current_balance", 0)), "minimum_payment": card_info.get("minimum_payment", existing_card.get("minimum_payment", 0)), "credit_limit": card_info.get("credit_limit", existing_card.get("credit_limit", 0)), "available_credit": card_info.get("available_credit"), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "updated_at": datetime.now(timezone.utc).isoformat()}
-                if card_info.get("apr"):
-                    update_data["apr"] = card_info["apr"]
-                await db.credit_cards.update_one({"id": existing_card["id"]}, {"$set": update_data})
-                response_data["card_updated"] = True
-                response_data["card_info"] = {**existing_card, **update_data, "_id": None}
-                if card_info.get("due_date") and card_info.get("current_balance"):
-                    due_date = card_info["due_date"]
-                    try:
-                        due_day = int(due_date.split("-")[2]) if "-" in due_date else 15
-                    except Exception:
-                        due_day = 15
-                    existing_payment = await db.scheduled_payments.find_one({"user_id": user["id"], "card_id": existing_card["id"], "month": datetime.now().month})
-                    if not existing_payment:
-                        payment_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "card_id": existing_card["id"], "description": f"Pago Tarjeta {existing_card['name']}", "amount": card_info.get("current_balance", 0), "minimum_amount": card_info.get("minimum_payment", 0), "due_day": due_day, "due_date": due_date, "month": datetime.now().month, "year": datetime.now().year, "payment_method": "transferencia", "category": "tarjeta_credito", "is_recurring": True, "is_card_payment": True, "status": "pending", "created_at": datetime.now(timezone.utc).isoformat()}
-                        await db.scheduled_payments.insert_one(payment_doc)
-                        response_data["payment_scheduled"] = True
-            else:
-                new_card_id = str(uuid.uuid4())
-                new_card = {"id": new_card_id, "user_id": user["id"], "name": card_info.get("card_name") or card_info.get("bank_name", "Tarjeta Importada"), "bank": card_info.get("bank_name", ""), "last_four_digits": card_number, "credit_limit": card_info.get("credit_limit", 0), "current_balance": card_info.get("current_balance", 0), "minimum_payment": card_info.get("minimum_payment", 0), "apr": card_info.get("apr", 0), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "available_credit": card_info.get("available_credit"), "currency": "USD", "is_international": False, "created_at": datetime.now(timezone.utc).isoformat()}
-                await db.credit_cards.insert_one(new_card)
-                response_data["card_info"] = {k: v for k, v in new_card.items() if k != "_id"}
-                response_data["card_updated"] = True
-                if card_info.get("due_date") and card_info.get("current_balance"):
-                    due_date = card_info["due_date"]
-                    try:
-                        due_day = int(due_date.split("-")[2]) if "-" in due_date else 15
-                    except Exception:
-                        due_day = 15
-                    payment_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "card_id": new_card_id, "description": f"Pago Tarjeta {new_card['name']}", "amount": card_info.get("current_balance", 0), "minimum_amount": card_info.get("minimum_payment", 0), "due_day": due_day, "due_date": due_date, "month": datetime.now().month, "year": datetime.now().year, "payment_method": "transferencia", "category": "tarjeta_credito", "is_recurring": True, "is_card_payment": True, "status": "pending", "created_at": datetime.now(timezone.utc).isoformat()}
-                    await db.scheduled_payments.insert_one(payment_doc)
-                    response_data["payment_scheduled"] = True
+        card_info = result.get("card_info") or {}
 
-        deferred_purchases = result.get("deferred_purchases", [])
-        deferred_created = []
-        for dp in deferred_purchases:
-            if dp.get("remaining_installments", 0) > 0:
-                deferred_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "description": dp.get("description", "Compra Diferida"), "total_amount": dp.get("total_amount", 0), "monthly_payment": dp.get("monthly_payment", 0), "remaining_installments": dp.get("remaining_installments", 0), "total_installments": dp.get("total_installments", dp.get("remaining_installments", 0)), "card_id": response_data.get("card_info", {}).get("id") if response_data.get("card_info") else None, "card_name": card_info.get("card_name") or card_info.get("bank_name") if card_info else None, "created_at": datetime.now(timezone.utc).isoformat(), "source_file": file.filename}
-                await db.deferred_payments.insert_one(deferred_doc)
-                deferred_created.append({k: v for k, v in deferred_doc.items() if k != "_id"})
-        response_data["deferred_payments_created"] = len(deferred_created)
-        response_data["deferred_payments"] = deferred_created
+        # 1. Upsert credit card
+        if card_info.get("current_balance"):
+            await _upsert_card_from_statement(user["id"], card_info, response_data)
 
-        transactions = result.get("transactions", [])
-        created_transactions = []
-        for t in transactions:
-            amount = abs(t.get("amount", 0))
-            if amount == 0:
-                continue
-            is_payment = t.get("amount", 0) < 0 or "pago" in t.get("description", "").lower()
-            if is_payment:
-                continue
-            date = t.get("date", datetime.now(timezone.utc).strftime("%Y-%m-%d"))
-            establishment = t.get("establishment", t.get("description", "")[:50])
-            description = t.get("description", "")
-            vendor_lookup = await lookup_known_vendor(user["id"], establishment, description)
-            is_subscription = t.get("is_subscription", False)
-            desc_lower = description.lower()
-            estab_lower = establishment.lower() if establishment else ""
-            for sub in SUBSCRIPTION_SERVICES:
-                if sub in desc_lower or sub in estab_lower:
-                    is_subscription = True
-                    break
-            if vendor_lookup["found"]:
-                category = vendor_lookup.get("personal_category") or t.get("category", "otros")
-                sri_category = vendor_lookup.get("sri_category")
-                subcategory = vendor_lookup.get("subcategory") or t.get("subcategory", "Varios")
-                is_deductible = vendor_lookup.get("is_deductible", False)
-                auto_categorized_by = "known_vendor"
-            elif is_subscription:
-                category = "suscripciones"
-                sri_category = None
-                subcategory = t.get("subcategory", "Varios")
-                is_deductible = False
-                auto_categorized_by = "subscription_detection"
-            else:
-                category = t.get("category", "otros")
-                sri_category = t.get("sri_category")
-                subcategory = t.get("subcategory", "Varios")
-                is_deductible = SRI_CATEGORIES.get(category, {}).get("deductible", False)
-                auto_categorized_by = "ai" if t.get("category") else None
-            duplicates = await find_potential_duplicates(user["id"], amount, date, establishment, description)
-            transaction_id = str(uuid.uuid4())
-            doc = {"id": transaction_id, "user_id": user["id"], "amount": amount, "description": description, "category": category, "personal_category": category, "sri_category": sri_category, "subcategory": subcategory, "date": date, "transaction_type": "expense", "establishment": establishment, "is_international": t.get("is_international", False) if not is_subscription else False, "is_subscription": is_subscription, "is_recurring": is_subscription, "is_deductible": is_deductible, "tags": ["recurrente", "suscripcion"] if is_subscription else [], "payment_method": "tarjeta", "card_name": card_info.get("card_name") or card_info.get("bank_name") if card_info else None, "ai_classified": True, "auto_categorized_by": auto_categorized_by, "status": TransactionStatus.DUPLICATE_SUSPECT if duplicates else TransactionStatus.PENDING_REVIEW, "source_type": SourceType.BANK_STATEMENT, "duplicate_of": duplicates[0]["transaction"]["id"] if duplicates else None, "match_confidence": duplicates[0]["confidence"] if duplicates else None, "created_at": datetime.now(timezone.utc).isoformat(), "source_file": file.filename}
-            await db.transactions.insert_one(doc)
-            created_transactions.append({k: v for k, v in doc.items() if k != "_id"})
+        # 2. Save deferred purchases
+        deferred_created = await _save_deferred_purchases(
+            user["id"], result.get("deferred_purchases", []),
+            card_info, response_data, file.filename
+        )
+
+        # 3. Process and save transactions
+        created_transactions = await _save_statement_transactions(
+            user["id"], result.get("transactions", []),
+            card_info, file.filename
+        )
 
         response_data["transactions_created"] = len(created_transactions)
         response_data["transactions"] = created_transactions
