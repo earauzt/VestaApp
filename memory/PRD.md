@@ -123,6 +123,14 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Dashboard widget actualizado: "Tu límite: $X (20% de $Y = $Z) — Tope legal: $W"
   - Transactions edit dialog: select Beneficiario + toggle Aplica IVA + input Subtotal (condicional)
   - 13/13 backend + frontend verificado (iteration_18)
+- [2026-04-20] SESIÓN 9 - Recibos de servicios digitales (mini-fix):
+  - Feature ya existente de sesiones previas (SERVICE_DOMAINS, _classify_service_receipt,
+    endpoint /dashboard/subscription-renewals, widget Dashboard con 🔄)
+  - Gap corregido 1: endpoint filtra SOLO los ≤7 días (antes incluía los sin fecha)
+  - Gap corregido 2: backend agrega days_until_renewal al payload
+  - Gap corregido 3: widget Dashboard cambia texto de "Renueva el YYYY-MM-DD" a
+    "Se renueva en X días — $X.XX" + subtítulo "🔄 Esta semana (n)"
+  - Verificado con curl: Netflix in 3d aparece, Spotify in 10d no aparece, Apple sin fecha no aparece
 
 ## Tech Stack
 - Backend: FastAPI, Python, Motor (async MongoDB), JWT httpOnly cookies

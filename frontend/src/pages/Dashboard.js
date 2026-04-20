@@ -350,7 +350,9 @@ export default function Dashboard() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="space-y-2"
+          data-testid="subscriptions-this-week"
         >
+          <p className="text-sm font-medium text-muted-foreground px-1">🔄 Esta semana ({subscriptionRenewals.length})</p>
           {subscriptionRenewals.map((sub) => (
             <div 
               key={`sub-${sub.gmail_id || sub.comercio}`}
@@ -363,11 +365,13 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <p className="font-medium">{sub.comercio || "Suscripcion"}</p>
-                  <p className="text-sm opacity-80">
-                    {sub.proxima_renovacion 
-                      ? `Renueva el ${sub.proxima_renovacion}` 
-                      : "Suscripcion activa"}
-                    {sub.monto ? ` · $${sub.monto.toFixed(2)}` : ""}
+                  <p className="text-sm opacity-80" data-testid={`renewal-text-${sub.comercio}`}>
+                    {typeof sub.days_until_renewal === "number"
+                      ? (sub.days_until_renewal === 0
+                          ? "Se renueva hoy"
+                          : `Se renueva en ${sub.days_until_renewal} ${sub.days_until_renewal === 1 ? "día" : "días"}`)
+                      : (sub.proxima_renovacion ? `Renueva el ${sub.proxima_renovacion}` : "Suscripcion activa")}
+                    {sub.monto ? ` — $${sub.monto.toFixed(2)}` : ""}
                   </p>
                 </div>
               </div>

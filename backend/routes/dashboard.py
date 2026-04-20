@@ -187,7 +187,9 @@ async def get_sri_deduction_limits(cargas_familiares: int = 0, user: dict = Depe
 
 @router.get("/dashboard/subscription-renewals")
 async def get_subscription_renewals(user: dict = Depends(get_current_user)):
-    week_end = (datetime.now(timezone.utc) + timedelta(days=7)).strftime("%Y-%m-%d")
+    now = datetime.now(timezone.utc)
+    today_str = now.strftime("%Y-%m-%d")
+    week_end = (now + timedelta(days=7)).strftime("%Y-%m-%d")
 
     subs = await db.gmail_transactions.find({
         "user_id": user["id"],
@@ -198,9 +200,13 @@ async def get_subscription_renewals(user: dict = Depends(get_current_user)):
     upcoming = []
     for s in subs:
         renewal = s.get("proxima_renovacion")
-        if renewal and renewal <= week_end:
-            upcoming.append(s)
-        elif not renewal and s.get("comercio"):
-            upcoming.append(s)
+        if not renewal or renewal < today_str or renewal > week_end:
+            continue
+        try:
+            renewal_date = datetime.strptime(renewal, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+            s["days_until_renewal"] = max(0, (renewal_date - now).days)
+        except Exception:
+            s["days_until_renewal"] = None
+        upcoming.append(s)
 
     return {"subscriptions": subs, "upcoming_this_week": upcoming}
