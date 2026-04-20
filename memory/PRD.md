@@ -110,6 +110,19 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Transactions.js: toggle "Uso empresarial" en edit dialog (solo expense)
   - Sidebar: nav item "Match SRI" para todos los roles
   - 12/12 backend pytest + smoke frontend PASSED (iteration_17)
+- [2026-04-20] SESIÓN 8 - Cálculo SRI correcto:
+  - Nueva colección sri_categorias seeded desde SRI_CATEGORIAS_REGLAS (6 reglas 2024+):
+    salud 100% sin tope, educacion 100% sin tope, alimentacion 0%,
+    vestimenta tope $850, turismo/vivienda tope $3868.15
+  - TransactionBase extendido con beneficiario (yo/conyuge/hijo/padre_madre),
+    aplica_iva (default true), subtotal_sin_iva
+  - GET /sri/deduction-limits: límite efectivo = MIN(20% ingresos_gravados, TOPE_LEGAL=$2784).
+    Ingresos leídos de personal_budgets.income_projection con fallback INCOME_STRUCTURE.
+    Devuelve ingresos_gravados_anual, limite_20pct, limite_legal, limite_efectivo
+  - Lógica IVA: si aplica_iva=false → deducible = subtotal_sin_iva, else amount
+  - Dashboard widget actualizado: "Tu límite: $X (20% de $Y = $Z) — Tope legal: $W"
+  - Transactions edit dialog: select Beneficiario + toggle Aplica IVA + input Subtotal (condicional)
+  - 13/13 backend + frontend verificado (iteration_18)
 
 ## Tech Stack
 - Backend: FastAPI, Python, Motor (async MongoDB), JWT httpOnly cookies
