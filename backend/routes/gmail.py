@@ -22,6 +22,7 @@ from utils import (
     process_bank_statement_text, lookup_known_vendor
 )
 from emergentintegrations.llm.chat import LlmChat, UserMessage
+from parsers import dispatch as parser_dispatch, extract_html_body, extract_text_body
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -238,7 +239,10 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
     GMAIL_SENDER_FILTER = (
         "from:(servicios@dinersclub.com.ec OR notificaciones@infopacificard.com.ec "
         "OR servicios@tarjetasbancopichincha.com OR Avisos24@bolivariano.com "
-        "OR intermail@bancopacifico.ec OR email.apple.com OR netflix.com "
+        "OR intermail@bancopacifico.ec OR banco@pichincha.com "
+        "OR documentoselectronicos@pichincha.com OR estadodecuenta@pacificard.ec "
+        "OR estadoscuenta@bancodelpacifico.com.ec "
+        "OR email.apple.com OR netflix.com "
         "OR spotify.com OR google.com OR amazon.com OR adobe.com) is:unread"
     )
     results = service.users().messages().list(userId='me', q=GMAIL_SENDER_FILTER, maxResults=50).execute()
@@ -307,7 +311,57 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
             procesados += 1
             continue
 
-        # Bank / invoice path (existing logic)
+        # Bank / invoice path — try dedicated parsers first, then GPT-4o fallback
+        html_body = extract_html_body(msg)
+        text_body = extract_text_body(msg) or body_snippet
+
+        parsed = parser_dispatch(sender, subject, html_body, text_body)
+
+        if parsed:
+            tipo = parsed["tipo"]
+            vendor_category = None
+            vendor_sri = None
+            if tipo == "consumo" and parsed.get("comercio"):
+                vendor_match = await lookup_known_vendor(user["id"], parsed["comercio"])
+                if vendor_match and vendor_match.get("found"):
+                    vendor_category = vendor_match.get("personal_category")
+                    vendor_sri = vendor_match.get("sri_category")
+
+            pdf_result = {"filepath": None, "doc_id": None, "extracted_transactions": 0}
+            has_pdf = parsed.get("has_pdf_attachment", False)
+            if has_pdf:
+                pdf_result = await _download_gmail_pdf_attachment(service, gmail_id, user["id"], tipo=tipo, banco=parsed["banco"], fecha=parsed.get("fecha") or date_str)
+
+            doc = {
+                "user_id": user["id"], "gmail_id": gmail_id, "remitente": sender,
+                "subject": subject, "fecha_email": date_str,
+                "tipo": tipo, "monto": parsed.get("monto"),
+                "comercio": parsed.get("comercio"),
+                "fecha_transaccion": parsed.get("fecha"),
+                "tarjeta_ultimos4": parsed.get("tarjeta_ultimos4"),
+                "banco": parsed.get("banco"),
+                "descripcion_corta": parsed.get("descripcion_corta", subject[:60]),
+                "nivel_urgencia": parsed.get("nivel_urgencia", "media"),
+                "estado": "pendiente",
+                "personal_category": vendor_category,
+                "sri_category": vendor_sri,
+                "numero_factura": None, "ruc_emisor": None,
+                "es_deducible": tipo == "factura_sri",
+                "es_suscripcion": False, "proxima_renovacion": None,
+                "notificacion": parsed.get("notificacion"),
+                "parsed_by": parsed.get("parser", "unknown"),
+                "pdf_filepath": pdf_result.get("filepath"),
+                "pdf_doc_id": pdf_result.get("doc_id"),
+                "extracted_transactions": pdf_result.get("extracted_transactions", 0),
+                "procesado_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.gmail_transactions.insert_one(doc)
+            doc.pop("_id", None)
+            nuevos.append(doc)
+            procesados += 1
+            continue
+
+        # GPT-4o fallback — no parser matched
         force_type = "factura_sri" if is_factura_subject else None
         classification = await _classify_email_with_ai(subject, body_snippet, force_type=force_type)
         tipo = classification.get("tipo", "descarte")
@@ -415,3 +469,30 @@ async def reprocess_gmail_document(doc_id: str, user: dict = Depends(get_current
         tx_count += 1
     await db.gmail_documents.update_one({"id": doc_id}, {"$set": {"procesado": True, "transactions_count": tx_count}})
     return {"status": "success", "transactions_extracted": tx_count}
+
+
+@router.get("/gmail/parser-quality")
+async def get_parser_quality(user: dict = Depends(get_current_user)):
+    """Check parser quality — flag banks where >20% of emails have monto: null."""
+    pipeline = [
+        {"$match": {"user_id": user["id"], "tipo": {"$in": ["consumo", "pago_tarjeta"]}, "estado": {"$ne": "descartado"}}},
+        {"$group": {
+            "_id": "$banco",
+            "total": {"$sum": 1},
+            "null_monto": {"$sum": {"$cond": [{"$eq": ["$monto", None]}, 1, 0]}}
+        }}
+    ]
+    results = await db.gmail_transactions.aggregate(pipeline).to_list(20)
+    alerts = []
+    for r in results:
+        if r["total"] > 0:
+            pct = r["null_monto"] / r["total"]
+            if pct > 0.2:
+                alert = {"banco": r["_id"], "porcentaje_fallido": round(pct * 100, 1), "total": r["total"], "fallidos": r["null_monto"], "fecha": datetime.now(timezone.utc).isoformat()}
+                alerts.append(alert)
+                await db.parser_alerts.update_one(
+                    {"banco": r["_id"]},
+                    {"$set": alert},
+                    upsert=True
+                )
+    return {"alerts": alerts}

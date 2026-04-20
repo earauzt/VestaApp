@@ -35,7 +35,15 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Array index as key replaced in 8 instances (Upload, Dashboard, CargarValidar, ChatBot)
   - 8 console.log wrapped in NODE_ENV === 'development' guards
   - 29/29 backend + frontend login flow verified
-- [2026-04-20] Gmail consent modal + sender filter:
+- [2026-04-20] Bank email parsers module:
+  - /app/backend/parsers/__init__.py with 10 dedicated parsers:
+    PacifiCard consumo, Diners consumo, Pichincha consumo, Bolivariano consumo,
+    Pacifico pago, Pichincha transferencia, Pichincha estado, PacifiCard estado,
+    Pacifico estado, Bolivariano estado (sin adjunto → notificacion)
+  - Dispatcher tries parsers before GPT-4o fallback
+  - Parser quality monitor endpoint /gmail/parser-quality
+  - Gmail sender filter expanded with new senders
+  - 25/25 parser tests passing (tests/test_parsers.py)
   - Pre-OAuth consent modal with clear data access explanation
   - Gmail API query changed from 'is:unread' to sender-specific filter
     (Diners, PacifiCard, Pichincha, Bolivariano, Pacifico + service domains)
