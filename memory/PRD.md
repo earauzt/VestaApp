@@ -96,6 +96,20 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Frontend: Transactions.js muestra badge violeta con Target icon para txs vinculadas a meta
   - Todos los endpoints CRUD verificados con curl (crear/listar/editar/eliminar + add-savings suma + link-transaction)
   - UI dialog mobile OK: 7 tipos en grid 4x2 sin overflow
+- [2026-04-20] SESIÓN 7 - Match consumo ↔ factura SRI:
+  - Módulo nuevo /app/backend/routes/sri_match.py con try_sri_match + retry_pending_matches
+  - Tolerancias: EXACT ±2%, APPROX ±10%, fecha ±7 días, pendiente 72h
+  - Estados: con_respaldo / match_aproximado / pendiente_match / sin_respaldo / sin_respaldo_72h
+  - TransactionBase extendido: estado_sri, factura_vinculada_id, consumo_vinculado_id,
+    match_aproximado_candidato_id/confianza, match_pendiente_hasta, uso_empresarial
+  - Endpoints: GET /sri/counters + /sri/pending, POST confirm-match/reject-match/mark-cash/
+    link-manual/discard/scan, PATCH corporate
+  - Hooks auto-match en: POST /transactions, gmail approve, process_multiple_receipts
+  - Filtro uso_empresarial=true excluído de deducibles SRI (dashboard.py + documents.py pdf)
+  - Frontend: widget 4 counters en Dashboard (✅🔄⏳⚠️) + página /sri-match con tabs y acciones
+  - Transactions.js: toggle "Uso empresarial" en edit dialog (solo expense)
+  - Sidebar: nav item "Match SRI" para todos los roles
+  - 12/12 backend pytest + smoke frontend PASSED (iteration_17)
 
 ## Tech Stack
 - Backend: FastAPI, Python, Motor (async MongoDB), JWT httpOnly cookies
