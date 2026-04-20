@@ -77,7 +77,7 @@ async def get_categories():
 async def get_sri_deduction_limits(cargas_familiares: int = 0, user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc)
     start_of_year = f"{now.year}-01-01"
-    transactions = await db.transactions.find({"user_id": user["id"], "date": {"$gte": start_of_year}, "transaction_type": "expense"}, {"_id": 0}).to_list(10000)
+    transactions = await db.transactions.find({"user_id": user["id"], "date": {"$gte": start_of_year}, "transaction_type": "expense", "uso_empresarial": {"$ne": True}}, {"_id": 0}).to_list(10000)
 
     spent_by_category = {}
     total_deductible = 0

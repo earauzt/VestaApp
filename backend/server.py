@@ -30,6 +30,7 @@ from routes.credit_cards import router as credit_cards_router
 from routes.cashflow import router as cashflow_router
 from routes.gmail import router as gmail_router
 from routes.chat import router as chat_router
+from routes.sri_match import router as sri_match_router
 
 # Include all routers
 api_router.include_router(auth_router)
@@ -44,6 +45,7 @@ api_router.include_router(deferred_router)
 api_router.include_router(cashflow_router)
 api_router.include_router(gmail_router)
 api_router.include_router(chat_router)
+api_router.include_router(sri_match_router)
 
 
 # Health and root endpoints

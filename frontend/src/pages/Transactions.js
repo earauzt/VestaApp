@@ -166,7 +166,8 @@ export default function Transactions() {
     establishment: "",
     country: "",
     payment_source: "local",
-    is_international: false
+    is_international: false,
+    uso_empresarial: false
   });
 
   // Fetch categories from budget
@@ -309,7 +310,8 @@ export default function Transactions() {
       establishment: transaction.establishment || "",
       country: transaction.country || "",
       payment_source: transaction.payment_source || "local",
-      is_international: transaction.is_international || false
+      is_international: transaction.is_international || false,
+      uso_empresarial: transaction.uso_empresarial || false
     });
     setDialogOpen(true);
   };
@@ -339,7 +341,8 @@ export default function Transactions() {
       establishment: "",
       country: "",
       payment_source: "local",
-      is_international: false
+      is_international: false,
+      uso_empresarial: false
     });
   };
 
@@ -650,6 +653,21 @@ export default function Transactions() {
                           value={formData.establishment}
                           onChange={(e) => setFormData({ ...formData, establishment: e.target.value })}
                           data-testid="establishment-input"
+                        />
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border">
+                        <div>
+                          <Label className="cursor-pointer" htmlFor="uso-empresarial-toggle">Uso empresarial</Label>
+                          <p className="text-xs text-muted-foreground">Excluye esta factura del cálculo SRI personal</p>
+                        </div>
+                        <input
+                          id="uso-empresarial-toggle"
+                          type="checkbox"
+                          className="h-5 w-5 accent-violet-600"
+                          checked={formData.uso_empresarial}
+                          onChange={(e) => setFormData({ ...formData, uso_empresarial: e.target.checked })}
+                          data-testid="uso-empresarial-toggle"
                         />
                       </div>
                     </>

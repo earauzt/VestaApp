@@ -449,6 +449,16 @@ class TransactionBase(BaseModel):
     receipt_group_id: Optional[str] = None
     linked_goal_id: Optional[str] = None
     linked_goal_name: Optional[str] = None
+    # SRI factura ↔ consumo matching
+    estado_sri: Optional[str] = None  # con_respaldo | match_aproximado | pendiente_match | sin_respaldo
+    factura_vinculada_id: Optional[str] = None
+    consumo_vinculado_id: Optional[str] = None
+    match_aproximado_candidato_id: Optional[str] = None
+    match_aproximado_confianza: Optional[float] = None
+    match_pendiente_hasta: Optional[str] = None
+    uso_empresarial: bool = False
+    numero_factura: Optional[str] = None
+    ruc_emisor: Optional[str] = None
 
 class TransactionCreate(TransactionBase):
     pass

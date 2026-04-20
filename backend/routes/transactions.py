@@ -51,6 +51,13 @@ async def create_transaction(transaction: TransactionCreate, user: dict = Depend
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.transactions.insert_one(doc)
+    try:
+        from routes.sri_match import try_sri_match, retry_pending_matches
+        if transaction.transaction_type == "expense":
+            await try_sri_match(user["id"], transaction_id)
+            await retry_pending_matches(user["id"])
+    except Exception:
+        pass
     response_doc = {k: v for k, v in doc.items() if k != "_id"}
     if duplicates:
         response_doc["_duplicate_warning"] = {"message": "Posible duplicado detectado", "potential_match": duplicates[0]["transaction"]["id"], "confidence": match_confidence}
@@ -86,6 +93,8 @@ async def update_transaction(transaction_id: str, transaction: TransactionCreate
     if not existing:
         raise HTTPException(status_code=404, detail="Transaccion no encontrada")
     update_data = transaction.model_dump()
+    if update_data.get("uso_empresarial"):
+        update_data["is_deductible"] = False
     await db.transactions.update_one({"id": transaction_id}, {"$set": update_data})
     updated = await db.transactions.find_one({"id": transaction_id}, {"_id": 0})
     return TransactionResponse(**updated)

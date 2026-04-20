@@ -101,6 +101,7 @@ export default function Dashboard() {
 
   const [travelFund, setTravelFund] = useState(null);
   const [sriDeductible, setSriDeductible] = useState(0);
+  const [sriCounters, setSriCounters] = useState({ con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 });
   const [subscriptionRenewals, setSubscriptionRenewals] = useState([]);
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
@@ -109,7 +110,7 @@ export default function Dashboard() {
   const fetchData = useCallback(async () => {
     try {
       const headers = getAuthHeadersRef.current();
-      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes, txRes, subsRes] = await Promise.all([
+      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes, txRes, subsRes, sriRes] = await Promise.all([
         axios.get(`${API}/dashboard/stats`, { headers }),
         axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers }),
         axios.get(`${API}/reminders`, { headers }).catch(() => ({ data: [] })),
@@ -117,7 +118,8 @@ export default function Dashboard() {
         axios.get(`${API}/travel-goals`, { headers }).catch(() => ({ data: { goals: [] } })),
         axios.get(`${API}/travel-fund`, { headers }).catch(() => ({ data: null })),
         axios.get(`${API}/transactions?limit=5000`, { headers }).catch(() => ({ data: { transactions: [] } })),
-        axios.get(`${API}/dashboard/subscription-renewals`, { headers }).catch(() => ({ data: { upcoming_this_week: [] } }))
+        axios.get(`${API}/dashboard/subscription-renewals`, { headers }).catch(() => ({ data: { upcoming_this_week: [] } })),
+        axios.get(`${API}/sri/counters`, { headers }).catch(() => ({ data: { con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 } }))
       ]);
       
       setStats(statsRes.data);
@@ -158,6 +160,8 @@ export default function Dashboard() {
 
       // Subscription renewals
       setSubscriptionRenewals(subsRes.data?.upcoming_this_week || []);
+      // SRI match counters
+      setSriCounters(sriRes.data || { con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 });
     } catch (error) {
       toast.error("Error al cargar datos del dashboard");
     } finally {
@@ -418,6 +422,70 @@ export default function Dashboard() {
               value={Math.min(100, (sriDeductible / 2784) * 100)} 
               className={`h-2 ${sriDeductible > 2784 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`}
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* SRI Match Counters (4 buckets) */}
+      <Card className="bento-card" data-testid="sri-match-counters">
+        <CardContent className="p-4 sm:p-6">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 shrink-0">
+                <Receipt size={18} weight="duotone" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Match Factura ↔ Consumo</p>
+                <p className="text-xs text-muted-foreground">Estado de respaldo SRI de tus transacciones</p>
+              </div>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={() => navigate("/sri-match")}
+              data-testid="sri-match-details-btn"
+            >
+              Ver detalles
+            </Button>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <button
+              onClick={() => navigate("/sri-match?tab=con_respaldo")}
+              className="flex flex-col items-center p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition-colors"
+              data-testid="counter-con-respaldo"
+            >
+              <span className="text-2xl mb-1">✅</span>
+              <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{sriCounters.con_respaldo}</span>
+              <span className="text-[11px] text-muted-foreground text-center">Con respaldo</span>
+            </button>
+            <button
+              onClick={() => navigate("/sri-match?tab=match_aproximado")}
+              className="flex flex-col items-center p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
+              data-testid="counter-aproximado"
+            >
+              <span className="text-2xl mb-1">🔄</span>
+              <span className="text-xl font-bold text-amber-700 dark:text-amber-400">{sriCounters.match_aproximado}</span>
+              <span className="text-[11px] text-muted-foreground text-center">Match aproximado</span>
+            </button>
+            <button
+              onClick={() => navigate("/sri-match?tab=pendiente")}
+              className="flex flex-col items-center p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
+              data-testid="counter-pendiente"
+            >
+              <span className="text-2xl mb-1">⏳</span>
+              <span className="text-xl font-bold text-blue-700 dark:text-blue-400">{sriCounters.pendiente_match}</span>
+              <span className="text-[11px] text-muted-foreground text-center">Esperando match</span>
+            </button>
+            <button
+              onClick={() => navigate("/sri-match?tab=sin_vincular")}
+              className="flex flex-col items-center p-3 rounded-xl bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
+              data-testid="counter-sin-vincular"
+            >
+              <span className="text-2xl mb-1">⚠️</span>
+              <span className="text-xl font-bold text-red-700 dark:text-red-400">{sriCounters.sin_vincular}</span>
+              <span className="text-[11px] text-muted-foreground text-center">Sin vincular</span>
+            </button>
           </div>
         </CardContent>
       </Card>

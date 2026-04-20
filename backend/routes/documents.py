@@ -99,6 +99,12 @@ async def process_multiple_receipts(files: List[UploadFile] = File(...), user: d
                 doc = {"id": transaction_id, "user_id": user["id"], "amount": amount, "description": description, "category": category, "personal_category": category, "sri_category": sri_category, "subcategory": subcategory, "date": date, "transaction_type": "expense", "establishment": establishment, "country": country, "is_international": is_international, "payment_source": "internacional" if is_international else "local", "is_deductible": is_deductible, "ai_classified": True, "auto_categorized_by": auto_categorized_by, "status": TransactionStatus.DUPLICATE_SUSPECT if duplicates else TransactionStatus.PENDING_REVIEW, "source_type": SourceType.RECEIPT, "has_receipt": True, "duplicate_of": duplicates[0]["transaction"]["id"] if duplicates else None, "match_confidence": duplicates[0]["confidence"] if duplicates else None, "created_at": datetime.now(timezone.utc).isoformat(), "source_file": file.filename}
                 await db.transactions.insert_one(doc)
                 all_transactions.append({k: v for k, v in doc.items() if k != "_id"})
+                try:
+                    from routes.sri_match import try_sri_match, retry_pending_matches
+                    await try_sri_match(user["id"], transaction_id)
+                    await retry_pending_matches(user["id"])
+                except Exception as e:
+                    logger.warning(f"SRI match hook failed: {e}")
         except Exception as e:
             errors.append({"file": file.filename, "error": str(e)})
         finally:
@@ -415,7 +421,7 @@ async def export_sri_pdf(year: Optional[int] = None, cargas_familiares: int = 3,
         year = datetime.now().year
     start_date = f"{year}-01-01"
     end_date = f"{year}-12-31"
-    transactions = await db.transactions.find({"user_id": user["id"], "date": {"$gte": start_date, "$lte": end_date}, "transaction_type": "expense", "is_deductible": True, "status": {"$ne": TransactionStatus.DUPLICATE_CONFIRMED}}, {"_id": 0}).to_list(10000)
+    transactions = await db.transactions.find({"user_id": user["id"], "date": {"$gte": start_date, "$lte": end_date}, "transaction_type": "expense", "is_deductible": True, "uso_empresarial": {"$ne": True}, "status": {"$ne": TransactionStatus.DUPLICATE_CONFIRMED}}, {"_id": 0}).to_list(10000)
     category_totals = {}
     for t in transactions:
         cat = t.get("category", "otros")

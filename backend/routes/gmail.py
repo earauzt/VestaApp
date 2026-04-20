@@ -416,9 +416,16 @@ async def approve_gmail_transaction(gmail_id: str, user: dict = Depends(get_curr
     gmail_tx = await db.gmail_transactions.find_one({"gmail_id": gmail_id, "user_id": user["id"]}, {"_id": 0})
     if not gmail_tx:
         raise HTTPException(status_code=404, detail="Transaccion Gmail no encontrada")
-    tx_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "amount": gmail_tx.get("monto") or 0, "description": gmail_tx.get("descripcion_corta", ""), "establishment": gmail_tx.get("comercio", ""), "vendor": gmail_tx.get("comercio", ""), "date": gmail_tx.get("fecha_transaccion") or datetime.now(timezone.utc).strftime("%Y-%m-%d"), "personal_category": gmail_tx.get("personal_category", "otros"), "category": gmail_tx.get("personal_category", "otros"), "sri_category": gmail_tx.get("sri_category"), "source": "gmail", "status": "approved", "tarjeta_ultimos4": gmail_tx.get("tarjeta_ultimos4"), "created_at": datetime.now(timezone.utc).isoformat()}
+    tx_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "amount": gmail_tx.get("monto") or 0, "description": gmail_tx.get("descripcion_corta", ""), "establishment": gmail_tx.get("comercio", ""), "vendor": gmail_tx.get("comercio", ""), "date": gmail_tx.get("fecha_transaccion") or datetime.now(timezone.utc).strftime("%Y-%m-%d"), "personal_category": gmail_tx.get("personal_category", "otros"), "category": gmail_tx.get("personal_category", "otros"), "sri_category": gmail_tx.get("sri_category"), "source": "gmail", "status": "approved", "tarjeta_ultimos4": gmail_tx.get("tarjeta_ultimos4"), "transaction_type": "expense", "numero_factura": gmail_tx.get("numero_factura"), "ruc_emisor": gmail_tx.get("ruc_emisor"), "source_type": "invoice" if gmail_tx.get("tipo") == "factura_sri" else "email", "has_invoice": gmail_tx.get("tipo") == "factura_sri", "is_deductible": bool(gmail_tx.get("es_deducible")), "created_at": datetime.now(timezone.utc).isoformat()}
     result = await dedup_or_merge(user["id"], tx_doc, "email_banco")
     await db.gmail_transactions.update_one({"gmail_id": gmail_id, "user_id": user["id"]}, {"$set": {"estado": "aprobado"}})
+    # SRI match attempt + retry pendings
+    try:
+        from routes.sri_match import try_sri_match, retry_pending_matches
+        await try_sri_match(user["id"], result["transaction_id"])
+        await retry_pending_matches(user["id"])
+    except Exception as e:
+        logger.warning(f"SRI match hook failed: {e}")
     return {"status": "success", "transaction_id": result["transaction_id"], "action": result["action"]}
 
 

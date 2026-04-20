@@ -16,6 +16,7 @@ import Ingresos from "./pages/Ingresos";
 import Deudas from "./pages/Deudas";
 import Flujo from "./pages/Flujo";
 import MetasViaje from "./pages/MetasViaje";
+import SriMatch from "./pages/SriMatch";
 import Perfil from "./pages/Perfil";
 import Layout from "./components/Layout";
 
@@ -148,6 +149,14 @@ function AppRoutes() {
       />
       {/* Redirect old route */}
       <Route path="/metas-viaje" element={<Navigate to="/viajes" replace />} />
+      <Route 
+        path="/sri-match" 
+        element={
+          <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
+            <SriMatch />
+          </ProtectedRoute>
+        } 
+      />
       <Route 
         path="/perfil" 
         element={
