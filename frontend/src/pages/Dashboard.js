@@ -104,6 +104,18 @@ export default function Dashboard() {
   const [sriLimits, setSriLimits] = useState({ limite_20pct: 0, limite_legal: 2784, limite_efectivo: 2784, ingresos_gravados_anual: 0 });
   const [sriCounters, setSriCounters] = useState({ con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 });
   const [subscriptionRenewals, setSubscriptionRenewals] = useState([]);
+  const [notificaciones, setNotificaciones] = useState([]);
+  const [estaSemana, setEstaSemana] = useState([]);
+  const [dismissedIds, setDismissedIds] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("dismissed_notif_ids") || "[]"); } catch { return []; }
+  });
+  const [showAllNotif, setShowAllNotif] = useState(false);
+
+  const dismissNotif = (id) => {
+    const next = [...new Set([...dismissedIds, id])];
+    setDismissedIds(next);
+    localStorage.setItem("dismissed_notif_ids", JSON.stringify(next));
+  };
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
   useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
@@ -111,7 +123,7 @@ export default function Dashboard() {
   const fetchData = useCallback(async () => {
     try {
       const headers = getAuthHeadersRef.current();
-      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes, txRes, subsRes, sriRes, sriLimitsRes] = await Promise.all([
+      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes, txRes, subsRes, sriRes, sriLimitsRes, notifRes, semanaRes] = await Promise.all([
         axios.get(`${API}/dashboard/stats`, { headers }),
         axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers }),
         axios.get(`${API}/reminders`, { headers }).catch(() => ({ data: [] })),
@@ -121,7 +133,9 @@ export default function Dashboard() {
         axios.get(`${API}/transactions?limit=5000`, { headers }).catch(() => ({ data: { transactions: [] } })),
         axios.get(`${API}/dashboard/subscription-renewals`, { headers }).catch(() => ({ data: { upcoming_this_week: [] } })),
         axios.get(`${API}/sri/counters`, { headers }).catch(() => ({ data: { con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 } })),
-        axios.get(`${API}/sri/deduction-limits`, { headers }).catch(() => ({ data: null }))
+        axios.get(`${API}/sri/deduction-limits`, { headers }).catch(() => ({ data: null })),
+        axios.get(`${API}/notificaciones`, { headers }).catch(() => ({ data: { notificaciones: [] } })),
+        axios.get(`${API}/dashboard/esta-semana`, { headers }).catch(() => ({ data: { items: [] } }))
       ]);
       
       setStats(statsRes.data);
@@ -162,6 +176,9 @@ export default function Dashboard() {
 
       // Subscription renewals
       setSubscriptionRenewals(subsRes.data?.upcoming_this_week || []);
+      // Notificaciones inteligentes (SESIÓN 10)
+      setNotificaciones(notifRes.data?.notificaciones || []);
+      setEstaSemana(semanaRes.data?.items || []);
       // SRI match counters
       setSriCounters(sriRes.data || { con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 });
       // SRI limits (dynamic)
@@ -276,73 +293,55 @@ export default function Dashboard() {
         </Select>
       </div>
 
-      {/* Smart Reminders Banner */}
-      {visibleReminders.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-2"
-        >
-          {visibleReminders.slice(0, showAllReminders ? visibleReminders.length : 1).map((reminder) => {
-            const Icon = getReminderIcon(reminder.type);
-            const originalIndex = reminders.indexOf(reminder);
-            return (
-              <div 
-                key={`${reminder.type}-${reminder.title}`}
-                className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${getReminderColor(reminder.priority)}`}
+      {/* Smart Notifications Banner (SESIÓN 10) */}
+      {(() => {
+        const visible = notificaciones.filter(n => !dismissedIds.includes(n.id));
+        if (visible.length === 0) return null;
+        const shown = showAllNotif ? visible : visible.slice(0, 3);
+        const priorityColor = {
+          high: "bg-red-50 border-red-200 text-red-900 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200",
+          medium: "bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200",
+          low: "bg-blue-50 border-blue-200 text-blue-900 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-200",
+        };
+        return (
+          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2" data-testid="notificaciones-banner">
+            {shown.map((n) => (
+              <div
+                key={n.id}
+                data-testid={`notif-${n.tipo}`}
+                className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${priorityColor[n.prioridad] || priorityColor.low}`}
               >
-                <div className="flex items-center gap-3 flex-1">
-                  <div className={`p-2 rounded-lg ${
-                    reminder.priority === "high" ? "bg-red-100 dark:bg-red-900/30" :
-                    reminder.priority === "medium" ? "bg-amber-100 dark:bg-amber-900/30" :
-                    "bg-blue-100 dark:bg-blue-900/30"
-                  }`}>
-                    <Icon size={20} weight="fill" />
-                  </div>
-                  <div>
-                    <p className="font-medium">{reminder.title}</p>
-                    {reminder.message && (
-                      <p className="text-sm opacity-80">{reminder.message}</p>
-                    )}
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <span className="text-2xl shrink-0">{n.icono}</span>
+                  <div className="min-w-0">
+                    <p className="font-medium truncate">{n.titulo}</p>
+                    <p className="text-sm opacity-80 truncate">{n.texto}</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  {reminder.action && reminder.type !== "motivation" && (
-                    <Button size="sm" variant="outline" className="shrink-0" onClick={() => handleReminderAction(reminder)}>
-                      Revisar
+                <div className="flex items-center gap-2 shrink-0">
+                  {n.accion_url && (
+                    <Button size="sm" variant="outline" onClick={() => navigate(n.accion_url)} data-testid={`notif-action-${n.id}`}>
+                      {n.accion_label || "Ver"}
                     </Button>
                   )}
-                  <Button 
-                    size="icon" 
-                    variant="ghost" 
-                    className="h-8 w-8 shrink-0 opacity-60 hover:opacity-100"
-                    onClick={() => dismissReminder(originalIndex)}
-                  >
+                  <Button size="icon" variant="ghost" className="h-8 w-8 opacity-60 hover:opacity-100" onClick={() => dismissNotif(n.id)} data-testid={`notif-dismiss-${n.id}`}>
                     <X size={16} />
                   </Button>
                 </div>
               </div>
-            );
-          })}
-          {visibleReminders.length > 1 && !showAllReminders && (
-            <button
-              onClick={() => setShowAllReminders(true)}
-              className="text-sm text-primary hover:underline px-1"
-              data-testid="show-more-reminders"
-            >
-              Ver {visibleReminders.length - 1} mas
-            </button>
-          )}
-          {showAllReminders && visibleReminders.length > 1 && (
-            <button
-              onClick={() => setShowAllReminders(false)}
-              className="text-sm text-muted-foreground hover:underline px-1"
-            >
-              Colapsar
-            </button>
-          )}
-        </motion.div>
-      )}
+            ))}
+            {visible.length > 3 && (
+              <button
+                onClick={() => setShowAllNotif(!showAllNotif)}
+                className="text-sm text-primary hover:underline px-1"
+                data-testid="show-more-notif"
+              >
+                {showAllNotif ? "Colapsar" : `Ver más (${visible.length - 3})`}
+              </button>
+            )}
+          </motion.div>
+        );
+      })()}
 
       {/* Subscription Renewals This Week */}
       {subscriptionRenewals.length > 0 && (
@@ -411,6 +410,52 @@ export default function Dashboard() {
           </motion.div>
         ))}
       </div>
+
+      {/* Esta Semana Widget (SESIÓN 10) */}
+      {estaSemana.length > 0 && (
+        <Card className="bento-card" data-testid="esta-semana-widget">
+          <CardContent className="p-4 sm:p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <div className="p-2 rounded-xl bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+                <CalendarBlank size={18} weight="duotone" />
+              </div>
+              <div>
+                <p className="text-sm font-medium">Esta semana</p>
+                <p className="text-xs text-muted-foreground">Próximos pagos y límites de presupuesto</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {estaSemana.map((item) => (
+                <button
+                  key={item.id}
+                  onClick={() => navigate(item.accion_url)}
+                  className="w-full flex items-center justify-between gap-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors text-left"
+                  data-testid={`esta-semana-item-${item.tipo}`}
+                >
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <span className="text-xl shrink-0">{item.icono}</span>
+                    <div className="min-w-0">
+                      <p className="font-medium truncate text-sm">{item.titulo}</p>
+                      <p className="text-xs text-muted-foreground truncate">{item.texto}</p>
+                    </div>
+                  </div>
+                  <Badge
+                    variant="outline"
+                    className={`shrink-0 text-[10px] ${
+                      item.badge === "red"
+                        ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800"
+                        : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800"
+                    }`}
+                    data-testid={`esta-semana-badge-${item.badge}`}
+                  >
+                    {item.days_until <= 2 ? "Urgente" : item.days_until <= 7 ? `En ${item.days_until}d` : "Pendiente"}
+                  </Badge>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* SRI Deductible Widget */}
       <Card className="bento-card" data-testid="sri-deductible-widget">

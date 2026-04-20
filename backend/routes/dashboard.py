@@ -9,7 +9,7 @@ from models import (
     CARGAS_FAMILIARES_CBF, PORCENTAJE_REBAJA_IR, CONTRIBUYENTE_INFO,
     INCOME_SOURCES, PAYMENT_SOURCES, INTERNATIONAL_COUNTRIES,
     TOPE_LEGAL_SRI, PORCENTAJE_LIMITE_INGRESOS, SRI_CATEGORIAS_REGLAS,
-    get_income_structure
+    get_income_structure, get_budget_categories
 )
 from utils import get_current_user, generate_sri_alerts
 
@@ -210,3 +210,208 @@ async def get_subscription_renewals(user: dict = Depends(get_current_user)):
         upcoming.append(s)
 
     return {"subscriptions": subs, "upcoming_this_week": upcoming}
+
+
+
+# ================= SESIÓN 10: Notificaciones + Esta Semana =================
+
+def _days_until(due_day: int, today: datetime) -> int:
+    """Días faltantes hasta el próximo due_day (mismo mes o siguiente)."""
+    cm, cy = today.month, today.year
+    if today.day > due_day:
+        nm = cm + 1 if cm < 12 else 1
+        ny = cy if cm < 12 else cy + 1
+    else:
+        nm, ny = cm, cy
+    try:
+        due = datetime(ny, nm, min(due_day, 28))
+        return (due - today.replace(tzinfo=None)).days
+    except Exception:
+        return 999
+
+
+@router.get("/notificaciones")
+async def get_notificaciones(user: dict = Depends(get_current_user)):
+    """Unifica alertas en 4 tipos: pago_proximo, limite_categoria, sugerir_filtro, gmail_nuevos."""
+    now = datetime.now(timezone.utc)
+    today = now.replace(tzinfo=None)
+    start_of_month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0).strftime("%Y-%m-%d")
+    items = []
+
+    # 1. pago_proximo: tarjetas con saldo + payment_due_day ≤ 7d
+    cards = await db.credit_cards.find({"user_id": user["id"]}, {"_id": 0}).to_list(50)
+    for c in cards:
+        if c.get("current_balance", 0) > 0:
+            d = _days_until(c.get("payment_due_day", 15), today)
+            if 0 <= d <= 7:
+                items.append({
+                    "id": f"card-{c.get('id')}",
+                    "tipo": "pago_proximo",
+                    "icono": "💳",
+                    "titulo": f"Pago tarjeta {c.get('name', '')}",
+                    "texto": f"Vence en {d} día{'s' if d != 1 else ''} · Mínimo ${c.get('minimum_payment', 0):.2f} / Total ${c.get('current_balance', 0):.2f}",
+                    "accion_url": "/deudas",
+                    "accion_label": "Pagar",
+                    "prioridad": "high" if d <= 2 else "medium",
+                    "days_until": d,
+                })
+
+    # scheduled_payments
+    scheduled = await db.scheduled_payments.find({"user_id": user["id"]}, {"_id": 0}).to_list(50)
+    for s in scheduled:
+        d = _days_until(s.get("due_day", 1), today)
+        if 0 <= d <= (s.get("reminder_days_before", 2) or 2):
+            items.append({
+                "id": f"sched-{s.get('id')}",
+                "tipo": "pago_proximo",
+                "icono": "⏰",
+                "titulo": f"Pago: {s.get('name', '')}",
+                "texto": f"Vence en {d} día{'s' if d != 1 else ''} · ${s.get('amount', 0):.2f}",
+                "accion_url": "/flujo",
+                "accion_label": "Marcar pagado",
+                "prioridad": "high" if d <= 2 else "medium",
+                "days_until": d,
+            })
+
+    # 2. limite_categoria: categorías ≥90% del presupuesto mensual
+    txs = await db.transactions.find(
+        {"user_id": user["id"], "date": {"$gte": start_of_month}, "transaction_type": "expense"}, {"_id": 0}
+    ).to_list(2000)
+    spent_by_cat = {}
+    for t in txs:
+        cat = t.get("category", "otros")
+        spent_by_cat[cat] = spent_by_cat.get(cat, 0) + t.get("amount", 0)
+    budget_cats = get_budget_categories(user)
+    for key, cfg in budget_cats.items():
+        budget = cfg.get("monthly_budget", 0)
+        spent = spent_by_cat.get(key, 0)
+        if budget > 0 and spent / budget >= 0.90:
+            pct = round(spent / budget * 100)
+            items.append({
+                "id": f"cat-{key}-{start_of_month}",
+                "tipo": "limite_categoria",
+                "icono": "📊",
+                "titulo": f"{cfg.get('name', key)} al {pct}%",
+                "texto": f"${spent:.2f} de ${budget:.2f} presupuestado",
+                "accion_url": "/budget",
+                "accion_label": "Ver",
+                "prioridad": "high" if pct >= 100 else "medium",
+                "days_until": None,
+            })
+
+    # 3. gmail_nuevos: transacciones pendientes en gmail
+    gmail_pending = await db.gmail_transactions.count_documents({"user_id": user["id"], "estado": "pendiente"})
+    if gmail_pending > 0:
+        items.append({
+            "id": f"gmail-{today.strftime('%Y-%m-%d')}",
+            "tipo": "gmail_nuevos",
+            "icono": "📧",
+            "titulo": f"{gmail_pending} email{'s' if gmail_pending != 1 else ''} pendiente{'s' if gmail_pending != 1 else ''}",
+            "texto": "Revisa y aprueba movimientos detectados desde Gmail",
+            "accion_url": "/cargar",
+            "accion_label": "Revisar",
+            "prioridad": "medium" if gmail_pending >= 5 else "low",
+            "days_until": None,
+        })
+
+    # 4. sugerir_filtro: vendor repetido ≥3 veces en 30d sin categoría clara
+    last30 = (now - timedelta(days=30)).strftime("%Y-%m-%d")
+    vendor_counts = {}
+    for t in txs:
+        est = (t.get("establishment") or "").strip().lower()
+        if not est or t.get("date", "") < last30:
+            continue
+        if t.get("auto_categorized"):
+            continue
+        vendor_counts[est] = vendor_counts.get(est, 0) + 1
+    for est, count in vendor_counts.items():
+        if count >= 3:
+            items.append({
+                "id": f"filter-{est}",
+                "tipo": "sugerir_filtro",
+                "icono": "🎯",
+                "titulo": f"Crear regla para '{est.title()}'",
+                "texto": f"Aparece {count} veces este mes — automatiza su categorización",
+                "accion_url": "/transactions",
+                "accion_label": "Crear regla",
+                "prioridad": "low",
+                "days_until": None,
+            })
+            break  # solo la más frecuente para no saturar
+
+    # Orden: prioridad (high, medium, low) + days_until ascendente
+    priority_order = {"high": 0, "medium": 1, "low": 2}
+    items.sort(key=lambda x: (priority_order.get(x["prioridad"], 2), x["days_until"] if x["days_until"] is not None else 999))
+    return {"notificaciones": items, "total": len(items)}
+
+
+@router.get("/dashboard/esta-semana")
+async def esta_semana(user: dict = Depends(get_current_user)):
+    """Máx 5 items: pagos tarjeta ≤7d, diferidos del mes, categorías ≥90%."""
+    now = datetime.now(timezone.utc)
+    today = now.replace(tzinfo=None)
+    start_of_month = now.replace(day=1).strftime("%Y-%m-%d")
+    items = []
+
+    # Pagos tarjeta ≤7d
+    cards = await db.credit_cards.find({"user_id": user["id"]}, {"_id": 0}).to_list(50)
+    for c in cards:
+        if c.get("current_balance", 0) > 0:
+            d = _days_until(c.get("payment_due_day", 15), today)
+            if 0 <= d <= 7:
+                items.append({
+                    "id": f"card-{c.get('id')}",
+                    "tipo": "card_payment",
+                    "icono": "💳",
+                    "titulo": f"Tarjeta {c.get('name', '')}",
+                    "texto": f"Mínimo ${c.get('minimum_payment', 0):.2f} · Total ${c.get('current_balance', 0):.2f}",
+                    "days_until": d,
+                    "badge": "red" if d <= 2 else "yellow",
+                    "accion_url": "/deudas",
+                })
+
+    # Diferidos activos con cuota este mes
+    deferred = await db.deferred_payments.find(
+        {"user_id": user["id"], "remaining_installments": {"$gt": 0}}, {"_id": 0}
+    ).to_list(50)
+    for d_pay in deferred:
+        items.append({
+            "id": f"def-{d_pay.get('id')}",
+            "tipo": "deferred",
+            "icono": "🔁",
+            "titulo": f"Cuota {d_pay.get('description', '')[:40]}",
+            "texto": f"${d_pay.get('monthly_payment', 0):.2f} · {d_pay.get('remaining_installments', 0)} cuota(s) restantes",
+            "days_until": 30,  # cuota mensual, baja urgencia
+            "badge": "yellow",
+            "accion_url": "/deudas",
+        })
+
+    # Categorías ≥90%
+    txs = await db.transactions.find(
+        {"user_id": user["id"], "date": {"$gte": start_of_month}, "transaction_type": "expense"}, {"_id": 0}
+    ).to_list(2000)
+    spent_by_cat = {}
+    for t in txs:
+        cat = t.get("category", "otros")
+        spent_by_cat[cat] = spent_by_cat.get(cat, 0) + t.get("amount", 0)
+    budget_cats = get_budget_categories(user)
+    for key, cfg in budget_cats.items():
+        budget = cfg.get("monthly_budget", 0)
+        spent = spent_by_cat.get(key, 0)
+        if budget > 0 and spent / budget >= 0.90:
+            pct = round(spent / budget * 100)
+            items.append({
+                "id": f"cat-{key}",
+                "tipo": "category_limit",
+                "icono": "📊",
+                "titulo": f"{cfg.get('name', key)} al {pct}%",
+                "texto": f"${spent:.2f} de ${budget:.2f}",
+                "days_until": 999,
+                "badge": "red" if pct >= 100 else "yellow",
+                "accion_url": "/budget",
+            })
+
+    # Orden: badge rojo > amarillo, días ascendente. Máx 5.
+    badge_order = {"red": 0, "yellow": 1}
+    items.sort(key=lambda x: (badge_order.get(x["badge"], 2), x.get("days_until", 999)))
+    return {"items": items[:5], "total": len(items)}
