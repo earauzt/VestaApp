@@ -9,6 +9,7 @@ import { Progress } from "../components/ui/progress";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { toast } from "sonner";
+import AutoRuleModal from "../components/AutoRuleModal";
 import { 
   ArrowUp, 
   ArrowDown, 
@@ -110,11 +111,22 @@ export default function Dashboard() {
     try { return JSON.parse(localStorage.getItem("dismissed_notif_ids") || "[]"); } catch { return []; }
   });
   const [showAllNotif, setShowAllNotif] = useState(false);
+  const [ruleModalOpen, setRuleModalOpen] = useState(false);
+  const [ruleEstablishment, setRuleEstablishment] = useState("");
 
   const dismissNotif = (id) => {
     const next = [...new Set([...dismissedIds, id])];
     setDismissedIds(next);
     localStorage.setItem("dismissed_notif_ids", JSON.stringify(next));
+  };
+
+  const handleNotifAction = (n) => {
+    if (n.tipo === "sugerir_filtro") {
+      setRuleEstablishment(n.establishment || n.titulo.replace(/^Crear regla para ['"]|['"]$/g, ""));
+      setRuleModalOpen(true);
+      return;
+    }
+    if (n.accion_url) navigate(n.accion_url);
   };
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
@@ -320,7 +332,7 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {n.accion_url && (
-                    <Button size="sm" variant="outline" onClick={() => navigate(n.accion_url)} data-testid={`notif-action-${n.id}`}>
+                    <Button size="sm" variant="outline" onClick={() => handleNotifAction(n)} data-testid={`notif-action-${n.id}`}>
                       {n.accion_label || "Ver"}
                     </Button>
                   )}
@@ -978,6 +990,13 @@ export default function Dashboard() {
           </Card>
         </motion.div>
       )}
+
+      <AutoRuleModal
+        open={ruleModalOpen}
+        onOpenChange={setRuleModalOpen}
+        establishment={ruleEstablishment}
+        onCreated={() => fetchData()}
+      />
     </div>
   );
 }

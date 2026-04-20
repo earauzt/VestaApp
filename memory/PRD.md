@@ -144,6 +144,16 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
     * Dismiss persiste en localStorage key 'dismissed_notif_ids'
     * Nueva card 'Esta semana' entre KPIs y widget SRI
   - 16/17 pytest + Playwright frontend PASSED (iteration_19)
+- [2026-04-20] PARTE B - Auto-reglas desde notificación sugerir_filtro:
+  - Nuevo componente /app/frontend/src/components/AutoRuleModal.jsx reutilizando Dialog shadcn
+  - Modal pre-rellena establishment + categoría sugerida desde /api/known-vendors/lookup
+  - Al confirmar crea en paralelo:
+    * POST /api/known-vendors (upsert vendor)
+    * POST /api/categorization-rules (regla con keywords)
+  - Dashboard.js: intercepta "Crear regla" cuando tipo=sugerir_filtro → abre modal sin navegar
+  - Backend: /api/notificaciones agrega campo establishment al payload de sugerir_filtro
+  - Verificado: 3 txs 'Cafeteria Central' → notificación aparece → click abre modal con datos
+    pre-rellenados → confirmar crea vendor + rule en DB, toast de éxito, refresh dashboard
 
 ## Tech Stack
 - Backend: FastAPI, Python, Motor (async MongoDB), JWT httpOnly cookies

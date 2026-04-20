@@ -336,6 +336,7 @@ async def get_notificaciones(user: dict = Depends(get_current_user)):
                 "accion_label": "Crear regla",
                 "prioridad": "low",
                 "days_until": None,
+                "establishment": est,
             })
             break  # solo la más frecuente para no saturar
 
