@@ -163,6 +163,7 @@ export default function CargarValidar() {
   const [searchFilter, setSearchFilter] = useState("");
   const [showBulkDialog, setShowBulkDialog] = useState(false);
   const [bulkCategory, setBulkCategory] = useState("");
+  const [crossCanalCount, setCrossCanalCount] = useState(0);
   const [bulkSubcategory, setBulkSubcategory] = useState("");
   const [bulkAction, setBulkAction] = useState("approve"); // approve, reject
 
@@ -176,14 +177,16 @@ export default function CargarValidar() {
 
   const fetchPendingData = useCallback(async () => {
     try {
-      const [pendingRes, duplicatesRes, statsRes] = await Promise.all([
+      const [pendingRes, duplicatesRes, statsRes, crossRes] = await Promise.all([
         axios.get(`${API}/reconciliation/pending`, { headers: getAuthHeadersRef.current() }),
         axios.get(`${API}/reconciliation/duplicates`, { headers: getAuthHeadersRef.current() }),
-        axios.get(`${API}/reconciliation/stats`, { headers: getAuthHeadersRef.current() })
+        axios.get(`${API}/reconciliation/stats`, { headers: getAuthHeadersRef.current() }),
+        axios.get(`${API}/reconciliation/cross-canal-stats`, { headers: getAuthHeadersRef.current() }).catch(() => ({ data: { cross_canal_count: 0 } }))
       ]);
       setPendingTransactions(pendingRes.data.pending_review || []);
       setDuplicatePairs(duplicatesRes.data.pairs || []);
       setStats(statsRes.data);
+      setCrossCanalCount(crossRes.data.cross_canal_count || 0);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') console.error("Error fetching pending data:", error);
     }
@@ -813,12 +816,18 @@ export default function CargarValidar() {
                   <p className="font-semibold mt-2">{selectedPair.original?.description}</p>
                   <p className="text-2xl font-mono">{formatCurrency(selectedPair.original?.amount)}</p>
                   <p className="text-sm text-muted-foreground">{selectedPair.original?.date}</p>
+                  {selectedPair.original?.fuentes?.length > 0 && (
+                    <div className="flex gap-1 mt-2 flex-wrap">{selectedPair.original.fuentes.map(f => <Badge key={f} variant="outline" className="text-[10px]">{f}</Badge>)}</div>
+                  )}
                 </div>
                 <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-200">
                   <span className="font-medium text-orange-800">Posible Duplicado</span>
                   <p className="font-semibold mt-2">{selectedPair.duplicate?.description}</p>
                   <p className="text-2xl font-mono">{formatCurrency(selectedPair.duplicate?.amount)}</p>
                   <p className="text-sm text-muted-foreground">{selectedPair.duplicate?.date}</p>
+                  {selectedPair.duplicate?.fuentes?.length > 0 && (
+                    <div className="flex gap-1 mt-2 flex-wrap">{selectedPair.duplicate.fuentes.map(f => <Badge key={f} variant="outline" className="text-[10px]">{f}</Badge>)}</div>
+                  )}
                 </div>
               </div>
               <div className="p-3 rounded-lg bg-muted text-center">
@@ -862,6 +871,9 @@ export default function CargarValidar() {
             <CardContent className="p-4 text-center">
               <p className="text-2xl font-bold text-orange-600">{duplicatePairs.length}</p>
               <p className="text-xs text-muted-foreground">Duplicados</p>
+              {crossCanalCount > 0 && (
+                <Badge className="mt-1 text-[10px] bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-50">{crossCanalCount} cross-canal</Badge>
+              )}
             </CardContent>
           </Card>
           <Card className="bento-card">

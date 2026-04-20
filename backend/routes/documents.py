@@ -24,7 +24,7 @@ from models import (
 )
 from utils import (
     get_current_user, check_role, classify_with_ai, process_image_with_ai,
-    lookup_known_vendor, find_potential_duplicates, UPLOADS_DIR
+    lookup_known_vendor, find_potential_duplicates, dedup_or_merge, UPLOADS_DIR
 )
 
 logger = logging.getLogger(__name__)
@@ -229,10 +229,14 @@ async def _save_statement_transactions(user_id: str, transactions: list, card_in
             "source_type": SourceType.BANK_STATEMENT,
             "duplicate_of": duplicates[0]["transaction"]["id"] if duplicates else None,
             "match_confidence": duplicates[0]["confidence"] if duplicates else None,
-            "created_at": datetime.now(timezone.utc).isoformat(), "source_file": filename
+            "created_at": datetime.now(timezone.utc).isoformat(), "source_file": filename,
+            "tarjeta_ultimos4": card_info.get("card_number_last4") if card_info else None
         }
-        await db.transactions.insert_one(doc)
-        created.append({k: v for k, v in doc.items() if k != "_id"})
+        result = await dedup_or_merge(user_id, doc, "estado_cuenta")
+        if result["action"] == "inserted":
+            created.append({k: v for k, v in doc.items() if k != "_id"})
+        else:
+            created.append({**result["doc"], "_merged": True})
     return created
 
 

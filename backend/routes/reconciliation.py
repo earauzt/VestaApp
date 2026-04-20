@@ -15,7 +15,7 @@ from models import (
 )
 from utils import (
     get_current_user, check_role, lookup_known_vendor, find_potential_duplicates,
-    process_image_with_ai
+    process_image_with_ai, dedup_or_merge
 )
 
 logger = logging.getLogger(__name__)
@@ -321,8 +321,8 @@ async def confirm_reconciliation_matches(statement_id: str, confirmed_matches: L
                 "status": TransactionStatus.APPROVED, "source_type": SourceType.BANK_STATEMENT, "reconciled": True, "reconciled_at": datetime.now(timezone.utc).isoformat(),
                 "statement_id": statement_id, "auto_categorized_by": "known_vendor" if vendor_lookup["found"] else "user", "created_at": datetime.now(timezone.utc).isoformat()
             }
-            await db.transactions.insert_one(transaction_doc)
-            if not vendor_lookup["found"] and tx_data.get("establishment"):
+            result = await dedup_or_merge(user["id"], transaction_doc, "estado_cuenta")
+            if not vendor_lookup["found"] and tx_data.get("establishment") and result["action"] == "inserted":
                 vendor_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "establishment": tx_data["establishment"].strip(), "personal_category": category, "sri_category": sri_category, "subcategory": subcategory, "is_deductible": transaction_doc["is_deductible"], "times_used": 1, "last_used": datetime.now(timezone.utc).isoformat(), "created_at": datetime.now(timezone.utc).isoformat()}
                 await db.known_vendors.insert_one(vendor_doc)
             created += 1
@@ -493,3 +493,10 @@ async def get_reconciliation_stats(user: dict = Depends(check_role([UserRole.ADM
         elif status == TransactionStatus.DUPLICATE_CONFIRMED:
             stats["duplicate_confirmed"] = r["count"]
     return stats
+
+
+@router.get("/reconciliation/cross-canal-stats")
+async def get_cross_canal_stats(user: dict = Depends(get_current_user)):
+    cross_canal = await db.transactions.count_documents({"user_id": user["id"], "is_cross_canal_dup": True})
+    multi_source = await db.transactions.find({"user_id": user["id"], "fuentes.1": {"$exists": True}}, {"_id": 0, "id": 1, "establishment": 1, "amount": 1, "date": 1, "fuentes": 1}).to_list(100)
+    return {"cross_canal_count": cross_canal, "multi_source_transactions": multi_source}

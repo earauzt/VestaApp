@@ -23,6 +23,7 @@ from utils import (
 )
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from parsers import dispatch as parser_dispatch, extract_html_body, extract_text_body
+from utils import dedup_or_merge
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -415,10 +416,10 @@ async def approve_gmail_transaction(gmail_id: str, user: dict = Depends(get_curr
     gmail_tx = await db.gmail_transactions.find_one({"gmail_id": gmail_id, "user_id": user["id"]}, {"_id": 0})
     if not gmail_tx:
         raise HTTPException(status_code=404, detail="Transaccion Gmail no encontrada")
-    tx_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "amount": gmail_tx.get("monto") or 0, "description": gmail_tx.get("descripcion_corta", ""), "establishment": gmail_tx.get("comercio", ""), "vendor": gmail_tx.get("comercio", ""), "date": gmail_tx.get("fecha_transaccion") or datetime.now(timezone.utc).strftime("%Y-%m-%d"), "personal_category": gmail_tx.get("personal_category", "otros"), "category": gmail_tx.get("personal_category", "otros"), "sri_category": gmail_tx.get("sri_category"), "source": "gmail", "status": "approved", "created_at": datetime.now(timezone.utc).isoformat()}
-    await db.transactions.insert_one(tx_doc)
+    tx_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "amount": gmail_tx.get("monto") or 0, "description": gmail_tx.get("descripcion_corta", ""), "establishment": gmail_tx.get("comercio", ""), "vendor": gmail_tx.get("comercio", ""), "date": gmail_tx.get("fecha_transaccion") or datetime.now(timezone.utc).strftime("%Y-%m-%d"), "personal_category": gmail_tx.get("personal_category", "otros"), "category": gmail_tx.get("personal_category", "otros"), "sri_category": gmail_tx.get("sri_category"), "source": "gmail", "status": "approved", "tarjeta_ultimos4": gmail_tx.get("tarjeta_ultimos4"), "created_at": datetime.now(timezone.utc).isoformat()}
+    result = await dedup_or_merge(user["id"], tx_doc, "email_banco")
     await db.gmail_transactions.update_one({"gmail_id": gmail_id, "user_id": user["id"]}, {"$set": {"estado": "aprobado"}})
-    return {"status": "success", "transaction_id": tx_doc["id"]}
+    return {"status": "success", "transaction_id": result["transaction_id"], "action": result["action"]}
 
 
 @router.put("/gmail/transactions/{gmail_id}/discard")

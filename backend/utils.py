@@ -10,6 +10,7 @@ import os
 import re
 import json
 import uuid
+import hashlib
 import logging
 import pdfplumber
 
@@ -120,6 +121,84 @@ async def find_potential_duplicates(user_id: str, amount: float, date: str, esta
             duplicates.append({"transaction": t, "confidence": min(confidence, 100)})
 
     return duplicates
+
+
+# Source priority: higher number = more authoritative
+SOURCE_PRIORITY = {"manual": 0, "email_banco": 1, "estado_cuenta": 2, "bank_statement": 2, "factura_sri": 3, "gmail_pdf": 2}
+
+
+def compute_fingerprint(user_id: str, card_last: str, amount: float, date: str) -> str:
+    """SHA-256 fingerprint for cross-channel deduplication."""
+    date_only = date[:10] if date else ""
+    raw = f"{user_id}|{card_last or ''}|{round(amount, 2)}|{date_only}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
+
+async def dedup_or_merge(user_id: str, doc: dict, source_label: str) -> dict:
+    """Check if a matching transaction exists. If yes, merge sources. If no, insert.
+    Returns {"action": "merged"|"inserted", "transaction_id": str, "doc": dict}
+    """
+    amount = doc.get("amount", 0)
+    date = doc.get("date", "")
+    card_last = doc.get("tarjeta_ultimos4") or doc.get("card_last_digits") or ""
+
+    # Compute and store fingerprint
+    fp = compute_fingerprint(user_id, card_last, amount, date)
+    doc["fingerprint"] = fp
+    if "fuentes" not in doc:
+        doc["fuentes"] = []
+    if source_label not in doc["fuentes"]:
+        doc["fuentes"].append(source_label)
+
+    # 1. Exact fingerprint match
+    existing = await db.transactions.find_one({"user_id": user_id, "fingerprint": fp}, {"_id": 0})
+
+    # 2. Fuzzy match: same card + amount ±1% + date ±2 days
+    if not existing and card_last and amount > 0 and date:
+        try:
+            date_obj = datetime.strptime(date[:10], "%Y-%m-%d")
+            date_start = (date_obj - timedelta(days=2)).strftime("%Y-%m-%d")
+            date_end = (date_obj + timedelta(days=2)).strftime("%Y-%m-%d")
+            existing = await db.transactions.find_one({
+                "user_id": user_id,
+                "tarjeta_ultimos4": card_last,
+                "amount": {"$gte": amount * 0.99, "$lte": amount * 1.01},
+                "date": {"$gte": date_start, "$lte": date_end},
+            }, {"_id": 0})
+        except Exception:
+            pass
+
+    if existing:
+        # Merge: add source, upgrade fields if new source has higher priority
+        update = {}
+        existing_fuentes = existing.get("fuentes", [])
+        if source_label not in existing_fuentes:
+            existing_fuentes.append(source_label)
+            update["fuentes"] = existing_fuentes
+
+        new_priority = SOURCE_PRIORITY.get(source_label, 0)
+        old_source = existing.get("fuentes", ["manual"])[0] if existing.get("fuentes") else "manual"
+        old_priority = SOURCE_PRIORITY.get(old_source, 0)
+
+        if new_priority > old_priority:
+            # Upgrade fields from higher-priority source
+            for field in ["comercio", "establishment", "description", "category", "sri_category", "subcategory", "is_deductible", "numero_factura", "ruc_emisor"]:
+                if doc.get(field) and doc[field] != existing.get(field):
+                    update[field] = doc[field]
+
+        if not existing.get("fingerprint"):
+            update["fingerprint"] = fp
+        update["is_cross_canal_dup"] = True
+
+        if update:
+            await db.transactions.update_one({"id": existing["id"]}, {"$set": update})
+
+        return {"action": "merged", "transaction_id": existing["id"], "doc": existing}
+
+    # No match — insert new
+    await db.transactions.insert_one(doc)
+    return {"action": "inserted", "transaction_id": doc.get("id"), "doc": doc}
+
 
 
 async def lookup_known_vendor(user_id: str, establishment: str, description: str = "") -> dict:

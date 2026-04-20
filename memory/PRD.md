@@ -35,7 +35,14 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Array index as key replaced in 8 instances (Upload, Dashboard, CargarValidar, ChatBot)
   - 8 console.log wrapped in NODE_ENV === 'development' guards
   - 29/29 backend + frontend login flow verified
-- [2026-04-20] Bank email parsers module:
+- [2026-04-20] Cross-canal deduplication:
+  - Fingerprint: sha256(user_id|card|amount|date) stored on every transaction
+  - dedup_or_merge() checks fingerprint then fuzzy (±1% amount, ±2 days, same card)
+  - Merges sources array ["email_banco", "estado_cuenta"] with priority escalation
+  - Integrated in gmail approve, reconciliation confirm, statement processing
+  - /reconciliation/cross-canal-stats endpoint
+  - Frontend: cross-canal badge + fuentes display in duplicate review dialog
+  - 25/25 parser tests + fingerprint unit tests passing
   - /app/backend/parsers/__init__.py with 10 dedicated parsers:
     PacifiCard consumo, Diners consumo, Pichincha consumo, Bolivariano consumo,
     Pacifico pago, Pichincha transferencia, Pichincha estado, PacifiCard estado,
