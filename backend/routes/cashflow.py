@@ -180,23 +180,33 @@ async def get_travel_goals(user: dict = Depends(get_current_user)):
         goal_data = {k: v for k, v in goal.items() if k != "_id"}
         try:
             target = datetime.fromisoformat(goal["target_date"].replace("Z", "+00:00"))
+            if target.tzinfo is None:
+                target = target.replace(tzinfo=timezone.utc)
             goal_data["days_remaining"] = max(0, (target - today).days)
         except Exception:
             goal_data["days_remaining"] = 0
-        goal_data["progress_percent"] = min(100, round((goal.get("saved_amount", 0) / goal["target_amount"]) * 100))
+        goal_data["progress_percent"] = min(100, round((goal.get("saved_amount", 0) / goal["target_amount"]) * 100)) if goal.get("target_amount", 0) > 0 else 0
         if goal_data["days_remaining"] > 0:
             remaining = goal["target_amount"] - goal.get("saved_amount", 0)
             months_remaining = max(1, goal_data["days_remaining"] / 30)
             goal_data["monthly_needed"] = round(remaining / months_remaining, 2)
         else:
             goal_data["monthly_needed"] = 0
+        # Calculate total spent from linked transactions
+        linked_ids = goal.get("linked_transactions", [])
+        if linked_ids:
+            pipeline = [{"$match": {"id": {"$in": linked_ids}, "user_id": user["id"]}}, {"$group": {"_id": None, "total": {"$sum": "$amount"}}}]
+            agg = await db.transactions.aggregate(pipeline).to_list(1)
+            goal_data["total_spent"] = agg[0]["total"] if agg else 0
+        else:
+            goal_data["total_spent"] = 0
         result.append(goal_data)
     return {"goals": result, "count": len(result)}
 
 
 @router.post("/travel-goals")
 async def create_travel_goal(goal: TravelGoalCreate, user: dict = Depends(get_current_user)):
-    doc = {"id": str(uuid.uuid4()), "user_id": user["id"], **goal.model_dump(), "saved_amount": 0, "status": "active", "created_at": datetime.now(timezone.utc).isoformat()}
+    doc = {"id": str(uuid.uuid4()), "user_id": user["id"], **goal.model_dump(), "saved_amount": 0, "linked_transactions": [], "total_spent": 0, "status": "active", "created_at": datetime.now(timezone.utc).isoformat()}
     await db.travel_goals.insert_one(doc)
     return {k: v for k, v in doc.items() if k != "_id"}
 
@@ -209,8 +219,11 @@ async def update_travel_goal(goal_id: str, updates: dict, user: dict = Depends(g
     return {"message": "Actualizado"}
 
 
-@router.put("/travel-goals/{goal_id}/add-savings")
-async def add_travel_savings(goal_id: str, amount: float, user: dict = Depends(get_current_user)):
+@router.post("/travel-goals/{goal_id}/add-savings")
+async def add_travel_savings(goal_id: str, body: dict, user: dict = Depends(get_current_user)):
+    amount = float(body.get("amount", 0))
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Monto debe ser mayor a 0")
     goal = await db.travel_goals.find_one({"id": goal_id, "user_id": user["id"]})
     if not goal:
         raise HTTPException(status_code=404, detail="Meta no encontrada")
@@ -218,6 +231,39 @@ async def add_travel_savings(goal_id: str, amount: float, user: dict = Depends(g
     new_status = "completed" if new_saved >= goal["target_amount"] else "active"
     await db.travel_goals.update_one({"id": goal_id}, {"$set": {"saved_amount": new_saved, "status": new_status}})
     return {"message": "Ahorro agregado", "new_saved": new_saved, "status": new_status}
+
+
+@router.post("/travel-goals/{goal_id}/link-transaction")
+async def link_transaction_to_goal(goal_id: str, body: dict, user: dict = Depends(get_current_user)):
+    transaction_id = body.get("transaction_id")
+    if not transaction_id:
+        raise HTTPException(status_code=400, detail="transaction_id requerido")
+    goal = await db.travel_goals.find_one({"id": goal_id, "user_id": user["id"]})
+    if not goal:
+        raise HTTPException(status_code=404, detail="Meta no encontrada")
+    tx = await db.transactions.find_one({"id": transaction_id, "user_id": user["id"]}, {"_id": 0})
+    if not tx:
+        raise HTTPException(status_code=404, detail="Transaccion no encontrada")
+    linked = goal.get("linked_transactions", [])
+    if transaction_id in linked:
+        return {"message": "Ya vinculada", "linked_transactions": linked}
+    linked.append(transaction_id)
+    await db.travel_goals.update_one({"id": goal_id}, {"$set": {"linked_transactions": linked}})
+    await db.transactions.update_one({"id": transaction_id}, {"$set": {"linked_goal_id": goal_id, "linked_goal_name": goal["destination"]}})
+    return {"message": "Transaccion vinculada", "linked_transactions": linked}
+
+
+@router.get("/travel-goals/{goal_id}/transactions")
+async def get_goal_linked_transactions(goal_id: str, user: dict = Depends(get_current_user)):
+    goal = await db.travel_goals.find_one({"id": goal_id, "user_id": user["id"]})
+    if not goal:
+        raise HTTPException(status_code=404, detail="Meta no encontrada")
+    linked_ids = goal.get("linked_transactions", [])
+    if not linked_ids:
+        return {"transactions": [], "total": 0}
+    txs = await db.transactions.find({"id": {"$in": linked_ids}, "user_id": user["id"]}, {"_id": 0}).to_list(200)
+    total = sum(t.get("amount", 0) for t in txs)
+    return {"transactions": txs, "total": total}
 
 
 @router.delete("/travel-goals/{goal_id}")

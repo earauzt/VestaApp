@@ -447,6 +447,8 @@ class TransactionBase(BaseModel):
     payment_method: Optional[str] = None
     budget_category: Optional[str] = None
     receipt_group_id: Optional[str] = None
+    linked_goal_id: Optional[str] = None
+    linked_goal_name: Optional[str] = None
 
 class TransactionCreate(TransactionBase):
     pass
@@ -646,6 +648,7 @@ class TravelGoalCreate(BaseModel):
     destination: str
     target_amount: float
     target_date: str
+    tipo: str = "viaje"
     notes: Optional[str] = None
 
 class TravelGoalResponse(BaseModel):
@@ -656,8 +659,11 @@ class TravelGoalResponse(BaseModel):
     target_amount: float
     saved_amount: float
     target_date: str
+    tipo: str = "viaje"
     status: str
     notes: Optional[str] = None
+    linked_transactions: List[str] = []
+    total_spent: float = 0
     created_at: str
 
 class DocumentUpload(BaseModel):

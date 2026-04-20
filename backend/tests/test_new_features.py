@@ -7,7 +7,7 @@ import requests
 import os
 from datetime import datetime
 
-BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://finanzas-ecuador-2.preview.emergentagent.com').rstrip('/')
+BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', 'https://objetivo-financiero.preview.emergentagent.com').rstrip('/')
 
 # Test credentials from environment
 from tests.conftest_credentials import ADMIN_EMAIL, ADMIN_PASSWORD

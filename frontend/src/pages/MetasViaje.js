@@ -30,7 +30,9 @@ import {
   Gear,
   Receipt,
   Eye,
-  CaretRight
+  CaretRight,
+  LinkSimple,
+  MagnifyingGlass
 } from "@phosphor-icons/react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -46,6 +48,16 @@ const SUBCATEGORY_ICONS = {
   "Tours": "🗺️",
   "Otros": "📦"
 };
+
+const GOAL_TYPES = [
+  { value: "viaje", label: "Viaje", icon: "✈️" },
+  { value: "educacion", label: "Educacion", icon: "🎓" },
+  { value: "hogar", label: "Hogar", icon: "🏠" },
+  { value: "emergencia", label: "Emergencia", icon: "🛡️" },
+  { value: "celebracion", label: "Celebracion", icon: "🎉" },
+  { value: "inversion", label: "Inversion", icon: "📈" },
+  { value: "otro", label: "Otro", icon: "⭐" }
+];
 
 const STATUS_CONFIG = {
   active: { label: "Activa", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400", icon: Target },
@@ -85,18 +97,25 @@ export default function MetasViaje() {
     destination: "",
     target_amount: "",
     target_date: new Date(new Date().setMonth(new Date().getMonth() + 6)),
+    tipo: "viaje",
     notes: "",
     status: "active"
   });
+
+  // Link expense state
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkGoalId, setLinkGoalId] = useState(null);
+  const [searchTx, setSearchTx] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
 
   const canEdit = user?.role === "admin" || user?.role === "spouse";
 
   const fetchData = useCallback(async () => {
     try {
       const [goalsRes, fundRes, transactionsRes] = await Promise.all([
-        axios.get(`${API}/travel-goals`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/travel-fund`, { headers: getAuthHeaders() }),
-        axios.get(`${API}/travel-fund/transactions`, { headers: getAuthHeaders() })
+        axios.get(`${API}/travel-goals`, { headers: getAuthHeadersRef.current() }),
+        axios.get(`${API}/travel-fund`, { headers: getAuthHeadersRef.current() }),
+        axios.get(`${API}/travel-fund/transactions`, { headers: getAuthHeadersRef.current() })
       ]);
       
       setGoals(goalsRes.data.goals || []);
@@ -137,10 +156,10 @@ export default function MetasViaje() {
       };
 
       if (editingGoal) {
-        await axios.put(`${API}/travel-goals/${editingGoal.id}`, payload, { headers: getAuthHeaders() });
+        await axios.put(`${API}/travel-goals/${editingGoal.id}`, payload, { headers: getAuthHeadersRef.current() });
         toast.success("Meta actualizada");
       } else {
-        await axios.post(`${API}/travel-goals`, payload, { headers: getAuthHeaders() });
+        await axios.post(`${API}/travel-goals`, payload, { headers: getAuthHeadersRef.current() });
         toast.success("Meta creada");
       }
 
@@ -157,7 +176,7 @@ export default function MetasViaje() {
     if (!window.confirm("¿Eliminar esta meta?")) return;
     
     try {
-      await axios.delete(`${API}/travel-goals/${goalId}`, { headers: getAuthHeaders() });
+      await axios.delete(`${API}/travel-goals/${goalId}`, { headers: getAuthHeadersRef.current() });
       toast.success("Meta eliminada");
       fetchData();
     } catch (error) {
@@ -172,7 +191,7 @@ export default function MetasViaje() {
       await axios.post(
         `${API}/travel-goals/${selectedGoal.id}/add-savings`,
         { amount: parseFloat(savingsAmount) },
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeadersRef.current() }
       );
       toast.success(`${formatCurrency(savingsAmount)} agregado a ${selectedGoal.destination}`);
       setSavingsDialogOpen(false);
@@ -195,7 +214,7 @@ export default function MetasViaje() {
       await axios.post(
         `${API}/travel-fund/deposit`,
         { amount: parseFloat(depositAmount), note: depositNote || "Ahorro para viajes" },
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeadersRef.current() }
       );
       toast.success(`${formatCurrency(depositAmount)} agregado al fondo`);
       setFundDepositDialogOpen(false);
@@ -218,7 +237,7 @@ export default function MetasViaje() {
       await axios.put(
         `${API}/travel-fund/settings`,
         { annual_budget: parseFloat(newAnnualBudget) },
-        { headers: getAuthHeaders() }
+        { headers: getAuthHeadersRef.current() }
       );
       toast.success("Meta anual actualizada");
       setFundSettingsDialogOpen(false);
@@ -235,6 +254,7 @@ export default function MetasViaje() {
       destination: "",
       target_amount: "",
       target_date: new Date(new Date().setMonth(new Date().getMonth() + 6)),
+      tipo: "viaje",
       notes: "",
       status: "active"
     });
@@ -247,10 +267,37 @@ export default function MetasViaje() {
       destination: goal.destination,
       target_amount: goal.target_amount.toString(),
       target_date: new Date(goal.target_date),
+      tipo: goal.tipo || "viaje",
       notes: goal.notes || "",
       status: goal.status || "active"
     });
     setDialogOpen(true);
+  };
+
+  const handleSearchTransactions = async (query) => {
+    setSearchTx(query);
+    if (query.length < 2) { setSearchResults([]); return; }
+    try {
+      const res = await axios.get(`${API}/transactions`, { headers: getAuthHeadersRef.current() });
+      const filtered = (Array.isArray(res.data) ? res.data : []).filter(t =>
+        (t.description || "").toLowerCase().includes(query.toLowerCase()) ||
+        (t.establishment || "").toLowerCase().includes(query.toLowerCase())
+      ).slice(0, 10);
+      setSearchResults(filtered);
+    } catch { setSearchResults([]); }
+  };
+
+  const handleLinkTransaction = async (txId) => {
+    try {
+      await axios.post(`${API}/travel-goals/${linkGoalId}/link-transaction`, { transaction_id: txId }, { headers: getAuthHeadersRef.current() });
+      toast.success("Gasto vinculado a la meta");
+      setLinkDialogOpen(false);
+      setSearchTx("");
+      setSearchResults([]);
+      fetchData();
+    } catch (error) {
+      toast.error(error.response?.data?.detail || "Error al vincular");
+    }
   };
 
   if (loading) {
@@ -401,20 +448,23 @@ export default function MetasViaje() {
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
                           {/* Icon */}
-                          <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0">
-                            <MapPin size={24} className="text-violet-600" />
+                          <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0 text-2xl">
+                            {GOAL_TYPES.find(t => t.value === (goal.tipo || "viaje"))?.icon || "⭐"}
                           </div>
                           
                           {/* Info */}
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               <h3 className="font-semibold truncate">{goal.destination}</h3>
+                              <Badge variant="outline" className="text-[10px]">{GOAL_TYPES.find(t => t.value === (goal.tipo || "viaje"))?.label || "Otro"}</Badge>
                               <Badge variant="secondary" className="text-xs">
-                                {daysLeft > 0 ? `${daysLeft} días` : "Vencida"}
+                                {daysLeft > 0 ? `${daysLeft} dias` : "Vencida"}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
                               <span>{format(new Date(goal.target_date), "d MMM yyyy", { locale: es })}</span>
+                              {goal.monthly_needed > 0 && <span>Ahorrar {formatCurrency(goal.monthly_needed)}/mes</span>}
+                              {goal.total_spent > 0 && <span className="text-orange-600">Gastado: {formatCurrency(goal.total_spent)}</span>}
                             </div>
                             <Progress value={Math.min(progress, 100)} className="h-2 mb-1" />
                             <div className="flex justify-between text-xs">
@@ -430,6 +480,10 @@ export default function MetasViaje() {
                           {/* Actions */}
                           {canEdit && (
                             <div className="flex gap-1 shrink-0">
+                              <Button variant="ghost" size="icon" className="h-8 w-8" title="Vincular gasto"
+                                onClick={() => { setLinkGoalId(goal.id); setLinkDialogOpen(true); }}>
+                                <LinkSimple size={16} />
+                              </Button>
                               <Button
                                 variant="ghost"
                                 size="icon"
@@ -594,15 +648,37 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Airplane size={24} className="text-violet-500" />
-              {editingGoal ? "Editar Destino" : "Nuevo Destino"}
+              <span className="text-2xl">{GOAL_TYPES.find(t => t.value === formData.tipo)?.icon || "⭐"}</span>
+              {editingGoal ? "Editar Meta" : "Nueva Meta"}
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {/* Type selector */}
             <div className="space-y-2">
-              <Label>Destino</Label>
+              <Label>Tipo de Meta</Label>
+              <div className="grid grid-cols-4 gap-2">
+                {GOAL_TYPES.map(type => (
+                  <button
+                    key={type.value}
+                    type="button"
+                    className={`flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all ${
+                      formData.tipo === type.value 
+                        ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30 ring-1 ring-violet-500" 
+                        : "border-border hover:border-violet-300"
+                    }`}
+                    onClick={() => setFormData({ ...formData, tipo: type.value })}
+                  >
+                    <span className="text-lg">{type.icon}</span>
+                    <span>{type.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Nombre</Label>
               <Input
-                placeholder="Miami, Galápagos, Europa..."
+                placeholder="Vacaciones Miami, Fondo universidad..."
                 value={formData.destination}
                 onChange={(e) => setFormData({ ...formData, destination: e.target.value })}
                 data-testid="goal-destination"
@@ -870,6 +946,48 @@ export default function MetasViaje() {
               </DialogFooter>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Link Transaction Dialog */}
+      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LinkSimple size={20} className="text-violet-500" />
+              Vincular Gasto a Meta
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="relative">
+              <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Buscar transaccion..."
+                className="pl-9"
+                value={searchTx}
+                onChange={(e) => handleSearchTransactions(e.target.value)}
+                data-testid="link-tx-search"
+              />
+            </div>
+            <div className="max-h-60 overflow-y-auto space-y-1">
+              {searchResults.map(tx => (
+                <button
+                  key={tx.id}
+                  className="w-full flex items-center justify-between p-3 rounded-lg border hover:bg-muted/50 text-left transition-colors"
+                  onClick={() => handleLinkTransaction(tx.id)}
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{tx.establishment || tx.description}</p>
+                    <p className="text-xs text-muted-foreground">{tx.date}</p>
+                  </div>
+                  <span className="font-mono font-semibold text-sm shrink-0">${(tx.amount || 0).toFixed(2)}</span>
+                </button>
+              ))}
+              {searchTx.length >= 2 && searchResults.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-4">Sin resultados</p>
+              )}
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </div>

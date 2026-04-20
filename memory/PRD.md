@@ -87,6 +87,15 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - UI: orange icon + "Servicio Digital" badge in Gmail tab
   - Dashboard: subscription renewal widget below reminders
   - 20/20 tests passed
+- [2026-04-20] SESIÓN 6B - Metas y Ahorro verificación y fixes:
+  - Backend bug: add-savings era PUT con amount query param → cambio a POST con body dict
+  - Backend bug: datetime naive vs tz-aware en get_travel_goals hacía days_remaining=0 siempre
+    → fix: convertir target a tz-aware antes de restar
+  - Backend: TransactionBase ahora incluye linked_goal_id, linked_goal_name
+    (antes el response_model los filtraba por extra="ignore")
+  - Frontend: Transactions.js muestra badge violeta con Target icon para txs vinculadas a meta
+  - Todos los endpoints CRUD verificados con curl (crear/listar/editar/eliminar + add-savings suma + link-transaction)
+  - UI dialog mobile OK: 7 tipos en grid 4x2 sin overflow
 
 ## Tech Stack
 - Backend: FastAPI, Python, Motor (async MongoDB), JWT httpOnly cookies

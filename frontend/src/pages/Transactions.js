@@ -27,6 +27,7 @@ import {
   Warning,
   DotsThreeVertical,
   Scissors,
+  Target,
   Paperclip,
   Gear,
   CheckCircle,
@@ -780,6 +781,12 @@ export default function Transactions() {
                             <Badge variant="outline" className="text-xs gap-1">
                               <Scissors size={12} />
                               Split
+                            </Badge>
+                          )}
+                          {transaction.linked_goal_name && (
+                            <Badge variant="outline" className="text-xs gap-1 bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/30 dark:text-violet-400 dark:border-violet-800" data-testid="linked-goal-badge">
+                              <Target size={12} />
+                              {transaction.linked_goal_name}
                             </Badge>
                           )}
                         </div>
