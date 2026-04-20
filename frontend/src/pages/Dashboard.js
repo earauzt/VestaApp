@@ -101,6 +101,7 @@ export default function Dashboard() {
 
   const [travelFund, setTravelFund] = useState(null);
   const [sriDeductible, setSriDeductible] = useState(0);
+  const [sriLimits, setSriLimits] = useState({ limite_20pct: 0, limite_legal: 2784, limite_efectivo: 2784, ingresos_gravados_anual: 0 });
   const [sriCounters, setSriCounters] = useState({ con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 });
   const [subscriptionRenewals, setSubscriptionRenewals] = useState([]);
 
@@ -110,7 +111,7 @@ export default function Dashboard() {
   const fetchData = useCallback(async () => {
     try {
       const headers = getAuthHeadersRef.current();
-      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes, txRes, subsRes, sriRes] = await Promise.all([
+      const [statsRes, chartRes, remindersRes, cashflowRes, goalsRes, fundRes, txRes, subsRes, sriRes, sriLimitsRes] = await Promise.all([
         axios.get(`${API}/dashboard/stats`, { headers }),
         axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers }),
         axios.get(`${API}/reminders`, { headers }).catch(() => ({ data: [] })),
@@ -119,7 +120,8 @@ export default function Dashboard() {
         axios.get(`${API}/travel-fund`, { headers }).catch(() => ({ data: null })),
         axios.get(`${API}/transactions?limit=5000`, { headers }).catch(() => ({ data: { transactions: [] } })),
         axios.get(`${API}/dashboard/subscription-renewals`, { headers }).catch(() => ({ data: { upcoming_this_week: [] } })),
-        axios.get(`${API}/sri/counters`, { headers }).catch(() => ({ data: { con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 } }))
+        axios.get(`${API}/sri/counters`, { headers }).catch(() => ({ data: { con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 } })),
+        axios.get(`${API}/sri/deduction-limits`, { headers }).catch(() => ({ data: null }))
       ]);
       
       setStats(statsRes.data);
@@ -162,6 +164,16 @@ export default function Dashboard() {
       setSubscriptionRenewals(subsRes.data?.upcoming_this_week || []);
       // SRI match counters
       setSriCounters(sriRes.data || { con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 });
+      // SRI limits (dynamic)
+      if (sriLimitsRes.data) {
+        setSriLimits({
+          limite_20pct: sriLimitsRes.data.limite_20pct || 0,
+          limite_legal: sriLimitsRes.data.limite_legal || 2784,
+          limite_efectivo: sriLimitsRes.data.limite_efectivo || 2784,
+          ingresos_gravados_anual: sriLimitsRes.data.ingresos_gravados_anual || 0,
+        });
+        setSriDeductible(sriLimitsRes.data.total_deductible_spent || 0);
+      }
     } catch (error) {
       toast.error("Error al cargar datos del dashboard");
     } finally {
@@ -406,7 +418,13 @@ export default function Dashboard() {
               </div>
               <div>
                 <p className="text-sm font-medium">Gastos deducibles SRI {new Date().getFullYear()}</p>
-                <p className="text-xs text-muted-foreground">Límite: 20% de ingresos gravados (tope $2,784)</p>
+                <p className="text-xs text-muted-foreground" data-testid="sri-limit-explanation">
+                  Tu límite: <strong>{formatCurrency(sriLimits.limite_efectivo)}</strong>
+                  {sriLimits.limite_20pct > 0 && (
+                    <> (20% de {formatCurrency(sriLimits.ingresos_gravados_anual)} = {formatCurrency(sriLimits.limite_20pct)})</>
+                  )}
+                  {" — "}Tope legal: <strong>{formatCurrency(sriLimits.limite_legal)}</strong>
+                </p>
               </div>
             </div>
             <span className="text-lg font-bold font-mono text-emerald-600">
@@ -415,12 +433,14 @@ export default function Dashboard() {
           </div>
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{formatCurrency(sriDeductible)} de $2,784 máx.</span>
-              <span className={sriDeductible > 2784 ? "text-amber-600 font-semibold" : ""}>{Math.min(100, Math.round((sriDeductible / 2784) * 100))}%</span>
+              <span>{formatCurrency(sriDeductible)} de {formatCurrency(sriLimits.limite_efectivo)} máx.</span>
+              <span className={sriDeductible > sriLimits.limite_efectivo ? "text-amber-600 font-semibold" : ""}>
+                {sriLimits.limite_efectivo > 0 ? Math.min(100, Math.round((sriDeductible / sriLimits.limite_efectivo) * 100)) : 0}%
+              </span>
             </div>
             <Progress 
-              value={Math.min(100, (sriDeductible / 2784) * 100)} 
-              className={`h-2 ${sriDeductible > 2784 ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`}
+              value={sriLimits.limite_efectivo > 0 ? Math.min(100, (sriDeductible / sriLimits.limite_efectivo) * 100) : 0} 
+              className={`h-2 ${sriDeductible > sriLimits.limite_efectivo ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`}
             />
           </div>
         </CardContent>

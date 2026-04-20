@@ -7,7 +7,9 @@ from database import db
 from models import (
     DashboardStats, SRI_CATEGORIES, CANASTA_BASICA, FRACCION_BASICA_EXENTA,
     CARGAS_FAMILIARES_CBF, PORCENTAJE_REBAJA_IR, CONTRIBUYENTE_INFO,
-    INCOME_SOURCES, PAYMENT_SOURCES, INTERNATIONAL_COUNTRIES
+    INCOME_SOURCES, PAYMENT_SOURCES, INTERNATIONAL_COUNTRIES,
+    TOPE_LEGAL_SRI, PORCENTAJE_LIMITE_INGRESOS, SRI_CATEGORIAS_REGLAS,
+    get_income_structure
 )
 from utils import get_current_user, generate_sri_alerts
 
@@ -73,52 +75,113 @@ async def get_categories():
     return {"categories": SRI_CATEGORIES, "income_sources": INCOME_SOURCES, "payment_sources": PAYMENT_SOURCES, "international_countries": INTERNATIONAL_COUNTRIES, "canasta_basica": CANASTA_BASICA, "fraccion_basica_exenta": FRACCION_BASICA_EXENTA, "contribuyente": CONTRIBUYENTE_INFO}
 
 
+async def _get_ingresos_gravados_anual(user: dict, year: int) -> float:
+    """Lee ingresos anuales proyectados del usuario (presupuesto personal > INCOME_STRUCTURE default)."""
+    budget = await db.personal_budgets.find_one({"user_id": user["id"], "year": year}, {"_id": 0, "income_projection": 1})
+    income_proj = (budget or {}).get("income_projection") or get_income_structure(user)
+    total = 0.0
+    if isinstance(income_proj, dict):
+        for v in income_proj.values():
+            if isinstance(v, dict):
+                total += float(v.get("annual", 0) or (v.get("monthly", 0) or 0) * 12)
+    return round(total, 2)
+
+
+def _deductible_amount(tx: dict) -> float:
+    """Si aplica_iva=False, el deducible es subtotal_sin_iva; caso contrario, el total."""
+    if tx.get("aplica_iva") is False and tx.get("subtotal_sin_iva"):
+        return float(tx.get("subtotal_sin_iva") or 0)
+    return float(tx.get("amount", 0) or 0)
+
+
+@router.get("/sri/categorias")
+async def get_sri_categorias():
+    """Reglas de deducibilidad SRI (desde la colección sri_categorias)."""
+    items = await db.sri_categorias.find({}, {"_id": 0}).to_list(50)
+    if not items:
+        items = [{"categoria": k, **v} for k, v in SRI_CATEGORIAS_REGLAS.items()]
+    return {"categorias": items}
+
+
 @router.get("/sri/deduction-limits")
 async def get_sri_deduction_limits(cargas_familiares: int = 0, user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc)
     start_of_year = f"{now.year}-01-01"
     transactions = await db.transactions.find({"user_id": user["id"], "date": {"$gte": start_of_year}, "transaction_type": "expense", "uso_empresarial": {"$ne": True}}, {"_id": 0}).to_list(10000)
 
+    # Cargar reglas SRI (DB > fallback models)
+    rules_docs = await db.sri_categorias.find({}, {"_id": 0}).to_list(50)
+    rules = {r["categoria"]: r for r in rules_docs} if rules_docs else {
+        k: {"categoria": k, **v} for k, v in SRI_CATEGORIAS_REGLAS.items()
+    }
+
     spent_by_category = {}
     total_deductible = 0
     total_non_deductible = 0
     for t in transactions:
         cat = t.get("category", "otros")
-        amount = t.get("amount", 0)
-        if cat not in spent_by_category:
-            spent_by_category[cat] = 0
-        spent_by_category[cat] += amount
-        if SRI_CATEGORIES.get(cat, {}).get("deductible", False):
-            total_deductible += amount
+        deductible_amt = _deductible_amount(t)
+        spent_by_category[cat] = spent_by_category.get(cat, 0) + deductible_amt
+        rule = rules.get(cat)
+        pct = rule.get("porcentaje_deducible", 0) if rule else (1.0 if SRI_CATEGORIES.get(cat, {}).get("deductible") else 0)
+        if pct > 0:
+            total_deductible += deductible_amt * pct
         else:
-            total_non_deductible += amount
+            total_non_deductible += deductible_amt
 
+    # Cálculo límite efectivo: MIN(20% ingresos, tope legal)
+    ingresos_gravados = await _get_ingresos_gravados_anual(user, now.year)
+    limite_20pct = round(ingresos_gravados * PORCENTAJE_LIMITE_INGRESOS, 2)
+    limite_legal = TOPE_LEGAL_SRI
+    limite_efectivo = round(min(limite_20pct, limite_legal), 2) if limite_20pct > 0 else limite_legal
+
+    # Cargas familiares legacy (compat)
     cargas = min(cargas_familiares, 5)
     num_cbf = CARGAS_FAMILIARES_CBF.get(cargas, 7)
-    limite_global = num_cbf * CANASTA_BASICA
+    limite_global_cargas = num_cbf * CANASTA_BASICA
 
     category_progress = []
-    for cat_key, cat_info in SRI_CATEGORIES.items():
-        if cat_info.get("deductible", False):
-            spent = spent_by_category.get(cat_key, 0)
-            limit = cat_info.get("limit_usd", 0)
-            percentage = (spent / limit * 100) if limit > 0 else 0
-            category_progress.append({"category": cat_key, "name": cat_info["name"], "spent": round(spent, 2), "limit": limit, "percentage": round(min(percentage, 100), 1), "remaining": round(max(0, limit - spent), 2), "over_limit": spent > limit, "description": cat_info.get("description", "")})
+    for cat_key, rule in rules.items():
+        pct_ded = rule.get("porcentaje_deducible", 0)
+        if pct_ded <= 0:
+            continue
+        spent = spent_by_category.get(cat_key, 0) * pct_ded
+        tope = rule.get("tope_anual")
+        # tope None → sin tope: usa limite_efectivo como referencia visual
+        limit = tope if tope else limite_efectivo
+        percentage = (spent / limit * 100) if limit > 0 else 0
+        category_progress.append({
+            "category": cat_key, "name": rule.get("nombre", cat_key),
+            "spent": round(spent, 2), "limit": round(limit, 2) if tope else None,
+            "sin_tope": tope is None,
+            "percentage": round(min(percentage, 100), 1),
+            "remaining": round(max(0, (tope or limite_efectivo) - spent), 2),
+            "over_limit": tope is not None and spent > tope,
+            "porcentaje_deducible": pct_ded,
+            "descripcion": rule.get("descripcion", ""),
+        })
     category_progress.sort(key=lambda x: x["percentage"], reverse=True)
 
-    gastos_aplicables = min(total_deductible, limite_global)
+    gastos_aplicables = min(total_deductible, limite_efectivo)
     rebaja_ir = gastos_aplicables * PORCENTAJE_REBAJA_IR
 
     return {
         "year": now.year, "contribuyente": CONTRIBUYENTE_INFO, "cargas_familiares": cargas_familiares,
         "canasta_basica": CANASTA_BASICA, "fraccion_basica_exenta": FRACCION_BASICA_EXENTA,
-        "limite_global": round(limite_global, 2), "total_deductible_spent": round(total_deductible, 2),
-        "total_non_deductible_spent": round(total_non_deductible, 2), "gastos_aplicables": round(gastos_aplicables, 2),
-        "rebaja_ir_estimada": round(rebaja_ir, 2), "porcentaje_rebaja": PORCENTAJE_REBAJA_IR * 100,
-        "percentage_used": round((total_deductible / limite_global * 100) if limite_global > 0 else 0, 1),
-        "remaining_global": round(max(0, limite_global - total_deductible), 2),
+        "ingresos_gravados_anual": ingresos_gravados,
+        "limite_20pct": limite_20pct,
+        "limite_legal": limite_legal,
+        "limite_efectivo": limite_efectivo,
+        "limite_global": round(limite_global_cargas, 2),  # legacy compat
+        "total_deductible_spent": round(total_deductible, 2),
+        "total_non_deductible_spent": round(total_non_deductible, 2),
+        "gastos_aplicables": round(gastos_aplicables, 2),
+        "rebaja_ir_estimada": round(rebaja_ir, 2),
+        "porcentaje_rebaja": PORCENTAJE_REBAJA_IR * 100,
+        "percentage_used": round((total_deductible / limite_efectivo * 100) if limite_efectivo > 0 else 0, 1),
+        "remaining_global": round(max(0, limite_efectivo - total_deductible), 2),
         "category_progress": category_progress,
-        "alerts": generate_sri_alerts(category_progress, total_deductible, limite_global)
+        "alerts": generate_sri_alerts(category_progress, total_deductible, limite_efectivo)
     }
 
 

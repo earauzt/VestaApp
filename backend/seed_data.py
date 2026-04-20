@@ -461,6 +461,19 @@ async def seed_database(mongo_url: str, db_name: str):
         cards_count = await db.credit_cards.count_documents({})
         deferred_count = await db.deferred_payments.count_documents({})
         users_count = await db.users.count_documents({})
+
+        # Seed sri_categorias (SESIÓN 8)
+        try:
+            from models import SRI_CATEGORIAS_REGLAS
+            for key, rule in SRI_CATEGORIAS_REGLAS.items():
+                await db.sri_categorias.update_one(
+                    {"categoria": key},
+                    {"$set": {"categoria": key, **rule, "updated_at": datetime.now(timezone.utc).isoformat()}},
+                    upsert=True,
+                )
+            logger.info(f"   - SRI categorias: {await db.sri_categorias.count_documents({})}")
+        except Exception as e:
+            logger.warning(f"SRI categorias seed failed: {e}")
         
         logger.info(f"\n📊 Base de datos inicializada:")
         logger.info(f"   - Usuarios: {users_count}")

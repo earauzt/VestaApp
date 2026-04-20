@@ -53,6 +53,18 @@ class ReconciliationStatus(str, Enum):
 # ================= SRI ECUADOR CONSTANTS =================
 CANASTA_BASICA = 798.31
 FRACCION_BASICA_EXENTA = 11902.00
+TOPE_LEGAL_SRI = 2784.00  # tope legal anual (reforma 2024+)
+PORCENTAJE_LIMITE_INGRESOS = 0.20  # 20% de ingresos gravados
+BENEFICIARIOS_VALIDOS = ["yo", "conyuge", "hijo", "padre_madre"]
+# Reglas SRI Ecuador 2024+ (seed sri_categorias collection)
+SRI_CATEGORIAS_REGLAS = {
+    "salud": {"nombre": "Salud", "porcentaje_deducible": 1.0, "tope_anual": None, "descripcion": "100% sin tope - medicinas, consultas, seguros"},
+    "educacion": {"nombre": "Educacion", "porcentaje_deducible": 1.0, "tope_anual": None, "descripcion": "100% sin tope - colegio, universidad, cursos"},
+    "alimentacion": {"nombre": "Alimentacion", "porcentaje_deducible": 0.0, "tope_anual": 0, "descripcion": "NO DEDUCIBLE bajo reforma 2024+"},
+    "vestimenta": {"nombre": "Vestimenta", "porcentaje_deducible": 1.0, "tope_anual": 850, "descripcion": "Deducible con tope $850 anual"},
+    "turismo": {"nombre": "Turismo Nacional", "porcentaje_deducible": 1.0, "tope_anual": 3868.15, "descripcion": "Turismo dentro de Ecuador"},
+    "vivienda": {"nombre": "Vivienda (alquiler/intereses)", "porcentaje_deducible": 1.0, "tope_anual": 3868.15, "descripcion": "Alquiler, intereses hipotecarios"},
+}
 CARGAS_FAMILIARES_CBF = {
     0: 7, 1: 9, 2: 11, 3: 13, 4: 15, 5: 17,
 }
@@ -459,6 +471,10 @@ class TransactionBase(BaseModel):
     uso_empresarial: bool = False
     numero_factura: Optional[str] = None
     ruc_emisor: Optional[str] = None
+    # Beneficiario y IVA (SESIÓN 8)
+    beneficiario: Optional[str] = None  # yo | conyuge | hijo | padre_madre
+    aplica_iva: bool = True
+    subtotal_sin_iva: Optional[float] = None
 
 class TransactionCreate(TransactionBase):
     pass

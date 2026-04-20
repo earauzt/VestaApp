@@ -167,7 +167,10 @@ export default function Transactions() {
     country: "",
     payment_source: "local",
     is_international: false,
-    uso_empresarial: false
+    uso_empresarial: false,
+    beneficiario: "yo",
+    aplica_iva: true,
+    subtotal_sin_iva: ""
   });
 
   // Fetch categories from budget
@@ -246,7 +249,8 @@ export default function Transactions() {
       const payload = {
         ...data,
         amount: parseFloat(data.amount),
-        date: format(data.date, "yyyy-MM-dd")
+        date: format(data.date, "yyyy-MM-dd"),
+        subtotal_sin_iva: data.subtotal_sin_iva === "" || data.subtotal_sin_iva == null ? null : parseFloat(data.subtotal_sin_iva)
       };
 
       if (editingTransaction) {
@@ -311,7 +315,10 @@ export default function Transactions() {
       country: transaction.country || "",
       payment_source: transaction.payment_source || "local",
       is_international: transaction.is_international || false,
-      uso_empresarial: transaction.uso_empresarial || false
+      uso_empresarial: transaction.uso_empresarial || false,
+      beneficiario: transaction.beneficiario || "yo",
+      aplica_iva: transaction.aplica_iva !== false,
+      subtotal_sin_iva: transaction.subtotal_sin_iva ?? ""
     });
     setDialogOpen(true);
   };
@@ -342,7 +349,10 @@ export default function Transactions() {
       country: "",
       payment_source: "local",
       is_international: false,
-      uso_empresarial: false
+      uso_empresarial: false,
+      beneficiario: "yo",
+      aplica_iva: true,
+      subtotal_sin_iva: ""
     });
   };
 
@@ -670,6 +680,58 @@ export default function Transactions() {
                           data-testid="uso-empresarial-toggle"
                         />
                       </div>
+
+                      <div className="space-y-2">
+                        <Label>Beneficiario</Label>
+                        <Select
+                          value={formData.beneficiario}
+                          onValueChange={(v) => setFormData({ ...formData, beneficiario: v })}
+                        >
+                          <SelectTrigger data-testid="beneficiario-select">
+                            <SelectValue placeholder="Yo mismo" />
+                          </SelectTrigger>
+                          <SelectContent className="z-[250]">
+                            <SelectItem value="yo">Yo mismo</SelectItem>
+                            <SelectItem value="conyuge">Cónyuge</SelectItem>
+                            <SelectItem value="hijo">Hijo/a</SelectItem>
+                            <SelectItem value="padre_madre">Padre/Madre</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <p className="text-xs text-muted-foreground">Las facturas de dependientes también son deducibles</p>
+                      </div>
+
+                      <div className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border">
+                        <div>
+                          <Label className="cursor-pointer" htmlFor="aplica-iva-toggle">Aplica IVA</Label>
+                          <p className="text-xs text-muted-foreground">Si no aplica, usa el subtotal para la deducción</p>
+                        </div>
+                        <input
+                          id="aplica-iva-toggle"
+                          type="checkbox"
+                          className="h-5 w-5 accent-violet-600"
+                          checked={formData.aplica_iva}
+                          onChange={(e) => setFormData({ ...formData, aplica_iva: e.target.checked })}
+                          data-testid="aplica-iva-toggle"
+                        />
+                      </div>
+
+                      {!formData.aplica_iva && (
+                        <div className="space-y-2">
+                          <Label>Subtotal sin IVA</Label>
+                          <div className="relative">
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                            <Input
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              className="pl-8"
+                              value={formData.subtotal_sin_iva}
+                              onChange={(e) => setFormData({ ...formData, subtotal_sin_iva: e.target.value })}
+                              data-testid="subtotal-sin-iva-input"
+                            />
+                          </div>
+                        </div>
+                      )}
                     </>
                   ) : (
                     <div className="space-y-2">
