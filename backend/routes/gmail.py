@@ -182,13 +182,15 @@ async def gmail_auth_url(user: dict = Depends(get_current_user)):
     state = secrets_mod.token_urlsafe(32)
     flow = Flow.from_client_config(
         {"web": {"client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET, "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token", "redirect_uris": [GOOGLE_REDIRECT_URI]}},
-        scopes=GMAIL_SCOPES, redirect_uri=GOOGLE_REDIRECT_URI
+        scopes=GMAIL_SCOPES, redirect_uri=GOOGLE_REDIRECT_URI,
+        autogenerate_code_verifier=True
     )
     auth_url, _ = flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent', state=state)
     now = datetime.now(timezone.utc)
     await db.gmail_oauth_states.insert_one({
         "state": state,
         "user_id": user["id"],
+        "code_verifier": getattr(flow, "code_verifier", None),
         "created_at": now.isoformat(),
         "expires_at": (now + timedelta(minutes=10)).isoformat()
     })
@@ -204,6 +206,10 @@ async def gmail_callback(code: str, state: str):
     if expires_at and datetime.fromisoformat(expires_at) < datetime.now(timezone.utc):
         await db.gmail_oauth_states.delete_one({"state": state})
         raise HTTPException(status_code=400, detail="invalid_state")
+    code_verifier = state_doc.get("code_verifier")
+    if not code_verifier:
+        await db.gmail_oauth_states.delete_one({"state": state})
+        raise HTTPException(status_code=400, detail="missing_code_verifier")
     await db.gmail_oauth_states.delete_one({"state": state})
     user_id = state_doc["user_id"]
     try:
@@ -211,6 +217,7 @@ async def gmail_callback(code: str, state: str):
             {"web": {"client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET, "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token", "redirect_uris": [GOOGLE_REDIRECT_URI]}},
             scopes=GMAIL_SCOPES, redirect_uri=GOOGLE_REDIRECT_URI
         )
+        flow.code_verifier = code_verifier
         flow.fetch_token(code=code)
         creds = flow.credentials
         await db.gmail_tokens.update_one(
@@ -237,6 +244,24 @@ async def gmail_status(user: dict = Depends(get_current_user)):
 async def gmail_sync(user: dict = Depends(get_current_user)):
     creds = await _get_gmail_credentials(user["id"])
     service = build('gmail', 'v1', credentials=creds)
+    # Leer ultimo_sync del token para sync incremental. Si no existe, cap a 90 días.
+    token_doc = await db.gmail_tokens.find_one({"user_id": user["id"]}, {"_id": 0, "ultimo_sync": 1}) or {}
+    ultimo_sync_dt = token_doc.get("ultimo_sync")
+    if isinstance(ultimo_sync_dt, str):
+        try:
+            ultimo_sync_dt = datetime.fromisoformat(ultimo_sync_dt.replace("Z", "+00:00"))
+        except Exception:
+            ultimo_sync_dt = None
+    now = datetime.now(timezone.utc)
+    if ultimo_sync_dt:
+        # Sync incremental: solo emails desde el último sync
+        after_ts = int(ultimo_sync_dt.timestamp())
+        max_results = 100
+    else:
+        # Primer sync: últimos 90 días, máx 100 emails
+        after_ts = int((now - timedelta(days=90)).timestamp())
+        max_results = 100
+
     GMAIL_SENDER_FILTER = (
         "from:(servicios@dinersclub.com.ec OR notificaciones@infopacificard.com.ec "
         "OR servicios@tarjetasbancopichincha.com OR Avisos24@bolivariano.com "
@@ -244,11 +269,13 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         "OR documentoselectronicos@pichincha.com OR estadodecuenta@pacificard.ec "
         "OR estadoscuenta@bancodelpacifico.com.ec "
         "OR email.apple.com OR netflix.com "
-        "OR spotify.com OR google.com OR amazon.com OR adobe.com) is:unread"
+        "OR spotify.com OR google.com OR amazon.com OR adobe.com) is:unread "
+        f"after:{after_ts}"
     )
-    results = service.users().messages().list(userId='me', q=GMAIL_SENDER_FILTER, maxResults=50).execute()
+    results = service.users().messages().list(userId='me', q=GMAIL_SENDER_FILTER, maxResults=max_results).execute()
     messages = results.get('messages', [])
     if not messages:
+        await db.gmail_tokens.update_one({"user_id": user["id"]}, {"$set": {"ultimo_sync": now.isoformat()}})
         return {"status": "success", "total": 0, "procesados": 0, "descartados": 0, "message": "No hay emails nuevos"}
 
     procesados = 0
@@ -391,6 +418,7 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         nuevos.append(doc)
         procesados += 1
 
+    await db.gmail_tokens.update_one({"user_id": user["id"]}, {"$set": {"ultimo_sync": now.isoformat()}})
     return {"status": "success", "total": len(messages), "procesados": procesados, "descartados": descartados, "ya_procesados": len(messages) - procesados - descartados, "transacciones": nuevos}
 
 
