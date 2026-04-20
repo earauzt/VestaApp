@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
@@ -66,6 +66,7 @@ const DEMO_FLUJO_CATEGORIES = {
 
 export default function Dashboard() {
   const { getAuthHeaders, user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState(null);
   const [chartData, setChartData] = useState([]);
   const [reminders, setReminders] = useState([]);
@@ -87,6 +88,16 @@ export default function Dashboard() {
 
   // Filter out dismissed reminders
   const visibleReminders = reminders.filter((_, index) => !dismissedReminders.includes(index));
+  const [showAllReminders, setShowAllReminders] = useState(false);
+
+  const handleReminderAction = (reminder) => {
+    const t = reminder.type;
+    if (t === "subscription_review") navigate("/transactions");
+    else if (t === "card_payment") navigate("/deudas");
+    else if (t === "payment_due") navigate("/flujo");
+    else if (t === "insurance_reminder") navigate("/cargar-validar");
+    else navigate("/presupuesto");
+  };
 
   const [travelFund, setTravelFund] = useState(null);
   const [sriDeductible, setSriDeductible] = useState(0);
@@ -256,7 +267,7 @@ export default function Dashboard() {
           animate={{ opacity: 1, y: 0 }}
           className="space-y-2"
         >
-          {visibleReminders.slice(0, 3).map((reminder, index) => {
+          {visibleReminders.slice(0, showAllReminders ? visibleReminders.length : 1).map((reminder) => {
             const Icon = getReminderIcon(reminder.type);
             const originalIndex = reminders.indexOf(reminder);
             return (
@@ -281,8 +292,8 @@ export default function Dashboard() {
                 </div>
                 <div className="flex items-center gap-2">
                   {reminder.action && reminder.type !== "motivation" && (
-                    <Button size="sm" variant="outline" className="shrink-0">
-                      {reminder.action}
+                    <Button size="sm" variant="outline" className="shrink-0" onClick={() => handleReminderAction(reminder)}>
+                      Revisar
                     </Button>
                   )}
                   <Button 
@@ -297,6 +308,23 @@ export default function Dashboard() {
               </div>
             );
           })}
+          {visibleReminders.length > 1 && !showAllReminders && (
+            <button
+              onClick={() => setShowAllReminders(true)}
+              className="text-sm text-primary hover:underline px-1"
+              data-testid="show-more-reminders"
+            >
+              Ver {visibleReminders.length - 1} mas
+            </button>
+          )}
+          {showAllReminders && visibleReminders.length > 1 && (
+            <button
+              onClick={() => setShowAllReminders(false)}
+              className="text-sm text-muted-foreground hover:underline px-1"
+            >
+              Colapsar
+            </button>
+          )}
         </motion.div>
       )}
 
@@ -352,6 +380,7 @@ export default function Dashboard() {
                     <p className={`text-base sm:text-xl lg:text-2xl font-bold ${stat.color} truncate`}>
                       {formatCurrency(stat.value)}
                     </p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5">Este mes</p>
                   </div>
                   <div className={`p-2 rounded-xl bg-muted ${stat.color} shrink-0`}>
                     <stat.icon size={18} weight="duotone" className="sm:w-5 sm:h-5" />
