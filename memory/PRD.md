@@ -131,6 +131,19 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Gap corregido 3: widget Dashboard cambia texto de "Renueva el YYYY-MM-DD" a
     "Se renueva en X días — $X.XX" + subtítulo "🔄 Esta semana (n)"
   - Verificado con curl: Netflix in 3d aparece, Spotify in 10d no aparece, Apple sin fecha no aparece
+- [2026-04-20] SESIÓN 10 - Banner Notificaciones + Widget Esta semana:
+  - Tarea 1 (hook deps): sin cambios — Flujo.js/Transactions.js/Dashboard.js ya usan patrón useRef
+  - Backend: 2 endpoints nuevos en dashboard.py reutilizando credit_cards, scheduled_payments,
+    transactions, deferred_payments, gmail_transactions, get_budget_categories
+    * /api/notificaciones → 4 tipos (pago_proximo, limite_categoria, sugerir_filtro, gmail_nuevos),
+      orden por prioridad (high/medium/low) + days_until
+    * /api/dashboard/esta-semana → máx 5 items (card_payment, deferred, category_limit),
+      badge red ≤2d / yellow ≤7d
+  - Frontend Dashboard.js:
+    * Reemplaza banner 'Smart Reminders' por sistema /notificaciones (máx 3 visibles + Ver más)
+    * Dismiss persiste en localStorage key 'dismissed_notif_ids'
+    * Nueva card 'Esta semana' entre KPIs y widget SRI
+  - 16/17 pytest + Playwright frontend PASSED (iteration_19)
 
 ## Tech Stack
 - Backend: FastAPI, Python, Motor (async MongoDB), JWT httpOnly cookies
