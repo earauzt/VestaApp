@@ -235,7 +235,13 @@ async def gmail_status(user: dict = Depends(get_current_user)):
 async def gmail_sync(user: dict = Depends(get_current_user)):
     creds = await _get_gmail_credentials(user["id"])
     service = build('gmail', 'v1', credentials=creds)
-    results = service.users().messages().list(userId='me', q='is:unread', maxResults=50).execute()
+    GMAIL_SENDER_FILTER = (
+        "from:(servicios@dinersclub.com.ec OR notificaciones@infopacificard.com.ec "
+        "OR servicios@tarjetasbancopichincha.com OR Avisos24@bolivariano.com "
+        "OR intermail@bancopacifico.ec OR email.apple.com OR netflix.com "
+        "OR spotify.com OR google.com OR amazon.com OR adobe.com) is:unread"
+    )
+    results = service.users().messages().list(userId='me', q=GMAIL_SENDER_FILTER, maxResults=50).execute()
     messages = results.get('messages', [])
     if not messages:
         return {"status": "success", "total": 0, "procesados": 0, "descartados": 0, "message": "No hay emails nuevos"}

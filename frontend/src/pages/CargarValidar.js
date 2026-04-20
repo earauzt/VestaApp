@@ -232,6 +232,7 @@ export default function CargarValidar() {
   }, [activeTab, fetchPendingData, fetchGmailStatus, fetchGmailTransactions, fetchGmailDocuments]);
 
   const [gmailConnecting, setGmailConnecting] = useState(false);
+  const [showGmailConsentModal, setShowGmailConsentModal] = useState(false);
 
   const handleConnectGmail = async () => {
     setGmailConnecting(true);
@@ -1099,7 +1100,7 @@ export default function CargarValidar() {
                     <p className="text-muted-foreground mb-6 max-w-md mx-auto">
                       FamilyFinance leerá tus notificaciones bancarias para detectar consumos, alertas y estados de cuenta automáticamente.
                     </p>
-                    <Button onClick={handleConnectGmail} className="gap-2" disabled={gmailConnecting} data-testid="gmail-connect-btn">
+                    <Button onClick={() => setShowGmailConsentModal(true)} className="gap-2" disabled={gmailConnecting} data-testid="gmail-connect-btn">
                       {gmailConnecting ? (
                         <>
                           <SpinnerGap size={18} className="animate-spin" />
@@ -1505,6 +1506,56 @@ export default function CargarValidar() {
             <Button onClick={handleBulkAction} disabled={loading}>
               {loading ? <SpinnerGap className="animate-spin mr-2" size={16} /> : null}
               Procesar {selectedItems.length} transacciones
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Gmail Consent Modal */}
+      <Dialog open={showGmailConsentModal} onOpenChange={setShowGmailConsentModal}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="text-xl">Que va a leer FamilyFinance de tu correo?</DialogTitle>
+            <DialogDescription>
+              Solo accedemos a emails de remitentes financieros especificos
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
+              <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
+              <p className="text-sm">Emails de consumo de tus bancos (Diners, PacifiCard, Pacifico, Pichincha, Bolivariano)</p>
+            </div>
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
+              <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
+              <p className="text-sm">Facturas electronicas que lleguen a tu correo</p>
+            </div>
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
+              <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
+              <p className="text-sm">Estados de cuenta en PDF</p>
+            </div>
+            <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/20">
+              <XCircle size={20} className="text-red-500 shrink-0 mt-0.5" weight="fill" />
+              <p className="text-sm">Emails personales, de trabajo o de cualquier otro remitente — nunca los leemos</p>
+            </div>
+            <p className="text-xs text-muted-foreground pt-2">
+              FamilyFinance solo lee emails de remitentes financieros especificos. Nunca almacenamos el contenido de tus emails personales. Puedes desconectar tu cuenta en cualquier momento.
+            </p>
+          </div>
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button variant="outline" onClick={() => setShowGmailConsentModal(false)}>
+              Cancelar
+            </Button>
+            <Button
+              onClick={() => { setShowGmailConsentModal(false); handleConnectGmail(); }}
+              disabled={gmailConnecting}
+              className="gap-2"
+              data-testid="gmail-consent-confirm-btn"
+            >
+              {gmailConnecting ? (
+                <><SpinnerGap size={16} className="animate-spin" /> Conectando...</>
+              ) : (
+                <><GoogleLogo size={18} weight="bold" /> Entendido, conectar</>
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

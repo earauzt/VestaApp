@@ -35,7 +35,10 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Array index as key replaced in 8 instances (Upload, Dashboard, CargarValidar, ChatBot)
   - 8 console.log wrapped in NODE_ENV === 'development' guards
   - 29/29 backend + frontend login flow verified
-- [2026-04-16] Gmail OAuth fix:
+- [2026-04-20] Gmail consent modal + sender filter:
+  - Pre-OAuth consent modal with clear data access explanation
+  - Gmail API query changed from 'is:unread' to sender-specific filter
+    (Diners, PacifiCard, Pichincha, Bolivariano, Pacifico + service domains)
   - state now uses secrets.token_urlsafe(32) with 10min expiry in DB
   - callback validates state exists + not expired, deletes after use (one-time)
   - Invalid/expired state returns HTTP 400 {"detail":"invalid_state"}
