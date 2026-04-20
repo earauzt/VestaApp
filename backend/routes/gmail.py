@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import HTMLResponse, FileResponse
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, List
 import uuid
 import os
 import re
@@ -9,13 +9,14 @@ import json
 import logging
 import base64
 import secrets as secrets_mod
+from difflib import SequenceMatcher
 
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 
 from database import db
-from models import GMAIL_SCOPES, BANK_DOMAINS, BANK_SENDERS, DISCARD_SUBJECTS, SERVICE_DOMAINS
+from models import GMAIL_SCOPES, BANK_DOMAINS, BANK_SENDERS, DISCARD_SUBJECTS, SERVICE_DOMAINS, apply_categorization_rules
 from utils import (
     get_current_user, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
     GOOGLE_REDIRECT_URI, EMERGENT_LLM_KEY, extract_text_from_pdf,
@@ -444,9 +445,166 @@ async def approve_gmail_transaction(gmail_id: str, user: dict = Depends(get_curr
     gmail_tx = await db.gmail_transactions.find_one({"gmail_id": gmail_id, "user_id": user["id"]}, {"_id": 0})
     if not gmail_tx:
         raise HTTPException(status_code=404, detail="Transaccion Gmail no encontrada")
-    tx_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "amount": gmail_tx.get("monto") or 0, "description": gmail_tx.get("descripcion_corta", ""), "establishment": gmail_tx.get("comercio", ""), "vendor": gmail_tx.get("comercio", ""), "date": gmail_tx.get("fecha_transaccion") or datetime.now(timezone.utc).strftime("%Y-%m-%d"), "personal_category": gmail_tx.get("personal_category", "otros"), "category": gmail_tx.get("personal_category", "otros"), "sri_category": gmail_tx.get("sri_category"), "source": "gmail", "status": "approved", "tarjeta_ultimos4": gmail_tx.get("tarjeta_ultimos4"), "transaction_type": "expense", "numero_factura": gmail_tx.get("numero_factura"), "ruc_emisor": gmail_tx.get("ruc_emisor"), "source_type": "invoice" if gmail_tx.get("tipo") == "factura_sri" else "email", "has_invoice": gmail_tx.get("tipo") == "factura_sri", "is_deductible": bool(gmail_tx.get("es_deducible")), "created_at": datetime.now(timezone.utc).isoformat()}
+    result = await _approve_and_insert(user, gmail_tx)
+    return {"status": "success", "transaction_id": result["transaction_id"], "action": result["action"]}
+
+
+class _BulkApprovePayload(dict):
+    pass
+
+
+@router.post("/gmail/transactions/bulk-approve")
+async def bulk_approve_gmail_transactions(payload: dict, user: dict = Depends(get_current_user)):
+    gmail_ids: List[str] = payload.get("gmail_ids") or []
+    if not gmail_ids:
+        raise HTTPException(status_code=400, detail="gmail_ids requerido")
+    approved = 0
+    errors = []
+    categorias_usadas = {}
+    for gid in gmail_ids:
+        gmail_tx = await db.gmail_transactions.find_one({"gmail_id": gid, "user_id": user["id"], "estado": "pendiente"}, {"_id": 0})
+        if not gmail_tx:
+            errors.append({"gmail_id": gid, "reason": "no_encontrada_o_ya_aprobada"})
+            continue
+        try:
+            r = await _approve_and_insert(user, gmail_tx)
+            approved += 1
+            cat = r.get("budget_category", "otros")
+            categorias_usadas[cat] = categorias_usadas.get(cat, 0) + 1
+        except Exception as e:
+            logger.warning(f"bulk approve failed for {gid}: {e}")
+            errors.append({"gmail_id": gid, "reason": str(e)})
+    return {
+        "status": "success",
+        "approved": approved,
+        "errors": errors,
+        "categorias_usadas": categorias_usadas,
+        "message": f"{approved} transacciones aprobadas y categorizadas"
+    }
+
+
+async def _resolve_budget_category(user_id: str, establishment: str, description: str, personal_category: Optional[str]) -> dict:
+    """Resuelve (budget_category, subcategory) usando:
+    1) known_vendors con SequenceMatcher ≥ 0.85
+    2) categorization_rules del usuario (+ defaults)
+    3) fallback: personal_category si no es 'otros', sino 'otros'
+    """
+    establishment = (establishment or "").strip()
+    description = (description or "").strip()
+
+    # 1) known_vendors con SequenceMatcher ≥ 0.85
+    if establishment:
+        all_vendors = await db.known_vendors.find({"user_id": user_id}, {"_id": 0}).to_list(500)
+        est_lower = establishment.lower()
+        best = None
+        best_ratio = 0.0
+        for v in all_vendors:
+            candidates = [v.get("establishment", "")] + (v.get("aliases") or [])
+            for name in candidates:
+                if not name:
+                    continue
+                ratio = SequenceMatcher(None, est_lower, name.lower()).ratio()
+                if ratio > best_ratio:
+                    best_ratio = ratio
+                    best = v
+        if best and best_ratio >= 0.85 and best.get("personal_category"):
+            return {
+                "budget_category": best.get("personal_category"),
+                "subcategory": best.get("subcategory") or "General",
+                "is_deductible": best.get("is_deductible", False),
+                "sri_category": best.get("sri_category"),
+                "source": f"known_vendor_{int(best_ratio*100)}%",
+            }
+
+    # 2) categorization_rules (custom del usuario + defaults via apply_categorization_rules)
+    custom_rules = await db.categorization_rules.find(
+        {"user_id": user_id, "is_active": True}, {"_id": 0}
+    ).to_list(100)
+    text = f"{description} {establishment}".lower()
+    for rule in custom_rules:
+        for kw in rule.get("keywords", []):
+            if kw and kw.lower() in text:
+                return {
+                    "budget_category": rule.get("category"),
+                    "subcategory": rule.get("subcategory") or "General",
+                    "is_deductible": False,
+                    "sri_category": None,
+                    "source": "custom_rule",
+                }
+    default_match = apply_categorization_rules(description, establishment)
+    if default_match.get("category"):
+        return {
+            "budget_category": default_match["category"],
+            "subcategory": default_match.get("subcategory") or "General",
+            "is_deductible": False,
+            "sri_category": None,
+            "source": "default_rule",
+        }
+
+    # 3) fallback: personal_category si tiene valor útil
+    if personal_category and personal_category != "otros":
+        return {
+            "budget_category": personal_category,
+            "subcategory": "General",
+            "is_deductible": False,
+            "sri_category": None,
+            "source": "personal_category_fallback",
+        }
+    return {
+        "budget_category": "otros",
+        "subcategory": "General",
+        "is_deductible": False,
+        "sri_category": None,
+        "source": "none",
+    }
+
+
+async def _approve_and_insert(user: dict, gmail_tx: dict) -> dict:
+    """Lógica compartida: inserta tx aprobada con categoría resuelta (+hooks SRI)."""
+    personal_category = gmail_tx.get("personal_category") or "otros"
+    resolved = await _resolve_budget_category(
+        user["id"],
+        gmail_tx.get("comercio", "") or "",
+        gmail_tx.get("descripcion_corta", "") or "",
+        personal_category,
+    )
+    budget_cat = resolved["budget_category"] or "otros"
+    # Mantener consistencia: category = budget_category
+    effective_category = budget_cat
+    sri_cat = gmail_tx.get("sri_category") or resolved.get("sri_category")
+    is_deductible_flag = bool(gmail_tx.get("es_deducible")) or bool(resolved.get("is_deductible"))
+
+    tx_doc = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "amount": gmail_tx.get("monto") or 0,
+        "description": gmail_tx.get("descripcion_corta", ""),
+        "establishment": gmail_tx.get("comercio", ""),
+        "vendor": gmail_tx.get("comercio", ""),
+        "date": gmail_tx.get("fecha_transaccion") or datetime.now(timezone.utc).strftime("%Y-%m-%d"),
+        "personal_category": effective_category,
+        "category": effective_category,
+        "budget_category": budget_cat,
+        "subcategory": resolved.get("subcategory") or "General",
+        "sri_category": sri_cat,
+        "source": "gmail",
+        "status": "approved",
+        "tarjeta_ultimos4": gmail_tx.get("tarjeta_ultimos4"),
+        "transaction_type": "expense",
+        "numero_factura": gmail_tx.get("numero_factura"),
+        "ruc_emisor": gmail_tx.get("ruc_emisor"),
+        "source_type": "invoice" if gmail_tx.get("tipo") == "factura_sri" else "email",
+        "has_invoice": gmail_tx.get("tipo") == "factura_sri",
+        "is_deductible": is_deductible_flag,
+        "auto_categorized": True,
+        "matched_rule": resolved.get("source"),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
     result = await dedup_or_merge(user["id"], tx_doc, "email_banco")
-    await db.gmail_transactions.update_one({"gmail_id": gmail_id, "user_id": user["id"]}, {"$set": {"estado": "aprobado"}})
+    await db.gmail_transactions.update_one(
+        {"gmail_id": gmail_tx["gmail_id"], "user_id": user["id"]},
+        {"$set": {"estado": "aprobado", "budget_category_asignada": budget_cat}},
+    )
     # SRI match attempt + retry pendings
     try:
         from routes.sri_match import try_sri_match, retry_pending_matches
@@ -454,7 +612,12 @@ async def approve_gmail_transaction(gmail_id: str, user: dict = Depends(get_curr
         await retry_pending_matches(user["id"])
     except Exception as e:
         logger.warning(f"SRI match hook failed: {e}")
-    return {"status": "success", "transaction_id": result["transaction_id"], "action": result["action"]}
+    return {
+        "transaction_id": result["transaction_id"],
+        "action": result["action"],
+        "budget_category": budget_cat,
+        "match_source": resolved.get("source"),
+    }
 
 
 @router.put("/gmail/transactions/{gmail_id}/discard")

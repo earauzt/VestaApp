@@ -170,6 +170,9 @@ export default function CargarValidar() {
   // Gmail states
   const [gmailStatus, setGmailStatus] = useState({ connected: false });
   const [gmailTransactions, setGmailTransactions] = useState([]);
+  const [selectedGmailIds, setSelectedGmailIds] = useState([]);
+  const [gmailFilter, setGmailFilter] = useState("consumo"); // consumo | recibo_servicio | all
+  const [bulkApproving, setBulkApproving] = useState(false);
   const [gmailSummary, setGmailSummary] = useState({});
   const [gmailSyncing, setGmailSyncing] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
@@ -288,6 +291,51 @@ export default function CargarValidar() {
       setGmailTransactions(prev => prev.filter(t => t.gmail_id !== gmailId));
     } catch (e) {
       toast.error("Error al descartar");
+    }
+  };
+
+  // SESIÓN 11: filtros y selección para bulk approve
+  const filteredGmailTxs = gmailTransactions.filter((t) => {
+    if (t.estado !== "pendiente") return false;
+    if (gmailFilter === "all") return true;
+    return t.tipo === gmailFilter;
+  });
+
+  const allSelected = filteredGmailTxs.length > 0 && filteredGmailTxs.every(t => selectedGmailIds.includes(t.gmail_id));
+
+  const toggleSelectAllGmail = () => {
+    if (allSelected) {
+      setSelectedGmailIds(prev => prev.filter(id => !filteredGmailTxs.some(t => t.gmail_id === id)));
+    } else {
+      const addIds = filteredGmailTxs.map(t => t.gmail_id);
+      setSelectedGmailIds(prev => [...new Set([...prev, ...addIds])]);
+    }
+  };
+
+  const toggleSelectGmail = (gid) => {
+    setSelectedGmailIds(prev => prev.includes(gid) ? prev.filter(x => x !== gid) : [...prev, gid]);
+  };
+
+  const handleGmailBulkApprove = async () => {
+    if (selectedGmailIds.length === 0) return;
+    setBulkApproving(true);
+    try {
+      const res = await axios.post(
+        `${API}/gmail/transactions/bulk-approve`,
+        { gmail_ids: selectedGmailIds },
+        { headers: getAuthHeadersRef.current() }
+      );
+      const cats = res.data.categorias_usadas || {};
+      const catSummary = Object.entries(cats).map(([k, v]) => `${v} ${k}`).join(", ");
+      toast.success(
+        `${res.data.approved} transacciones aprobadas y categorizadas${catSummary ? ` (${catSummary})` : ""}`
+      );
+      setSelectedGmailIds([]);
+      fetchGmailTransactions();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Error al aprobar en bulk");
+    } finally {
+      setBulkApproving(false);
     }
   };
 
@@ -896,7 +944,7 @@ export default function CargarValidar() {
       <Card className="bento-card">
         <CardContent className="p-4 sm:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsList className="grid w-full grid-cols-4 mb-6">
               <TabsTrigger value="upload" className="gap-2" data-testid="tab-upload">
                 <CloudArrowUp size={18} />
                 <span className="hidden sm:inline">Cargar</span>
@@ -905,6 +953,13 @@ export default function CargarValidar() {
                 <Bank size={18} />
                 <span className="hidden sm:inline">Estados</span>
                 <span className="sm:hidden">Bancos</span>
+              </TabsTrigger>
+              <TabsTrigger value="gmail" className="gap-2" data-testid="tab-gmail">
+                <EnvelopeSimple size={18} />
+                <span className="hidden sm:inline">Gmail</span>
+                {gmailSummary?.pendiente > 0 && (
+                  <Badge variant="secondary" className="ml-1">{gmailSummary.pendiente}</Badge>
+                )}
               </TabsTrigger>
               <TabsTrigger value="validate" className="gap-2" data-testid="tab-validate">
                 <CheckSquare size={18} />
@@ -1167,12 +1222,68 @@ export default function CargarValidar() {
                       </div>
                     ) : (
                       <div className="space-y-2">
-                        {gmailTransactions.map((tx) => (
+                        {/* Filter tabs + bulk toolbar */}
+                        <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between pb-2 border-b">
+                          <div className="flex gap-1" data-testid="gmail-filters">
+                            {[
+                              { key: "consumo", label: "Solo consumos" },
+                              { key: "recibo_servicio", label: "Solo servicios" },
+                              { key: "all", label: "Todos" },
+                            ].map((f) => (
+                              <Button
+                                key={f.key}
+                                size="sm"
+                                variant={gmailFilter === f.key ? "default" : "outline"}
+                                onClick={() => { setGmailFilter(f.key); setSelectedGmailIds([]); }}
+                                className="text-xs"
+                                data-testid={`gmail-filter-${f.key}`}
+                              >
+                                {f.label}
+                              </Button>
+                            ))}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <label className="flex items-center gap-2 text-xs cursor-pointer">
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-primary"
+                                checked={allSelected}
+                                onChange={toggleSelectAllGmail}
+                                data-testid="select-all-gmail"
+                              />
+                              Seleccionar todos los pendientes ({filteredGmailTxs.length})
+                            </label>
+                            <Button
+                              size="sm"
+                              onClick={handleGmailBulkApprove}
+                              disabled={selectedGmailIds.length === 0 || bulkApproving}
+                              data-testid="bulk-approve-btn"
+                              className="bg-emerald-600 hover:bg-emerald-700"
+                            >
+                              {bulkApproving ? "Aprobando..." : `Aprobar seleccionados (${selectedGmailIds.length})`}
+                            </Button>
+                          </div>
+                        </div>
+                        {filteredGmailTxs.length === 0 && (
+                          <div className="text-center py-6 text-sm text-muted-foreground">
+                            No hay resultados con este filtro
+                          </div>
+                        )}
+                        {filteredGmailTxs.map((tx) => (
                           <div 
                             key={tx.gmail_id} 
                             className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
                             data-testid={`gmail-tx-${tx.gmail_id}`}
                           >
+                            {tx.estado === "pendiente" && (
+                              <input
+                                type="checkbox"
+                                className="h-4 w-4 accent-primary shrink-0"
+                                checked={selectedGmailIds.includes(tx.gmail_id)}
+                                onChange={() => toggleSelectGmail(tx.gmail_id)}
+                                data-testid={`gmail-check-${tx.gmail_id}`}
+                              />
+                            )}
                             <div className={`w-2 h-2 rounded-full shrink-0 ${
                               tx.tipo === "consumo" ? "bg-blue-500" : 
                               tx.tipo === "alerta" ? "bg-red-500" : 

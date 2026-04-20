@@ -171,3 +171,16 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
 - Reduce inline objects (265 instancias)
 - Conexion directa con Apple Card
 - Notificaciones push, modo oscuro
+
+- [2026-04-20] PROMPT 1 - Fix categorización + bulk approve:
+  - routes/gmail.py: helper _resolve_budget_category(user_id, establishment, description, personal_category)
+    * 1) known_vendors con SequenceMatcher ≥0.85
+    * 2) user categorization_rules + apply_categorization_rules (defaults)
+    * 3) fallback personal_category si no es 'otros', else 'otros'
+  - Helper _approve_and_insert reutilizado por approve_gmail_transaction y bulk-approve
+  - tx resultante: category = budget_category (consistencia), matched_rule guarda la fuente
+  - Nuevo POST /api/gmail/transactions/bulk-approve {gmail_ids:[]} → {approved, errors, categorias_usadas, message}
+  - CargarValidar.js: nuevo tab 'Gmail' visible (antes orphan). Toolbar con filtros
+    (Solo consumos / Solo servicios / Todos), checkbox Seleccionar todos, botón
+    Aprobar seleccionados (N), checkboxes individuales. Toast con resumen categorías
+  - Verificado: Supermaxi→alimentacion/Supermercado por default_rule, bulk 2 txs OK
