@@ -35,7 +35,13 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Array index as key replaced in 8 instances (Upload, Dashboard, CargarValidar, ChatBot)
   - 8 console.log wrapped in NODE_ENV === 'development' guards
   - 29/29 backend + frontend login flow verified
-- [2026-04-20] Cross-canal deduplication:
+- [2026-04-20] UI renaming + navigation + profile:
+  - "Cargar y Validar" → "Bandeja Financiera" + subtitulo
+  - "Viajes" → "Metas y Ahorro"
+  - Gmail tab removed from Bandeja, moved to Perfil page (/perfil)
+  - Profile page: user info, Gmail connection (consent modal), logout
+  - Bandeja tabs: Cargar, Estados, Validar (3 cols)
+  - Ingresos: inline editable distribution names (click badge → input)
   - Fingerprint: sha256(user_id|card|amount|date) stored on every transaction
   - dedup_or_merge() checks fingerprint then fuzzy (±1% amount, ±2 days, same card)
   - Merges sources array ["email_banco", "estado_cuenta"] with priority escalation

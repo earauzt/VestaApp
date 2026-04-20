@@ -37,8 +37,8 @@ const navItems = [
   { path: "/dashboard", label: "Dashboard", icon: House, roles: ["admin", "spouse", "accountant", "demo"] },
   { path: "/transactions", label: "Transacciones", icon: CreditCard, roles: ["admin", "spouse", "accountant", "demo"] },
   { path: "/ingresos", label: "Ingresos", icon: CurrencyDollar, roles: ["admin", "spouse", "demo"] },
-  { path: "/viajes", label: "Viajes", icon: Airplane, roles: ["admin", "spouse", "demo"] },
-  { path: "/cargar", label: "Cargar y Validar", icon: CloudArrowUp, roles: ["admin", "spouse", "accountant"] },
+  { path: "/viajes", label: "Metas y Ahorro", icon: Airplane, roles: ["admin", "spouse", "demo"] },
+  { path: "/cargar", label: "Bandeja Financiera", icon: CloudArrowUp, roles: ["admin", "spouse", "accountant"] },
   { path: "/deudas", label: "Deudas y Tarjetas", icon: Wallet, roles: ["admin", "demo"] },
   { path: "/flujo", label: "Planificación Flujo", icon: CalendarCheck, roles: ["admin"] },
   { path: "/budget", label: "Mi Presupuesto", icon: ChartLine, roles: ["admin", "demo"] },
@@ -180,6 +180,12 @@ export default function Layout({ children }) {
             <DropdownMenuItem className="gap-2">
               <User size={16} />
               {user?.email}
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="gap-2 cursor-pointer">
+              <Link to="/perfil">
+                <User size={16} />
+                Mi Perfil
+              </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem 

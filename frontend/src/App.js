@@ -16,6 +16,7 @@ import Ingresos from "./pages/Ingresos";
 import Deudas from "./pages/Deudas";
 import Flujo from "./pages/Flujo";
 import MetasViaje from "./pages/MetasViaje";
+import Perfil from "./pages/Perfil";
 import Layout from "./components/Layout";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -147,6 +148,14 @@ function AppRoutes() {
       />
       {/* Redirect old route */}
       <Route path="/metas-viaje" element={<Navigate to="/viajes" replace />} />
+      <Route 
+        path="/perfil" 
+        element={
+          <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
+            <Perfil />
+          </ProtectedRoute>
+        } 
+      />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>

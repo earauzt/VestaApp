@@ -847,7 +847,8 @@ export default function CargarValidar() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Cargar y Validar</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Bandeja Financiera</h1>
+          <p className="text-sm text-muted-foreground">Tus movimientos financieros en un solo lugar</p>
           <p className="text-muted-foreground">Sube archivos y aprueba transacciones en un solo lugar</p>
         </div>
         {activeTab === "validate" && selectedItems.length > 0 && (
@@ -895,7 +896,7 @@ export default function CargarValidar() {
       <Card className="bento-card">
         <CardContent className="p-4 sm:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4 mb-6">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
               <TabsTrigger value="upload" className="gap-2" data-testid="tab-upload">
                 <CloudArrowUp size={18} />
                 <span className="hidden sm:inline">Cargar</span>
@@ -904,13 +905,6 @@ export default function CargarValidar() {
                 <Bank size={18} />
                 <span className="hidden sm:inline">Estados</span>
                 <span className="sm:hidden">Bancos</span>
-              </TabsTrigger>
-              <TabsTrigger value="gmail" className="gap-2" data-testid="tab-gmail">
-                <EnvelopeSimple size={18} />
-                <span className="hidden sm:inline">Gmail</span>
-                {(gmailSummary.pendiente || 0) > 0 && (
-                  <Badge variant="secondary" className="ml-1">{gmailSummary.pendiente}</Badge>
-                )}
               </TabsTrigger>
               <TabsTrigger value="validate" className="gap-2" data-testid="tab-validate">
                 <CheckSquare size={18} />

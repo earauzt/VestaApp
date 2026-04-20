@@ -78,6 +78,7 @@ export default function Ingresos() {
   const [dialogType, setDialogType] = useState("income"); // income, expected, receivable
   const [editingItem, setEditingItem] = useState(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [editingDistribution, setEditingDistribution] = useState(null); // { id, value }
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedReceivable, setSelectedReceivable] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -318,6 +319,22 @@ export default function Ingresos() {
     setDialogOpen(true);
   };
 
+  const handleSaveDistribution = async (incomeId, newDistribution) => {
+    if (!newDistribution.trim()) { setEditingDistribution(null); return; }
+    try {
+      const income = incomes.find(i => i.id === incomeId);
+      if (!income) return;
+      await axios.put(`${API}/income/${incomeId}`, {
+        amount: income.amount, date: income.date, distribution: newDistribution.trim(),
+        concept: income.concept, description: income.description || "",
+        is_recurring: income.is_recurring, payment_method: income.payment_method || "transferencia"
+      }, { headers: getAuthHeadersRef.current() });
+      setIncomes(prev => prev.map(i => i.id === incomeId ? { ...i, distribution: newDistribution.trim() } : i));
+      toast.success("Fuente actualizada");
+    } catch { toast.error("Error al actualizar"); }
+    setEditingDistribution(null);
+  };
+
   const openDialog = (type) => {
     setDialogType(type);
     resetForm();
@@ -532,7 +549,23 @@ export default function Ingresos() {
                               </div>
                               <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
                                 <span>{format(new Date(income.date), "d MMM yyyy", { locale: es })}</span>
-                                <Badge className={config.bgColor + " " + config.color}>{income.distribution}</Badge>
+                                {editingDistribution?.id === income.id ? (
+                                  <input
+                                    autoFocus
+                                    className="text-xs px-2 py-0.5 rounded border bg-background w-24"
+                                    defaultValue={editingDistribution.value}
+                                    onKeyDown={(e) => { if (e.key === "Enter") handleSaveDistribution(income.id, e.target.value); if (e.key === "Escape") setEditingDistribution(null); }}
+                                    onBlur={(e) => handleSaveDistribution(income.id, e.target.value)}
+                                  />
+                                ) : (
+                                  <Badge
+                                    className={`${config.bgColor} ${config.color} cursor-pointer hover:opacity-80`}
+                                    onClick={() => canEdit && setEditingDistribution({ id: income.id, value: income.distribution })}
+                                  >
+                                    {income.distribution}
+                                    {canEdit && <Pencil size={10} className="ml-1" />}
+                                  </Badge>
+                                )}
                               </div>
                             </div>
                           </div>
