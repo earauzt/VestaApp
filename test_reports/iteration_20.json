@@ -1,0 +1,53 @@
+{
+  "summary": "Frontend-only regression testing of the Bandeja Financiera refactor (CargarValidar.js 1600+ lines → 5 subcomponents under /components/bandeja). Logged in as admin (earauzt@gmail.com), navigated to /cargar. All 3 tabs render (Importar, Por revisar [badge 83], Historial). Dropzone visible + Gmail sync section visible with badges (Pendientes: 61, Aprobados: 0) and 'Sincronizar ahora' button. Tab switching preserves state (files/selections), no console errors related to missing imports/undefined props/hook deps in the bandeja subcomponents. GmailConsentDialog path verified (admin is already connected, so connect→consent flow not triggered live, but the component code path is exercised when !gmailStatus.connected). Forest Palette teal visible in sidebar highlight + primary buttons. No emojis in tab labels (phosphor icons only). ONE REGRESSION FOUND: BandejaStats component is imported in CargarValidar.js line 20 but NEVER RENDERED — the inline stats block (line 1056-1086) is gated on `activeTab === 'validate'` which is a dead tab value (tabs are now 'importar' | 'revisar' | 'historial'). Result: stats cards never appear on screen. The explicit feature to test 'BandejaStats renders at top showing pending/approved counts' FAILS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [
+      {"component": "CargarValidar.js", "issue": "BandejaStats cards are never rendered. Line 1056 still uses legacy condition `activeTab === 'validate'` (old tab id) but tabs are now 'importar' | 'revisar' | 'historial'. The imported BandejaStats component is not mounted anywhere. User-facing impact: stats (Pendientes / Duplicados / Aprobados / Por revisar $) never appear at the top of Bandeja Financiera.", "selector": "[data-testid='cargar-validar-page'] > .grid (expected stats grid)", "priority": "HIGH"},
+      {"component": "CargarValidar.js header", "issue": "Header shows TWO subtitle paragraphs ('Tus movimientos financieros en un solo lugar' AND 'Sube archivos y aprueba transacciones en un solo lugar'). One looks like a duplication left over from the refactor. Lines 1044-1045.", "selector": "h1 + p + p", "priority": "LOW"},
+      {"component": "CargarValidar.js", "issue": "Dead code: bulk approve button on line 1047 is also gated on `activeTab === 'validate'` — never shown. selectedItems/handleBulkApprove/handleBulkAction/openDetailDialog/showBulkDialog/BulkActionDialog wiring is orphaned because TabPorRevisar uses reviewSelectedIds/handleReviewBulkApprove instead. The BulkActionDialog at line 1171 is mounted but never opened (setShowBulkDialog is never called).", "selector": "N/A", "priority": "MEDIUM"}
+    ],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Bandeja Financiera top area", "issues": ["Missing stats cards row at top (BandejaStats not mounted) — page jumps straight from header to tabs, losing the summary overview mentioned in the refactor plan."]}
+    ]
+  },
+  "passed_tests": [
+    "Login admin → /cargar navigation",
+    "[data-testid='cargar-validar-page'] visible",
+    "Title 'Bandeja Financiera' visible",
+    "[data-testid='tab-importar'], [data-testid='tab-revisar'], [data-testid='tab-historial'] all visible",
+    "Por revisar tab shows badge count (83 pending unified items)",
+    "[data-testid='dropzone'] visible in Importar tab",
+    "[data-testid='gmail-sync-section'] visible with [data-testid='gmail-pending-badge'] and [data-testid='gmail-sync-btn'] (admin already connected: 61 pending / 0 aprobados)",
+    "Switching tabs revisar → historial → importar preserves dropzone visibility (no remount issues)",
+    "No console errors from bandeja subcomponents (no undefined props, no missing imports, no hook-deps warnings)",
+    "No .error / [class*=error] elements present in DOM",
+    "No emojis in tab labels (phosphor icons only)",
+    "Forest Palette #0D9E82 applied (sidebar active item, primary Procesar Archivos button)",
+    "Historial tab renders (TabHistorial → Transactions component) without errors"
+  ],
+  "test_report_links": ["/app/test_reports/iteration_20.json"],
+  "action_items": [
+    "Mount BandejaStats component in CargarValidar.js — currently imported but unused. Replace the legacy inline block at lines 1055-1086 with <BandejaStats stats={stats} duplicatePairs={duplicatePairs} crossCanalCount={crossCanalCount} formatCurrency={formatCurrency} /> and remove the `activeTab === 'validate'` gate (or gate on activeTab === 'revisar' if intended to show only on review tab).",
+    "Remove duplicate subtitle paragraph on lines 1044-1045 of CargarValidar.js.",
+    "Clean up dead code tied to the old 'validate' tab: the bulk approve button at line 1047-1052, openDetailDialog/handleBulkApprove/showBulkDialog wiring, and decide whether BulkActionDialog (line 1171) should be triggered from TabPorRevisar or removed. Currently setShowBulkDialog is never called.",
+    "Optional: Verify detail/edit dialog (showDetailDialog) is still reachable — it was previously opened from the pending list but TabPorRevisar.jsx doesn't call openDetailDialog. Confirm whether row-level edit is an intended removal or a regression."
+  ],
+  "critical_code_review_comments": [
+    "CargarValidar.js still ~1190 lines; refactor extracted the 3 tabs + stats + dialogs but left a large amount of orchestration/state in the parent. Consider extracting the detail dialog block (lines 816-993) and the duplicate dialog (995-1038) into BandejaDialogs.jsx to further reduce the parent file.",
+    "The refactor did NOT update the conditional gate `activeTab === 'validate'` (legacy value). Two blocks still reference it: stats grid + bulk approve button. Both are effectively disabled. This is the root-cause regression.",
+    "TabImportar receives 20+ props via prop drilling (selectedFiles, dragActive, loading, result, processingStatus, ~10 handlers, gmail* state). Consider useContext or a custom useBandeja() hook to simplify.",
+    "Many state setters that are used only inside the parent (setShowBulkDialog, setBulkCategory, setBulkSubcategory, setBulkAction, setSelectedItems) are now dead code because no child calls them. Remove to avoid confusion.",
+    "Gmail sync test: confirmed Button triggers POST /api/gmail/sync; no integration issue observed.",
+    "Accessibility: dialog titles and buttons have text labels. GmailConsentDialog has [data-testid='gmail-consent-confirm-btn'] — OK."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "~85% (11/13 acceptance items pass; BandejaStats rendering + dead-code cleanup fail/pending)"},
+  "test_credentials": {"admin": "earauzt@gmail.com / Realmadrid2011", "demo": "demo@fintrack.ec / demo2026"},
+  "seed_data_creation": "None — read-only UI regression.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "The Bandeja refactor is functionally intact (tabs mount, props flow, Gmail section and dropzone work, state persists across tab switches). The only real regression is the legacy `activeTab === 'validate'` gate in CargarValidar.js which prevents BandejaStats AND the bulk-approve button from ever rendering. Fix: replace the inline stats block with <BandejaStats .../> and remove the dead 'validate' branch. After main agent fix, re-run the same Playwright flow: login admin → /cargar → verify 4 stats cards (Pendientes, Duplicados, Aprobados, Por revisar $) are visible above the tabs. Admin currently has 61 Gmail pending + statement pending transactions (badge shows 83 on Por revisar tab). TabPorRevisar/TabHistorial/TabImportar sub-components themselves have no wiring issues.",
+  "rca of the issue": "During the refactor, the `activeTab` enum was renamed from {cargar,validate,historial} to {importar,revisar,historial} but two conditional blocks in CargarValidar.js (stats grid at line 1056 and bulk approve header button at line 1047) were not updated — they still test for the old 'validate' value, so the React conditional renders false forever. The imported BandejaStats component at line 20 was never wired into JSX. Reproduction: login as admin, open /cargar, observe: header + tabs render but NO stats cards appear above the tabs. Mitigation: (a) mount <BandejaStats .../> unconditionally (or gate on 'revisar'), (b) remove the now-dead `activeTab === 'validate'` branches."
+}
