@@ -385,11 +385,11 @@ export default function Deudas() {
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
                 <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
-                  <Calculator size={20} className="text-[#0F766E]" />
+                  <Calculator size={20} className="text-[#0D9E82]" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Pago Mínimo Total</p>
-                  <p className="text-lg font-bold text-[#0F766E]">{formatCurrency(summary.total_minimum_payment)}</p>
+                  <p className="text-lg font-bold text-[#0D9E82]">{formatCurrency(summary.total_minimum_payment)}</p>
                 </div>
               </div>
             </CardContent>

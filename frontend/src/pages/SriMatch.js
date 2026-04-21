@@ -119,7 +119,7 @@ export default function SriMatch() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Receipt size={32} weight="duotone" className="text-[#0F766E]" />
+            <Receipt size={32} weight="duotone" className="text-[#0D9E82]" />
             Match Factura y Consumo
           </h1>
           <p className="text-muted-foreground">Vincula facturas SRI con sus consumos de tarjeta/débito</p>
@@ -189,7 +189,7 @@ export default function SriMatch() {
                       )}
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      <Button size="sm" onClick={() => handleConfirm(t.id)} className="gap-1 bg-[#0F766E] hover:bg-[#0D6B63]" data-testid={`confirm-${t.id}`}>
+                      <Button size="sm" onClick={() => handleConfirm(t.id)} className="gap-1 bg-[#0D9E82] hover:bg-[#0D6B63]" data-testid={`confirm-${t.id}`}>
                         <CheckCircle size={14} /> Sí
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => handleReject(t.id)} className="gap-1" data-testid={`reject-${t.id}`}>

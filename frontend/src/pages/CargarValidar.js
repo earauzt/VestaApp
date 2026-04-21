@@ -927,7 +927,7 @@ export default function CargarValidar() {
               {/* Sección para Contadora - Categorías SRI */}
               <div className="border-t pt-4 mt-4">
                 <Label className="flex items-center gap-2 mb-3 text-base font-semibold">
-                  <FileText size={18} className="text-[#0F766E]" /> Clasificación SRI (Contadora)
+                  <FileText size={18} className="text-[#0D9E82]" /> Clasificación SRI (Contadora)
                 </Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-md bg-slate-50 border border-slate-200">
                   <div className="space-y-2">
@@ -1220,7 +1220,7 @@ export default function CargarValidar() {
                       {result.card_info && (
                         <div className="p-4 rounded-md bg-slate-50 border border-slate-200">
                           <div className="flex items-center gap-2 mb-3">
-                            <CreditCard size={20} className="text-[#0F766E]" />
+                            <CreditCard size={20} className="text-[#0D9E82]" />
                             <span className="font-semibold text-slate-900">Tarjeta Actualizada</span>
                           </div>
                           <div className="grid grid-cols-2 gap-3 text-sm">
@@ -1401,8 +1401,8 @@ export default function CargarValidar() {
                       const sourceBadgeColor = item.source === "gmail"
                         ? "bg-red-50 text-red-700 border-red-200"
                         : item.source === "manual"
-                        ? "bg-slate-50 text-[#0F766E] border-slate-200"
-                        : "bg-slate-100 text-[#0F766E] border-slate-200";
+                        ? "bg-slate-50 text-[#0D9E82] border-slate-200"
+                        : "bg-slate-100 text-[#0D9E82] border-slate-200";
                       return (
                         <div
                           key={item.id}

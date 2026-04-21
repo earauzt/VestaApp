@@ -281,7 +281,7 @@ export default function PresupuestoEditable() {
           <div className="flex items-center justify-between py-3 border-b bg-muted/30">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
-                <span className="text-[#0F766E] font-bold text-lg">−</span>
+                <span className="text-[#0D9E82] font-bold text-lg">−</span>
               </div>
               <div>
                 <p className="font-medium">Inversión</p>
@@ -289,11 +289,11 @@ export default function PresupuestoEditable() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xl font-bold text-[#0F766E] font-mono">{formatCurrency(investmentGoal.monthly)}</p>
+              <p className="text-xl font-bold text-[#0D9E82] font-mono">{formatCurrency(investmentGoal.monthly)}</p>
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-[#0F766E]"
+                className="h-7 w-7 text-muted-foreground hover:text-[#0D9E82]"
                 onClick={() => setActiveTab("metas")}
               >
                 <Pencil size={14} />
@@ -305,7 +305,7 @@ export default function PresupuestoEditable() {
           <div className="flex items-center justify-between py-3 border-b">
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                <span className="text-[#0F766E] font-bold text-lg">−</span>
+                <span className="text-[#0D9E82] font-bold text-lg">−</span>
               </div>
               <div>
                 <p className="font-medium">Meta Viajes</p>
@@ -315,14 +315,14 @@ export default function PresupuestoEditable() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xl font-bold text-[#0F766E] font-mono">
+              <p className="text-xl font-bold text-[#0D9E82] font-mono">
                 {formatCurrency(travelFund?.monthly_suggested_saving || 0)}
               </p>
               <Link to="/viajes">
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-[#0F766E]"
+                  className="h-7 w-7 text-muted-foreground hover:text-[#0D9E82]"
                 >
                   <Airplane size={14} />
                 </Button>
@@ -549,7 +549,7 @@ export default function PresupuestoEditable() {
             <Card className="bento-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <PiggyBank size={24} className="text-[#0F766E]" />
+                  <PiggyBank size={24} className="text-[#0D9E82]" />
                   Meta de Ahorro
                 </CardTitle>
               </CardHeader>

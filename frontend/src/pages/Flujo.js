@@ -498,7 +498,7 @@ export default function Flujo() {
                                   </span>
                                 )}
                                 {payment.total_balance && (
-                                  <span className="px-2 py-1 rounded bg-slate-50 text-[#0F766E]">
+                                  <span className="px-2 py-1 rounded bg-slate-50 text-[#0D9E82]">
                                     Saldo: {formatCurrency(payment.total_balance)}
                                   </span>
                                 )}

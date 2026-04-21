@@ -100,7 +100,7 @@ export default function SRILimits() {
 
       {/* Contribuyente Info */}
       {data?.contribuyente && (
-        <Card className="bento-card bg-white border-slate-200 border-l-4 border-l-[#0F766E]">
+        <Card className="bento-card bg-white border-slate-200 border-l-4 border-l-[#0D9E82]">
           <CardContent className="p-4">
             <div className="flex items-start gap-4">
               <div className="p-3 rounded-xl bg-primary/10 text-primary">
@@ -356,7 +356,7 @@ export default function SRILimits() {
       <Card className="bento-card bg-white border border-slate-200">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Info size={20} className="text-[#0F766E]" />
+            <Info size={20} className="text-[#0D9E82]" />
             Información Importante SRI
           </CardTitle>
         </CardHeader>

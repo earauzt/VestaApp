@@ -253,7 +253,7 @@ export default function Dashboard() {
     switch (priority) {
       case "high": return "bg-red-50 dark:bg-red-900/20 border-red-200 text-red-800 dark:text-red-200";
       case "medium": return "bg-amber-50 dark:bg-amber-900/20 border-amber-200 text-amber-800 dark:text-amber-200";
-      case "low": return "bg-slate-50 dark:bg-slate-800 border-slate-200 text-[#0F766E] dark:text-slate-200";
+      case "low": return "bg-slate-50 dark:bg-slate-800 border-slate-200 text-[#0D9E82] dark:text-slate-200";
       default: return "bg-muted";
     }
   };
@@ -281,7 +281,7 @@ export default function Dashboard() {
       title: "Promedio Diario", 
       value: stats?.daily_average, 
       icon: CalendarBlank,
-      color: "text-[#0F766E]"
+      color: "text-[#0D9E82]"
     }
   ];
 
@@ -323,13 +323,13 @@ export default function Dashboard() {
         const priorityColor = {
           high: "bg-red-50 border-red-200 text-red-900 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200",
           medium: "bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200",
-          low: "bg-slate-50 border-slate-200 text-[#0F766E] dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200",
+          low: "bg-slate-50 border-slate-200 text-[#0D9E82] dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200",
         };
         return (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2" data-testid="notificaciones-banner">
             {shown.map((n) => {
               const borderColor = n.prioridad === "high" ? "border-l-[#DC2626]" : n.prioridad === "medium" ? "border-l-amber-500" : "border-l-blue-500";
-              const iconColor = n.prioridad === "high" ? "text-[#DC2626]" : n.prioridad === "medium" ? "text-amber-600" : "text-[#0F766E]";
+              const iconColor = n.prioridad === "high" ? "text-[#DC2626]" : n.prioridad === "medium" ? "text-amber-600" : "text-[#0D9E82]";
               return (
               <div
                 key={n.id}
@@ -528,7 +528,7 @@ export default function Dashboard() {
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E] shrink-0">
+              <div className="p-2 rounded-xl bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82] shrink-0">
                 <Receipt size={18} weight="duotone" />
               </div>
               <div>
@@ -570,7 +570,7 @@ export default function Dashboard() {
               className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
               data-testid="counter-pendiente"
             >
-              <LucideClock size={22} className="mb-1 text-[#0F766E]" />
+              <LucideClock size={22} className="mb-1 text-[#0D9E82]" />
               <span className="text-xl font-bold text-slate-900">{sriCounters.pendiente_match}</span>
               <span className="text-[11px] text-slate-500 text-center">Esperando match</span>
             </button>
@@ -771,10 +771,10 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.4 }}
       >
-        <Card className="bento-card bg-white border border-slate-200 border-l-4 border-l-[#0F766E] shadow-sm">
+        <Card className="bento-card bg-white border border-slate-200 border-l-4 border-l-[#0D9E82] shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
-              <TrendUp size={20} className="text-[#0F766E]" weight="duotone" />
+              <TrendUp size={20} className="text-[#0D9E82]" weight="duotone" />
               Flujo Proyectado (30 días)
             </CardTitle>
             <CardDescription>Proyección de ingresos y gastos</CardDescription>
@@ -804,7 +804,7 @@ export default function Dashboard() {
                   </div>
                   <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
                     <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                      <Wallet size={12} className="text-[#0F766E]" />
+                      <Wallet size={12} className="text-[#0D9E82]" />
                       Neto
                     </p>
                     <p className={`text-lg font-bold ${
@@ -879,7 +879,7 @@ export default function Dashboard() {
           <Card className="bento-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Receipt size={20} className="text-[#0F766E]" weight="duotone" />
+                <Receipt size={20} className="text-[#0D9E82]" weight="duotone" />
                 Gastos por Categoría
               </CardTitle>
               <CardDescription>Progreso vs presupuesto mensual</CardDescription>
@@ -891,11 +891,11 @@ export default function Dashboard() {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="p-4 rounded-md bg-white border border-slate-200 border-l-4 border-l-[#0F766E] shadow-sm"
+                    className="p-4 rounded-md bg-white border border-slate-200 border-l-4 border-l-[#0D9E82] shadow-sm"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-medium text-sm flex items-center gap-2 text-slate-900">
-                        <Airplane size={16} className="text-[#0F766E]" />
+                        <Airplane size={16} className="text-[#0D9E82]" />
                         Viajes
                       </span>
                       <Badge variant="outline" className="text-xs border-slate-200 text-slate-600">
@@ -906,7 +906,7 @@ export default function Dashboard() {
                     <div className="space-y-2">
                       <Progress 
                         value={travelFund.savings_progress || 0} 
-                        className="h-3 [&>div]:bg-[#0F766E]"
+                        className="h-3 [&>div]:bg-[#0D9E82]"
                       />
                       
                       <div className="flex justify-between items-center">
@@ -923,7 +923,7 @@ export default function Dashboard() {
                       </p>
                       
                       <Link to="/viajes">
-                        <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-[#0F766E] hover:text-[#0D6B63] hover:bg-slate-50">
+                        <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-[#0D9E82] hover:text-[#0D6B63] hover:bg-slate-50">
                           Ver fondo
                         </Button>
                       </Link>

@@ -222,7 +222,7 @@ export default function Perfil() {
       <Card className="bg-white border border-slate-200 shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-900">
-            <User size={20} className="text-[#0F766E]" />
+            <User size={20} className="text-[#0D9E82]" />
             Información de la Cuenta
           </CardTitle>
         </CardHeader>
@@ -248,7 +248,7 @@ export default function Perfil() {
       <Card className="bg-white border border-slate-200 shadow-sm" data-testid="fiscal-data-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-900">
-            <IdCard size={20} className="text-[#0F766E]" />
+            <IdCard size={20} className="text-[#0D9E82]" />
             Datos fiscales
           </CardTitle>
           <CardDescription>Usados para cálculos SRI, facturas y reportes anuales</CardDescription>
@@ -303,7 +303,7 @@ export default function Perfil() {
             <Button
               onClick={handleSaveFiscal}
               disabled={savingFiscal}
-              className="bg-[#0F766E] hover:bg-[#0D6B63] text-white"
+              className="bg-[#0D9E82] hover:bg-[#0D6B63] text-white"
               data-testid="fiscal-save-btn"
             >
               {savingFiscal ? "Guardando..." : "Guardar cambios"}
@@ -314,7 +314,7 @@ export default function Perfil() {
       <Card className="bg-white border border-slate-200 shadow-sm" data-testid="gmail-connection-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-900">
-            <EnvelopeSimple size={20} className="text-[#0F766E]" />
+            <EnvelopeSimple size={20} className="text-[#0D9E82]" />
             Cuentas Conectadas
           </CardTitle>
           <CardDescription>Conecta servicios externos para importar transacciones automáticamente</CardDescription>
@@ -351,7 +351,7 @@ export default function Perfil() {
                   Sincronizar
                 </Button>
               ) : (
-                <Button size="sm" onClick={() => setShowConsentModal(true)} disabled={gmailConnecting} className="gap-2 bg-[#0F766E] hover:bg-[#0D6B63] text-white" data-testid="profile-gmail-connect-btn">
+                <Button size="sm" onClick={() => setShowConsentModal(true)} disabled={gmailConnecting} className="gap-2 bg-[#0D9E82] hover:bg-[#0D6B63] text-white" data-testid="profile-gmail-connect-btn">
                   {gmailConnecting ? (
                     <><SpinnerGap size={14} className="animate-spin" /> Conectando...</>
                   ) : (
@@ -368,7 +368,7 @@ export default function Perfil() {
       <Card className="bg-white border border-slate-200 shadow-sm" data-testid="rules-section">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-900">
-            <FileText size={20} className="text-[#0F766E]" />
+            <FileText size={20} className="text-[#0D9E82]" />
             Aprendizaje automático
           </CardTitle>
           <CardDescription>Comercios conocidos y reglas que usa Vesta para categorizar tus gastos</CardDescription>
@@ -472,7 +472,7 @@ export default function Perfil() {
         <Card className="bg-white border border-slate-200 shadow-sm" data-testid="access-invite-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-slate-900">
-              <UserPlus size={20} className="text-[#0F766E]" />
+              <UserPlus size={20} className="text-[#0D9E82]" />
               Accesos
             </CardTitle>
             <CardDescription>Invita a tu contadora para que revise tus datos fiscales</CardDescription>
@@ -490,7 +490,7 @@ export default function Perfil() {
               <Button
                 onClick={handleCreateInvite}
                 disabled={inviting}
-                className="bg-[#0F766E] hover:bg-[#0D6B63] text-white gap-2"
+                className="bg-[#0D9E82] hover:bg-[#0D6B63] text-white gap-2"
                 data-testid="invite-create-btn"
               >
                 <UserPlus size={15} />
@@ -557,7 +557,7 @@ export default function Perfil() {
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowConsentModal(false)} className="border-slate-200 text-slate-700 hover:bg-slate-50">Cancelar</Button>
-            <Button onClick={() => { setShowConsentModal(false); handleConnectGmail(); }} disabled={gmailConnecting} className="gap-2 bg-[#0F766E] hover:bg-[#0D6B63] text-white">
+            <Button onClick={() => { setShowConsentModal(false); handleConnectGmail(); }} disabled={gmailConnecting} className="gap-2 bg-[#0D9E82] hover:bg-[#0D6B63] text-white">
               {gmailConnecting ? <><SpinnerGap size={16} className="animate-spin" /> Conectando...</> : <><GoogleLogo size={18} weight="bold" /> Entendido, conectar</>}
             </Button>
           </DialogFooter>
@@ -593,7 +593,7 @@ export default function Perfil() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditVendor(null)} className="border-slate-200 text-slate-700 hover:bg-slate-50">Cancelar</Button>
-            <Button onClick={handleSaveVendor} className="bg-[#0F766E] hover:bg-[#0D6B63] text-white" data-testid="vendor-edit-save">Guardar</Button>
+            <Button onClick={handleSaveVendor} className="bg-[#0D9E82] hover:bg-[#0D6B63] text-white" data-testid="vendor-edit-save">Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

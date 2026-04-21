@@ -55,14 +55,14 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Default category colors
 const CATEGORY_COLORS = {
-  servicios_basicos: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
-  empleados: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
-  colegio_actividades: "bg-slate-50 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
-  seguros: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
+  servicios_basicos: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
+  empleados: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
+  colegio_actividades: "bg-slate-50 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
+  seguros: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
   comida: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   restaurantes: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   carros: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  usa: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
+  usa: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
   viajes_entretenimiento: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
   gastos_libres: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   // Demo categories
@@ -70,9 +70,9 @@ const CATEGORY_COLORS = {
   entretenimiento: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
   // Legacy categories for compatibility
   alimentacion: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  salud: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
-  educacion: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
-  vivienda: "bg-slate-50 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
+  salud: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
+  educacion: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
+  vivienda: "bg-slate-50 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
   vestimenta: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   turismo: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
   viajes_internacionales: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
@@ -688,7 +688,7 @@ export default function Transactions() {
                         <input
                           id="uso-empresarial-toggle"
                           type="checkbox"
-                          className="h-5 w-5 accent-[#0F766E]"
+                          className="h-5 w-5 accent-[#0D9E82]"
                           checked={formData.uso_empresarial}
                           onChange={(e) => setFormData({ ...formData, uso_empresarial: e.target.checked })}
                           data-testid="uso-empresarial-toggle"
@@ -722,7 +722,7 @@ export default function Transactions() {
                         <input
                           id="aplica-iva-toggle"
                           type="checkbox"
-                          className="h-5 w-5 accent-[#0F766E]"
+                          className="h-5 w-5 accent-[#0D9E82]"
                           checked={formData.aplica_iva}
                           onChange={(e) => setFormData({ ...formData, aplica_iva: e.target.checked })}
                           data-testid="aplica-iva-toggle"
@@ -878,7 +878,7 @@ export default function Transactions() {
                             </Badge>
                           )}
                           {transaction.linked_goal_name && (
-                            <Badge variant="outline" className="text-xs gap-1 bg-slate-100 text-[#0F766E] border-slate-200 dark:bg-slate-800 dark:text-[#0F766E] dark:border-slate-700" data-testid="linked-goal-badge">
+                            <Badge variant="outline" className="text-xs gap-1 bg-slate-100 text-[#0D9E82] border-slate-200 dark:bg-slate-800 dark:text-[#0D9E82] dark:border-slate-700" data-testid="linked-goal-badge">
                               <Target size={12} />
                               {transaction.linked_goal_name}
                             </Badge>

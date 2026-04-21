@@ -80,7 +80,7 @@ const GOAL_TYPES = [
 ];
 
 const STATUS_CONFIG = {
-  active: { label: "Activa", color: "bg-slate-50 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]", icon: Target },
+  active: { label: "Activa", color: "bg-slate-50 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]", icon: Target },
   completed: { label: "Completada", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle },
   cancelled: { label: "Cancelada", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: Clock }
 };
@@ -339,7 +339,7 @@ export default function MetasViaje() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Airplane size={32} className="text-[#0F766E]" weight="duotone" />
+            <Airplane size={32} className="text-[#0D9E82]" weight="duotone" />
             Viajes
           </h1>
           <p className="text-muted-foreground">Gestiona tu fondo de viajes y entretenimiento</p>
@@ -376,7 +376,7 @@ export default function MetasViaje() {
                   <Button 
                     variant="link" 
                     size="sm" 
-                    className="text-xs h-auto p-0 text-[#0F766E]"
+                    className="text-xs h-auto p-0 text-[#0D9E82]"
                     onClick={() => {
                       setNewAnnualBudget(travelFund.annual_budget.toString());
                       setFundSettingsDialogOpen(true);
@@ -396,8 +396,8 @@ export default function MetasViaje() {
                 <p className="text-2xl font-bold text-red-600">{formatCurrency(totalSpent)}</p>
               </div>
               <div className="text-center p-3 rounded-xl bg-slate-50/50 dark:bg-slate-800">
-                <p className="text-xs text-[#0F766E] dark:text-[#0F766E] mb-1">Disponible</p>
-                <p className="text-2xl font-bold text-[#0F766E]">{formatCurrency(Math.max(0, available))}</p>
+                <p className="text-xs text-[#0D9E82] dark:text-[#0D9E82] mb-1">Disponible</p>
+                <p className="text-2xl font-bold text-[#0D9E82]">{formatCurrency(Math.max(0, available))}</p>
               </div>
             </div>
             
@@ -409,7 +409,7 @@ export default function MetasViaje() {
               </div>
               <Progress value={travelFund.savings_progress || 0} className="h-3" />
               {travelFund.monthly_suggested_saving > 0 && (
-                <p className="text-sm text-[#0F766E] flex items-start gap-2">
+                <p className="text-sm text-[#0D9E82] flex items-start gap-2">
                   <LITrend size={14} className="mt-0.5 shrink-0" />
                   <span>Ahorra <strong>{formatCurrency(travelFund.monthly_suggested_saving)}</strong>/mes para completar tu meta</span>
                 </p>
@@ -489,7 +489,7 @@ export default function MetasViaje() {
                             </div>
                             <Progress value={Math.min(progress, 100)} className="h-2 mb-1" />
                             <div className="flex justify-between text-xs">
-                              <span className="font-semibold text-[#0F766E]">
+                              <span className="font-semibold text-[#0D9E82]">
                                 {formatCurrency(goal.saved_amount || 0)}
                               </span>
                               <span className="text-muted-foreground">
@@ -671,7 +671,7 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <IconRender Comp={GOAL_TYPES.find(t => t.value === formData.tipo)?.Icon || LIStar} size={18} className="text-[#0F766E]" />
+              <IconRender Comp={GOAL_TYPES.find(t => t.value === formData.tipo)?.Icon || LIStar} size={18} className="text-[#0D9E82]" />
               {editingGoal ? "Editar Meta" : "Nueva Meta"}
             </DialogTitle>
           </DialogHeader>
@@ -686,7 +686,7 @@ export default function MetasViaje() {
                     type="button"
                     className={`flex flex-col items-center gap-1 p-2 rounded-md border text-xs transition-colors ${
                       formData.tipo === type.value 
-                        ? "border-[#0F766E] bg-slate-50 ring-1 ring-[#0F766E] text-[#0F766E]" 
+                        ? "border-[#0D9E82] bg-slate-50 ring-1 ring-[#0D9E82] text-[#0D9E82]" 
                         : "border-slate-200 hover:border-slate-300 text-slate-600"
                     }`}
                     onClick={() => setFormData({ ...formData, tipo: type.value })}
@@ -923,7 +923,7 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Receipt size={24} className="text-[#0F766E]" />
+              <Receipt size={24} className="text-[#0D9E82]" />
               Detalle de Transacción
             </DialogTitle>
           </DialogHeader>
@@ -977,7 +977,7 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <LinkSimple size={20} className="text-[#0F766E]" />
+              <LinkSimple size={20} className="text-[#0D9E82]" />
               Vincular Gasto a Meta
             </DialogTitle>
           </DialogHeader>

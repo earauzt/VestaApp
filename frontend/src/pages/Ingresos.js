@@ -42,8 +42,8 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 // Income sources with icons
 const DISTRIBUTION_CONFIG = {
   Personal: { icon: CurrencyDollar, color: "text-emerald-600", bgColor: "bg-emerald-100 dark:bg-emerald-900/30" },
-  APX: { icon: Briefcase, color: "text-[#0F766E]", bgColor: "bg-slate-50 dark:bg-slate-800" },
-  USA: { icon: Globe, color: "text-[#0F766E]", bgColor: "bg-slate-100 dark:bg-slate-800" }
+  APX: { icon: Briefcase, color: "text-[#0D9E82]", bgColor: "bg-slate-50 dark:bg-slate-800" },
+  USA: { icon: Globe, color: "text-[#0D9E82]", bgColor: "bg-slate-100 dark:bg-slate-800" }
 };
 
 const INCOME_CONCEPTS = ["Salario", "Bonus", "Dividendos", "Arriendo", "Honorarios", "Otros"];
@@ -62,7 +62,7 @@ const STATUS_CONFIG = {
   cancelled: { label: "Cancelado", color: "bg-red-100 text-red-800", icon: Warning },
   overdue: { label: "Vencido", color: "bg-red-100 text-red-800", icon: Warning },
   paid: { label: "Pagado", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle },
-  partial: { label: "Parcial", color: "bg-slate-50 text-[#0F766E]", icon: Clock }
+  partial: { label: "Parcial", color: "bg-slate-50 text-[#0D9E82]", icon: Clock }
 };
 
 export default function Ingresos() {
@@ -449,11 +449,11 @@ export default function Ingresos() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
-                <Receipt size={20} className="text-[#0F766E]" />
+                <Receipt size={20} className="text-[#0D9E82]" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Por Cobrar</p>
-                <p className="text-lg font-bold text-[#0F766E]">{formatCurrency(totalReceivablePending)}</p>
+                <p className="text-lg font-bold text-[#0D9E82]">{formatCurrency(totalReceivablePending)}</p>
               </div>
             </div>
           </CardContent>
@@ -463,11 +463,11 @@ export default function Ingresos() {
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
-                <CalendarCheck size={20} className="text-[#0F766E]" />
+                <CalendarCheck size={20} className="text-[#0D9E82]" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Flujo Proyectado</p>
-                <p className="text-lg font-bold text-[#0F766E]">
+                <p className="text-lg font-bold text-[#0D9E82]">
                   {formatCurrency((summary?.total || 0) + totalExpectedPending + totalReceivablePending)}
                 </p>
               </div>
@@ -748,7 +748,7 @@ export default function Ingresos() {
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-3">
                               <div className="p-2 rounded-full bg-slate-50 dark:bg-slate-800">
-                                <User size={20} className="text-[#0F766E]" weight="bold" />
+                                <User size={20} className="text-[#0D9E82]" weight="bold" />
                               </div>
                               <div>
                                 <p className="font-medium">{item.client_name}</p>
@@ -763,7 +763,7 @@ export default function Ingresos() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="font-mono font-bold text-lg text-[#0F766E]">
+                              <p className="font-mono font-bold text-lg text-[#0D9E82]">
                                 {formatCurrency(remaining)}
                               </p>
                               <p className="text-xs text-muted-foreground">
