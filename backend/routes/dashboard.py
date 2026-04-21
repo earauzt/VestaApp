@@ -26,19 +26,19 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
         {"user_id": user["id"], "date": {"$gte": start_of_month.strftime("%Y-%m-%d")}}, {"_id": 0}
     ).to_list(1000)
 
-    total_income = sum(t["amount"] for t in transactions if t["transaction_type"] == "income")
-    total_expenses = sum(t["amount"] for t in transactions if t["transaction_type"] == "expense")
+    total_income = sum(t["amount"] for t in transactions if t.get("transaction_type") == "income")
+    total_expenses = sum(t["amount"] for t in transactions if t.get("transaction_type") == "expense")
 
     weekly_transactions = [t for t in transactions if t["date"] >= start_of_week.strftime("%Y-%m-%d")]
-    weekly_total = sum(t["amount"] for t in weekly_transactions if t["transaction_type"] == "expense")
+    weekly_total = sum(t["amount"] for t in weekly_transactions if t.get("transaction_type") == "expense")
 
     days_in_month = now.day
     daily_average = total_expenses / days_in_month if days_in_month > 0 else 0
 
     by_category = {}
     for t in transactions:
-        if t["transaction_type"] == "expense":
-            cat = t["category"]
+        if t.get("transaction_type") == "expense":
+            cat = t.get("category", "otros")
             by_category[cat] = by_category.get(cat, 0) + t["amount"]
 
     sri_deductible_cats = ["alimentacion", "salud", "educacion", "vivienda", "vestimenta"]
@@ -63,9 +63,10 @@ async def get_chart_data(period: str = "month", user: dict = Depends(get_current
         date = t["date"]
         if date not in daily_data:
             daily_data[date] = {"date": date, "income": 0, "expenses": 0}
-        if t["transaction_type"] == "income":
+        tt = t.get("transaction_type")
+        if tt == "income":
             daily_data[date]["income"] += t["amount"]
-        else:
+        elif tt == "expense":
             daily_data[date]["expenses"] += t["amount"]
     return {"data": list(daily_data.values())}
 
