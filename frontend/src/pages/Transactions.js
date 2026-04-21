@@ -965,7 +965,7 @@ export default function Transactions() {
                         <div className="flex items-center gap-2">
                           <p className="font-medium">
                             {transaction.comercio || transaction.descripcion_corta ||
-                              transaction.description?.replace(/^(Factura|FacturaFactura|Ha recibido su documento electrónico:?\s*)/i, '').trim().substring(0, 40)}
+                              (transaction.description?.replace(/^(Factura|FacturaFactura|Ha recibido su documento electrónico:?\s*)/i, '').trim().substring(0, 40) || transaction.establishment || "Sin descripción")}
                           </p>
                           {transaction.is_split && (
                             <Badge variant="outline" className="text-xs gap-1">
