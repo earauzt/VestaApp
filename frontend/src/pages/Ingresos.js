@@ -81,6 +81,8 @@ export default function Ingresos() {
   const [editingItem, setEditingItem] = useState(null);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [editingDistribution, setEditingDistribution] = useState(null); // { id, value }
+  const [sourceNames, setSourceNames] = useState({ Personal: "", APX: "", USA: "" });
+  const [editingSourceKey, setEditingSourceKey] = useState(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
   const [selectedReceivable, setSelectedReceivable] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState("");
@@ -141,6 +143,44 @@ export default function Ingresos() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  // Load custom source names from personal budget
+  useEffect(() => {
+    axios.get(`${API}/budget/personal?year=${selectedYear}`, { headers: getAuthHeadersRef.current() })
+      .then((res) => {
+        const is = res.data?.income_sources || {};
+        setSourceNames({
+          Personal: is.Personal?.custom_name || "",
+          APX: is.APX?.custom_name || "",
+          USA: is.USA?.custom_name || "",
+        });
+      })
+      .catch(() => {});
+  }, [selectedYear]);
+
+  const saveSourceName = async (key, newName) => {
+    const trimmed = (newName || "").trim();
+    const updated = { ...sourceNames, [key]: trimmed };
+    setSourceNames(updated);
+    setEditingSourceKey(null);
+    try {
+      const income_sources = {
+        Personal: { custom_name: updated.Personal || "" },
+        APX: { custom_name: updated.APX || "" },
+        USA: { custom_name: updated.USA || "" },
+      };
+      await axios.put(
+        `${API}/budget/income-sources`,
+        { year: selectedYear, income_sources },
+        { headers: getAuthHeadersRef.current() }
+      );
+      toast.success("Etiqueta actualizada");
+    } catch {
+      toast.error("No se pudo guardar la etiqueta");
+    }
+  };
+
+  const getSourceLabel = (key) => sourceNames[key] || key;
 
   const handleSubmitIncome = async (e) => {
     e.preventDefault();
@@ -851,16 +891,43 @@ export default function Ingresos() {
               <Label>Distribución</Label>
               <div className="grid grid-cols-3 gap-2">
                 {Object.entries(DISTRIBUTION_CONFIG).map(([key, config]) => (
-                  <Button
-                    key={key}
-                    type="button"
-                    variant={formData.distribution === key ? "default" : "outline"}
-                    className="gap-2 h-auto py-3"
-                    onClick={() => setFormData({ ...formData, distribution: key })}
-                  >
-                    <config.icon size={18} />
-                    {key}
-                  </Button>
+                  <div key={key} className="relative">
+                    <Button
+                      type="button"
+                      variant={formData.distribution === key ? "default" : "outline"}
+                      className="gap-2 h-auto py-3 w-full pr-7"
+                      onClick={() => setFormData({ ...formData, distribution: key })}
+                      data-testid={`distribution-btn-${key}`}
+                    >
+                      <config.icon size={18} />
+                      {editingSourceKey === key ? (
+                        <input
+                          autoFocus
+                          className="text-xs px-1 py-0.5 rounded border bg-background w-16 text-foreground"
+                          defaultValue={sourceNames[key] || key}
+                          onClick={(e) => e.stopPropagation()}
+                          onKeyDown={(e) => {
+                            e.stopPropagation();
+                            if (e.key === "Enter") saveSourceName(key, e.target.value);
+                            if (e.key === "Escape") setEditingSourceKey(null);
+                          }}
+                          onBlur={(e) => saveSourceName(key, e.target.value)}
+                          data-testid={`source-name-input-${key}`}
+                        />
+                      ) : (
+                        <span>{getSourceLabel(key)}</span>
+                      )}
+                    </Button>
+                    <button
+                      type="button"
+                      className="absolute top-1 right-1 p-0.5 text-slate-400 hover:text-[#0D9E82]"
+                      onClick={(e) => { e.stopPropagation(); setEditingSourceKey(key); }}
+                      aria-label={`Editar etiqueta ${key}`}
+                      data-testid={`source-name-edit-${key}`}
+                    >
+                      <Pencil size={12} />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>

@@ -122,7 +122,25 @@ async def _upsert_card_from_statement(user_id: str, card_info: dict, response_da
     card_number = card_info.get("card_number_last4", "")
     existing_card = None
     if bank_name:
-        existing_card = await db.credit_cards.find_one({"user_id": user_id, "$or": [{"name": {"$regex": bank_name, "$options": "i"}}, {"last_four_digits": card_number}]})
+        # Matching case-insensitive + normalización: sin espacios, lowercase.
+        # "PacifiCard", "PACIFICARD", "Banco del Pacífico PacifiCard" matchean
+        # al mismo registro si uno contiene al otro.
+        def _norm(s: str) -> str:
+            return "".join((s or "").lower().split())
+        norm_bank = _norm(bank_name)
+        cards = await db.credit_cards.find({"user_id": user_id}).to_list(200)
+        for c in cards:
+            if card_number and c.get("last_four_digits") == card_number:
+                existing_card = c
+                break
+            norm_name = _norm(c.get("name", ""))
+            norm_c_bank = _norm(c.get("bank", ""))
+            if norm_bank and (
+                norm_bank in norm_name or norm_name in norm_bank
+                or (norm_c_bank and (norm_bank in norm_c_bank or norm_c_bank in norm_bank))
+            ):
+                existing_card = c
+                break
 
     if existing_card:
         update_data = {"current_balance": card_info.get("current_balance", existing_card.get("current_balance", 0)), "minimum_payment": card_info.get("minimum_payment", existing_card.get("minimum_payment", 0)), "credit_limit": card_info.get("credit_limit", existing_card.get("credit_limit", 0)), "available_credit": card_info.get("available_credit"), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "saldo_diferido": card_info.get("deferred_balance") if card_info.get("deferred_balance") is not None else existing_card.get("saldo_diferido"), "pago_total": card_info.get("pago_total") if card_info.get("pago_total") is not None else existing_card.get("pago_total"), "updated_at": datetime.now(timezone.utc).isoformat()}

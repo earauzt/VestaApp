@@ -225,7 +225,7 @@ async def get_personal_budget(year: Optional[int] = None, month: Optional[int] =
         "gastos_libres": {"target_annual": budget_goals_data["gastos_libres_max_annual"], "actual_annual": actuals.get("gastos_libres", 0), "remaining": budget_goals_data["gastos_libres_max_annual"] - actuals.get("gastos_libres", 0)}
     }
     budget_cats = get_budget_categories(user)
-    return {"year": current_year, "month": month, "total_income": total_income, "total_expenses": total_expenses, "balance": total_income - total_expenses, "by_category": actuals, "planned": planned_budget.get("categories", {}) if planned_budget else {}, "goal_progress": goal_progress, "categories_config": budget_cats}
+    return {"year": current_year, "month": month, "total_income": total_income, "total_expenses": total_expenses, "balance": total_income - total_expenses, "by_category": actuals, "planned": planned_budget.get("categories", {}) if planned_budget else {}, "goal_progress": goal_progress, "categories_config": budget_cats, "income_sources": (planned_budget or {}).get("income_sources")}
 
 
 @router.post("/budget/personal")
@@ -239,6 +239,21 @@ async def save_personal_budget(budget_data: dict, user: dict = Depends(get_curre
     budget_doc = {"user_id": user["id"], "year": year, "categories": budget_data.get("categories", {}), "income_projection": budget_data.get("income_projection", income_struct), "savings_goal": budget_data.get("savings_goal", budget_summ["ahorro_esperado"]), "investment_goal": budget_data.get("investment_goal", budget_summ["inversion_esperada"]), "goals": budget_data.get("goals", budget_goals_data), "updated_at": datetime.now(timezone.utc).isoformat()}
     await db.personal_budgets.update_one({"user_id": user["id"], "year": year}, {"$set": budget_doc}, upsert=True)
     return {"message": "Presupuesto guardado", "year": year}
+
+
+@router.put("/budget/income-sources")
+async def save_income_sources(data: dict, user: dict = Depends(get_current_user)):
+    """Guarda custom_name de las fuentes de ingreso (Personal/APX/USA) en el
+    documento personal_budgets del usuario. Estructura esperada:
+    {income_sources: {Personal: {custom_name: "..."}, APX: {...}, USA: {...}}}"""
+    year = data.get("year", datetime.now().year)
+    income_sources = data.get("income_sources") or {}
+    await db.personal_budgets.update_one(
+        {"user_id": user["id"], "year": year},
+        {"$set": {"income_sources": income_sources, "updated_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+    return {"income_sources": income_sources, "year": year}
 
 
 @router.get("/budget/config")

@@ -21,6 +21,7 @@ import {
   SignOut
 } from "@phosphor-icons/react";
 import { Store, FileText, Edit2, Trash2, IdCard, UserPlus, Copy } from "lucide-react";
+import { PERSONAL_CATEGORIES } from "../constants/categories";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -572,21 +573,36 @@ export default function Perfil() {
           <div className="space-y-3 py-2">
             <div>
               <label className="text-xs text-slate-500 mb-1 block">Categoría</label>
-              <Input
+              <Select
                 value={editForm.personal_category}
-                onChange={(e) => setEditForm({ ...editForm, personal_category: e.target.value })}
-                placeholder="Ej: comida, servicios_basicos"
-                data-testid="vendor-edit-category-input"
-              />
+                onValueChange={(v) => setEditForm({ ...editForm, personal_category: v, subcategory: "" })}
+              >
+                <SelectTrigger data-testid="vendor-edit-category-select">
+                  <SelectValue placeholder="Seleccionar categoría" />
+                </SelectTrigger>
+                <SelectContent className="z-[250]">
+                  {Object.entries(PERSONAL_CATEGORIES).map(([key, cat]) => (
+                    <SelectItem key={key} value={key}>{cat.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
               <label className="text-xs text-slate-500 mb-1 block">Subcategoría</label>
-              <Input
+              <Select
                 value={editForm.subcategory}
-                onChange={(e) => setEditForm({ ...editForm, subcategory: e.target.value })}
-                placeholder="Opcional"
-                data-testid="vendor-edit-subcategory-input"
-              />
+                onValueChange={(v) => setEditForm({ ...editForm, subcategory: v })}
+                disabled={!editForm.personal_category}
+              >
+                <SelectTrigger data-testid="vendor-edit-subcategory-select">
+                  <SelectValue placeholder="Seleccionar subcategoría" />
+                </SelectTrigger>
+                <SelectContent className="z-[250]">
+                  {editForm.personal_category && PERSONAL_CATEGORIES[editForm.personal_category]?.subcategories?.map((sub) => (
+                    <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>

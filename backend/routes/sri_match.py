@@ -213,7 +213,46 @@ async def confirm_match(tx_id: str, user: dict = Depends(get_current_user)):
     factura = tx if _is_invoice(tx) else cand
     consumo = cand if _is_invoice(tx) else tx
     await _link_pair(factura, consumo, "con_respaldo", tx.get("match_aproximado_confianza"))
-    return {"status": "con_respaldo"}
+
+    # Asegurar que la factura esté representada como transacción de presupuesto
+    # (source "factura_sri"). Si ya existe una tx con source que contiene factura/gmail
+    # y factura_vinculada_id = factura.id, no duplicar.
+    created_budget_tx = False
+    existing = await db.transactions.find_one({
+        "user_id": user["id"],
+        "factura_vinculada_id": factura["id"],
+        "source": {"$regex": "factura|gmail", "$options": "i"},
+    }, {"_id": 0, "id": 1})
+    if not existing:
+        nombre_emisor = factura.get("nombre_emisor") or factura.get("establishment") or factura.get("ruc_emisor")
+        numero_factura = factura.get("numero_factura")
+        monto = factura.get("amount") or factura.get("monto") or 0
+        fecha = factura.get("fecha_emision") or factura.get("date")
+        new_tx = {
+            "id": str(uuid.uuid4()),
+            "user_id": user["id"],
+            "transaction_type": "expense",
+            "amount": monto,
+            "description": nombre_emisor or numero_factura or "Factura SRI",
+            "comercio": nombre_emisor,
+            "establishment": nombre_emisor,
+            "category": consumo.get("budget_category") or consumo.get("category") or "otros",
+            "subcategory": consumo.get("subcategory"),
+            "sri_category": "deducible",
+            "is_deductible": True,
+            "source": "factura_sri",
+            "status": TransactionStatus.APPROVED,
+            "date": fecha,
+            "fecha": fecha,
+            "numero_factura": numero_factura,
+            "ruc_emisor": factura.get("ruc_emisor"),
+            "factura_vinculada_id": factura["id"],
+            "estado_sri": "con_respaldo",
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        await db.transactions.insert_one(new_tx)
+        created_budget_tx = True
+    return {"status": "con_respaldo", "created_budget_tx": created_budget_tx}
 
 
 @router.post("/sri/reject-match/{tx_id}")
@@ -249,7 +288,13 @@ async def mark_as_cash(tx_id: str, user: dict = Depends(get_current_user)):
         # Ya es consumo: simplemente marcar como con respaldo efectivo (sin factura externa)
         await db.transactions.update_one(
             {"id": tx_id},
-            {"$set": {"estado_sri": "con_respaldo", "payment_method": "efectivo", "match_pendiente_hasta": None}},
+            {"$set": {
+                "estado_sri": "con_respaldo",
+                "payment_method": "efectivo",
+                "match_pendiente_hasta": None,
+                "source": "factura_sri",
+                "is_deductible": True,
+            }},
         )
         return {"status": "con_respaldo", "created_cash_tx": False}
     # Es factura sin consumo: crear consumo efectivo vinculado
@@ -266,10 +311,11 @@ async def mark_as_cash(tx_id: str, user: dict = Depends(get_current_user)):
         "establishment": tx.get("establishment"),
         "payment_method": "efectivo",
         "source_type": SourceType.MANUAL,
+        "source": "factura_sri",
         "status": TransactionStatus.APPROVED,
         "estado_sri": "con_respaldo",
         "factura_vinculada_id": tx["id"],
-        "is_deductible": tx.get("is_deductible", True),
+        "is_deductible": True,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
     await db.transactions.insert_one(consumo_doc)
@@ -328,3 +374,23 @@ async def toggle_corporate(tx_id: str, body: dict, user: dict = Depends(get_curr
 async def scan_pending(user: dict = Depends(get_current_user)):
     """Reintenta match para todas las transacciones pendientes del usuario."""
     return await retry_pending_matches(user["id"])
+
+
+@router.post("/sri/normalize-sources")
+async def normalize_sources(user: dict = Depends(get_current_user)):
+    """Migración: unifica el source de facturas vinculadas a 'factura_sri'.
+    Aplica a tx del usuario con factura_vinculada_id seteado y source actual en
+    ['gmail_pdf','gmail_factura_pdf','sri_xml',''] (o ausente)."""
+    legacy_sources = ["gmail_pdf", "gmail_factura_pdf", "sri_xml", ""]
+    result = await db.transactions.update_many(
+        {
+            "user_id": user["id"],
+            "factura_vinculada_id": {"$exists": True, "$ne": None},
+            "$or": [
+                {"source": {"$in": legacy_sources}},
+                {"source": {"$exists": False}},
+            ],
+        },
+        {"$set": {"source": "factura_sri"}},
+    )
+    return {"normalized": result.modified_count}

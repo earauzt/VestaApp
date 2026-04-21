@@ -163,6 +163,12 @@ export default function Transactions() {
   const [attachmentTransaction, setAttachmentTransaction] = useState(null);
   const [rulesModalOpen, setRulesModalOpen] = useState(false);
 
+  // Bulk categorization state
+  const [bulkSelectedIds, setBulkSelectedIds] = useState([]);
+  const [bulkCategory, setBulkCategory] = useState("");
+  const [bulkSubcategory, setBulkSubcategory] = useState("");
+  const [bulkApplying, setBulkApplying] = useState(false);
+
   // Form state
   const [formData, setFormData] = useState({
     amount: "",
@@ -231,6 +237,44 @@ export default function Transactions() {
     fetchCategories();
     fetchTransactions();
   }, [fetchCategories, fetchTransactions]);
+
+  const toggleBulkSelect = (id) => {
+    setBulkSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  };
+
+  const handleBulkApply = async () => {
+    if (!bulkCategory || bulkSelectedIds.length === 0) return;
+    setBulkApplying(true);
+    try {
+      const headers = getAuthHeadersRef.current();
+      const updateData = { category: bulkCategory };
+      if (bulkSubcategory) updateData.subcategory = bulkSubcategory;
+      const selectedTxs = transactions.filter((t) => bulkSelectedIds.includes(t.id));
+      await Promise.all(selectedTxs.map((t) => axios.put(`${API}/transactions/${t.id}`, updateData, { headers })));
+      // Upsert known_vendors para cada comercio único
+      const uniqueEstablishments = [...new Set(selectedTxs.map((t) => t.establishment || t.comercio).filter(Boolean))];
+      await Promise.all(
+        uniqueEstablishments.map((est) =>
+          axios
+            .post(
+              `${API}/known-vendors`,
+              { establishment: est, personal_category: bulkCategory, subcategory: bulkSubcategory || "" },
+              { headers }
+            )
+            .catch(() => null)
+        )
+      );
+      toast.success(`${bulkSelectedIds.length} transacciones actualizadas`);
+      setBulkSelectedIds([]);
+      setBulkCategory("");
+      setBulkSubcategory("");
+      fetchTransactions();
+    } catch {
+      toast.error("No se pudieron actualizar todas las transacciones");
+    } finally {
+      setBulkApplying(false);
+    }
+  };
 
   // Check if transaction might be international
   const checkInternational = (description, establishment, country) => {
@@ -508,7 +552,7 @@ export default function Transactions() {
                   Nueva transacción
                 </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-[500px]">
+              <DialogContent className="sm:max-w-[500px] overflow-y-auto max-h-[90vh]">
                 <DialogHeader>
                   <DialogTitle>
                     {editingTransaction ? "Editar transacción" : "Nueva transacción"}
@@ -766,7 +810,7 @@ export default function Transactions() {
                     </div>
                   )}
 
-                  <DialogFooter>
+                  <DialogFooter className="sticky bottom-0 bg-white pt-3 border-t border-slate-200 mt-4">
                     <Button type="submit" data-testid="save-transaction">
                       {editingTransaction ? "Actualizar" : "Guardar"}
                     </Button>
@@ -830,6 +874,46 @@ export default function Transactions() {
         </CardContent>
       </Card>
 
+      {/* Bulk categorization toolbar */}
+      {bulkSelectedIds.length > 0 && (
+        <Card className="bento-card border-[#0D9E82] bg-[#0D9E82]/5" data-testid="bulk-toolbar">
+          <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
+            <span className="text-sm font-medium text-slate-700">
+              {bulkSelectedIds.length} seleccionada{bulkSelectedIds.length !== 1 ? "s" : ""}
+            </span>
+            <Select value={bulkCategory} onValueChange={(v) => { setBulkCategory(v); setBulkSubcategory(""); }}>
+              <SelectTrigger className="w-full sm:w-[180px]" data-testid="bulk-category-select">
+                <SelectValue placeholder="Categoría" />
+              </SelectTrigger>
+              <SelectContent className="z-[250]">
+                {Object.entries(categories).map(([key, cat]) => (
+                  <SelectItem key={key} value={key}>{cat.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value={bulkSubcategory} onValueChange={setBulkSubcategory} disabled={!bulkCategory}>
+              <SelectTrigger className="w-full sm:w-[180px]" data-testid="bulk-subcategory-select">
+                <SelectValue placeholder="Subcategoría" />
+              </SelectTrigger>
+              <SelectContent className="z-[250]">
+                {bulkCategory && categories[bulkCategory]?.subcategories?.map((sub) => (
+                  <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={handleBulkApply}
+              disabled={!bulkCategory || bulkApplying}
+              className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
+              data-testid="bulk-apply-btn"
+            >
+              {bulkApplying ? "Aplicando..." : `Aplicar a ${bulkSelectedIds.length} transacciones`}
+            </Button>
+            <Button variant="outline" onClick={() => setBulkSelectedIds([])}>Cancelar</Button>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Transactions List */}
       <Card className="bento-card">
         <CardHeader>
@@ -858,6 +942,15 @@ export default function Transactions() {
                     data-testid={`transaction-${transaction.id}`}
                   >
                     <div className="flex items-center gap-4">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-[#0D9E82] cursor-pointer"
+                        checked={bulkSelectedIds.includes(transaction.id)}
+                        onChange={() => toggleBulkSelect(transaction.id)}
+                        onClick={(e) => e.stopPropagation()}
+                        data-testid={`bulk-checkbox-${transaction.id}`}
+                        aria-label="Seleccionar transacción"
+                      />
                       <div className={`p-2 rounded-full ${
                         transaction.transaction_type === "income" 
                           ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30" 
@@ -870,7 +963,10 @@ export default function Transactions() {
                       </div>
                       <div>
                         <div className="flex items-center gap-2">
-                          <p className="font-medium">{transaction.description}</p>
+                          <p className="font-medium">
+                            {transaction.comercio || transaction.descripcion_corta ||
+                              transaction.description?.replace(/^(Factura|FacturaFactura|Ha recibido su documento electrónico:?\s*)/i, '').trim().substring(0, 40)}
+                          </p>
                           {transaction.is_split && (
                             <Badge variant="outline" className="text-xs gap-1">
                               <Scissors size={12} />
