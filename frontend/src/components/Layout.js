@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { Button } from "./ui/button";
 import { Avatar, AvatarFallback } from "./ui/avatar";
@@ -13,39 +12,39 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
-import { 
-  House, 
-  CreditCard, 
-  CloudArrowUp, 
-  ChartLine, 
+import {
+  Home,
+  CreditCard,
+  Upload,
+  LineChart,
   Brain,
   Calculator,
-  List,
-  SignOut,
+  Menu,
+  LogOut,
   User,
-  CaretLeft,
-  CaretRight,
-  Airplane,
-  Scales,
-  CurrencyDollar,
+  ChevronLeft,
+  ChevronRight,
+  Plane,
+  Scale,
+  DollarSign,
   X,
   Wallet,
-  CalendarCheck
-} from "@phosphor-icons/react";
+  CalendarCheck,
+  Info,
+} from "lucide-react";
 
 const navItems = [
-  { path: "/dashboard", label: "Dashboard", icon: House, roles: ["admin", "spouse", "accountant", "demo"] },
+  { path: "/dashboard", label: "Dashboard", icon: Home, roles: ["admin", "spouse", "accountant", "demo"] },
   { path: "/transactions", label: "Transacciones", icon: CreditCard, roles: ["admin", "spouse", "accountant", "demo"] },
-  { path: "/ingresos", label: "Ingresos", icon: CurrencyDollar, roles: ["admin", "spouse", "demo"] },
-  { path: "/viajes", label: "Metas y Ahorro", icon: Airplane, roles: ["admin", "spouse", "demo"] },
-  { path: "/cargar", label: "Bandeja Financiera", icon: CloudArrowUp, roles: ["admin", "spouse", "accountant"] },
+  { path: "/ingresos", label: "Ingresos", icon: DollarSign, roles: ["admin", "spouse", "demo"] },
+  { path: "/viajes", label: "Metas y Ahorro", icon: Plane, roles: ["admin", "spouse", "demo"] },
+  { path: "/cargar", label: "Bandeja Financiera", icon: Upload, roles: ["admin", "spouse", "accountant"] },
   { path: "/deudas", label: "Deudas y Tarjetas", icon: Wallet, roles: ["admin", "demo"] },
   { path: "/flujo", label: "Planificación Flujo", icon: CalendarCheck, roles: ["admin"] },
-  { path: "/budget", label: "Mi Presupuesto", icon: ChartLine, roles: ["admin", "demo"] },
+  { path: "/budget", label: "Mi Presupuesto", icon: LineChart, roles: ["admin", "demo"] },
   { path: "/predictions", label: "Predicciones AI", icon: Brain, roles: ["admin"] },
-  // Accountant-only items
-  { path: "/sri-limits", label: "Deducciones", icon: Scales, roles: ["admin", "accountant"] },
-  { path: "/sri-match", label: "Mis Facturas", icon: Scales, roles: ["admin", "spouse", "accountant", "demo"] },
+  { path: "/sri-limits", label: "Deducciones", icon: Scale, roles: ["admin", "accountant"] },
+  { path: "/sri-match", label: "Mis Facturas", icon: Scale, roles: ["admin", "spouse", "accountant", "demo"] },
   { path: "/accountant", label: "Vista Fiscal", icon: Calculator, roles: ["admin", "accountant"] },
 ];
 
@@ -56,121 +55,92 @@ export default function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
 
-  // Detect mobile/tablet
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 1024);
-      if (window.innerWidth < 1024) {
-        setCollapsed(true);
-      }
+      if (window.innerWidth < 1024) setCollapsed(true);
     };
-    
     checkMobile();
     window.addEventListener("resize", checkMobile);
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Close mobile menu on route change
-  useEffect(() => {
-    setMobileOpen(false);
-  }, [location.pathname]);
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(user?.role));
 
   const getRoleLabel = (role) => {
-    const labels = {
-      admin: "Administrador",
-      spouse: "Familiar",
-      accountant: "Contadora"
-    };
+    const labels = { admin: "Administrador", spouse: "Familiar", accountant: "Contadora" };
     return labels[role] || role;
   };
 
   const NavContent = ({ mobile = false }) => (
     <>
       {/* Logo */}
-      <div className={`border-b border-border flex items-center justify-between ${mobile ? "p-4" : "p-6"}`}>
+      <div className={`border-b border-slate-800 flex items-center justify-between ${mobile ? "p-4" : "p-6"}`}>
         {(!collapsed || mobile) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <h1 className="text-xl font-bold text-primary">FamilyFinance</h1>
-            <p className="text-xs text-muted-foreground">Ecuador</p>
-          </motion.div>
+          <div>
+            <h1 className="text-lg font-semibold text-white tracking-tight">FamilyFinance</h1>
+            <p className="text-xs text-slate-400">Ecuador</p>
+          </div>
         )}
         {mobile ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileOpen(false)}
-          >
-            <X size={20} />
+          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)} className="text-slate-400 hover:text-white hover:bg-slate-800">
+            <X size={18} />
           </Button>
         ) : (
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className="shrink-0 hidden lg:flex"
+            className="shrink-0 hidden lg:flex text-slate-400 hover:text-white hover:bg-slate-800"
             data-testid="sidebar-toggle"
           >
-            {collapsed ? <CaretRight size={20} /> : <CaretLeft size={20} />}
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </Button>
         )}
       </div>
 
       {/* Navigation */}
-      <nav className={`flex-1 space-y-1.5 overflow-y-auto ${mobile ? "p-3" : "p-4"}`}>
+      <nav className={`flex-1 space-y-1 overflow-y-auto ${mobile ? "p-3" : "p-3"}`}>
         {filteredNavItems.map((item) => {
           const isActive = location.pathname === item.path;
+          const Icon = item.icon;
           return (
-            <Link key={item.path} to={item.path}>
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${
-                  isActive 
-                    ? "bg-primary text-primary-foreground shadow-lg shadow-primary/20" 
-                    : "text-muted-foreground hover:bg-muted hover:text-foreground"
+            <Link key={item.path} to={item.path} data-testid={`nav-${item.path.slice(1)}`}>
+              <div
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-[#0F766E] text-white"
+                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
                 }`}
-                data-testid={`nav-${item.path.slice(1)}`}
               >
-                <item.icon size={22} weight={isActive ? "fill" : "regular"} />
-                {(!collapsed || mobile) && (
-                  <motion.span
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="font-medium text-sm"
-                  >
-                    {item.label}
-                  </motion.span>
-                )}
-              </motion.div>
+                <Icon size={18} strokeWidth={2} className="shrink-0" />
+                {(!collapsed || mobile) && <span className="truncate">{item.label}</span>}
+              </div>
             </Link>
           );
         })}
       </nav>
 
       {/* User section */}
-      <div className={`border-t border-border ${mobile ? "p-3" : "p-4"}`}>
+      <div className={`border-t border-slate-800 ${mobile ? "p-3" : "p-3"}`}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button 
-              variant="ghost" 
-              className={`w-full justify-start gap-3 ${collapsed && !mobile ? "px-3" : "px-4"}`}
+            <Button
+              variant="ghost"
+              className={`w-full justify-start gap-3 text-slate-300 hover:bg-slate-800 hover:text-white ${collapsed && !mobile ? "px-2" : "px-3"}`}
               data-testid="user-menu-trigger"
             >
-              <Avatar className="h-9 w-9">
-                <AvatarFallback className="bg-primary text-primary-foreground">
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-[#0F766E] text-white text-xs font-medium">
                   {user?.name?.charAt(0)?.toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>
               {(!collapsed || mobile) && (
-                <div className="text-left">
-                  <p className="text-sm font-medium truncate max-w-[140px]">{user?.name}</p>
-                  <p className="text-xs text-muted-foreground">{getRoleLabel(user?.role)}</p>
+                <div className="text-left overflow-hidden">
+                  <p className="text-sm font-medium truncate max-w-[150px] text-white">{user?.name}</p>
+                  <p className="text-xs text-slate-400">{getRoleLabel(user?.role)}</p>
                 </div>
               )}
             </Button>
@@ -179,22 +149,22 @@ export default function Layout({ children }) {
             <DropdownMenuLabel>Mi cuenta</DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="gap-2">
-              <User size={16} />
-              {user?.email}
+              <User size={15} />
+              <span className="truncate">{user?.email}</span>
             </DropdownMenuItem>
             <DropdownMenuItem asChild className="gap-2 cursor-pointer">
               <Link to="/perfil">
-                <User size={16} />
+                <User size={15} />
                 Mi Perfil
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
-              onClick={logout} 
-              className="gap-2 text-destructive focus:text-destructive"
+            <DropdownMenuItem
+              onClick={logout}
+              className="gap-2 text-[#DC2626] focus:text-[#DC2626]"
               data-testid="logout-btn"
             >
-              <SignOut size={16} />
+              <LogOut size={15} />
               Cerrar sesión
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -204,50 +174,49 @@ export default function Layout({ children }) {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#F8FAFC]">
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-card border-b border-border z-50 flex items-center justify-between px-4">
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-slate-200 z-50 flex items-center justify-between px-4">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" data-testid="mobile-menu-btn">
-              <List size={24} />
+            <Button variant="ghost" size="icon" data-testid="mobile-menu-btn" className="text-slate-700">
+              <Menu size={20} />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-72">
+          <SheetContent side="left" className="p-0 w-72 bg-[#0F172A] border-slate-800">
             <div className="flex flex-col h-full">
               <NavContent mobile />
             </div>
           </SheetContent>
         </Sheet>
-        
-        <h1 className="text-lg font-bold text-primary">FamilyFinance</h1>
-        
+
+        <h1 className="text-base font-semibold text-slate-900">FamilyFinance</h1>
+
         <Avatar className="h-8 w-8">
-          <AvatarFallback className="bg-primary text-primary-foreground text-sm">
+          <AvatarFallback className="bg-[#0F766E] text-white text-xs">
             {user?.name?.charAt(0)?.toUpperCase() || "U"}
           </AvatarFallback>
         </Avatar>
       </header>
 
       {/* Desktop Sidebar */}
-      <motion.aside
-        initial={false}
-        animate={{ width: collapsed ? 80 : 280 }}
-        transition={{ duration: 0.3, ease: "easeInOut" }}
-        className="hidden lg:flex fixed left-0 top-0 h-full bg-card border-r border-border z-40 flex-col"
+      <aside
+        style={{ width: collapsed ? 72 : 256, transition: "width 200ms" }}
+        className="hidden lg:flex fixed left-0 top-0 h-full bg-[#0F172A] z-40 flex-col"
       >
         <NavContent />
-      </motion.aside>
+      </aside>
 
       {/* Main content */}
-      <main 
-        className="flex-1 transition-all duration-300 pt-16 lg:pt-0"
-        style={{ marginLeft: isMobile ? 0 : (collapsed ? 80 : 280) }}
+      <main
+        className="flex-1 transition-all duration-200 pt-14 lg:pt-0"
+        style={{ marginLeft: isMobile ? 0 : (collapsed ? 72 : 256) }}
       >
         {/* Demo Mode Banner */}
         {user?.role === "demo" && (
-          <div className="bg-amber-500 text-black px-4 py-2 text-center text-sm font-medium">
-            🎭 <strong>Modo Demostración</strong> - Estás viendo datos ficticios de ejemplo. Los datos reales no están visibles.
+          <div className="bg-amber-500 text-slate-900 px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2">
+            <Info size={16} />
+            <span><strong>Modo Demostración</strong> — Estás viendo datos ficticios de ejemplo.</span>
           </div>
         )}
         <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">

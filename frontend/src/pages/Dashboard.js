@@ -27,6 +27,15 @@ import {
   Airplane,
   Receipt
 } from "@phosphor-icons/react";
+import {
+  CheckCircle as LucideCheckCircle,
+  RefreshCw as LucideRefreshCw,
+  Clock as LucideClock,
+  AlertTriangle as LucideAlertTriangle,
+  Target as LucideTarget,
+  FileText as LucideFileText,
+  Bell as LucideBell,
+} from "lucide-react";
 import { 
   AreaChart, 
   Area, 
@@ -317,31 +326,35 @@ export default function Dashboard() {
         };
         return (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2" data-testid="notificaciones-banner">
-            {shown.map((n) => (
+            {shown.map((n) => {
+              const borderColor = n.prioridad === "high" ? "border-l-[#DC2626]" : n.prioridad === "medium" ? "border-l-amber-500" : "border-l-blue-500";
+              const iconColor = n.prioridad === "high" ? "text-[#DC2626]" : n.prioridad === "medium" ? "text-amber-600" : "text-blue-600";
+              return (
               <div
                 key={n.id}
                 data-testid={`notif-${n.tipo}`}
-                className={`p-4 rounded-xl border flex items-center justify-between gap-4 ${priorityColor[n.prioridad] || priorityColor.low}`}
+                className={`bg-white border border-slate-200 border-l-4 ${borderColor} rounded-md shadow-sm p-4 flex items-center justify-between gap-4`}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <span className="text-2xl shrink-0">{n.icono}</span>
+                  <LucideBell size={18} className={`shrink-0 ${iconColor}`} />
                   <div className="min-w-0">
-                    <p className="font-medium truncate">{n.titulo}</p>
-                    <p className="text-sm opacity-80 truncate">{n.texto}</p>
+                    <p className="font-medium truncate text-slate-900">{n.titulo}</p>
+                    <p className="text-sm text-slate-600 truncate">{n.texto}</p>
                   </div>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   {n.accion_url && (
-                    <Button size="sm" variant="outline" onClick={() => handleNotifAction(n)} data-testid={`notif-action-${n.id}`}>
+                    <Button size="sm" variant="outline" onClick={() => handleNotifAction(n)} data-testid={`notif-action-${n.id}`} className="border-slate-200 text-slate-700 hover:bg-slate-50">
                       {n.accion_label || "Ver"}
                     </Button>
                   )}
-                  <Button size="icon" variant="ghost" className="h-8 w-8 opacity-60 hover:opacity-100" onClick={() => dismissNotif(n.id)} data-testid={`notif-dismiss-${n.id}`}>
+                  <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-slate-700" onClick={() => dismissNotif(n.id)} data-testid={`notif-dismiss-${n.id}`}>
                     <X size={16} />
                   </Button>
                 </div>
               </div>
-            ))}
+              );
+            })}
             {visible.length > 3 && (
               <button
                 onClick={() => setShowAllNotif(!showAllNotif)}
@@ -363,16 +376,18 @@ export default function Dashboard() {
           className="space-y-2"
           data-testid="subscriptions-this-week"
         >
-          <p className="text-sm font-medium text-muted-foreground px-1">🔄 Esta semana ({subscriptionRenewals.length})</p>
+          <p className="text-sm font-medium text-muted-foreground px-1 flex items-center gap-2">
+            <LucideRefreshCw size={14} /> Esta semana ({subscriptionRenewals.length})
+          </p>
           {subscriptionRenewals.map((sub) => (
             <div 
               key={`sub-${sub.gmail_id || sub.comercio}`}
-              className="p-4 rounded-xl border flex items-center justify-between gap-4 bg-orange-50 dark:bg-orange-900/20 border-orange-200 text-orange-800 dark:text-orange-200"
+              className="bg-white border border-slate-200 border-l-4 border-l-amber-500 rounded-md shadow-sm p-4 flex items-center justify-between gap-4"
               data-testid={`subscription-renewal-${sub.comercio}`}
             >
               <div className="flex items-center gap-3 flex-1">
-                <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900/30 text-lg">
-                  🔄
+                <div className="p-2 rounded-md bg-amber-50 text-amber-700">
+                  <LucideRefreshCw size={18} />
                 </div>
                 <div>
                   <p className="font-medium">{sub.comercio || "Suscripcion"}</p>
@@ -441,22 +456,22 @@ export default function Dashboard() {
                 <button
                   key={item.id}
                   onClick={() => navigate(item.accion_url)}
-                  className="w-full flex items-center justify-between gap-3 p-3 rounded-lg border hover:bg-muted/30 transition-colors text-left"
+                  className="w-full flex items-center justify-between gap-3 p-3 rounded-md border border-slate-200 hover:bg-slate-50 transition-colors text-left"
                   data-testid={`esta-semana-item-${item.tipo}`}
                 >
                   <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <span className="text-xl shrink-0">{item.icono}</span>
+                    <LucideClock size={18} className="shrink-0 text-slate-500" />
                     <div className="min-w-0">
-                      <p className="font-medium truncate text-sm">{item.titulo}</p>
-                      <p className="text-xs text-muted-foreground truncate">{item.texto}</p>
+                      <p className="font-medium truncate text-sm text-slate-900">{item.titulo}</p>
+                      <p className="text-xs text-slate-500 truncate">{item.texto}</p>
                     </div>
                   </div>
                   <Badge
                     variant="outline"
                     className={`shrink-0 text-[10px] ${
                       item.badge === "red"
-                        ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-800"
-                        : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800"
+                        ? "bg-red-50 text-[#DC2626] border-red-200"
+                        : "bg-amber-50 text-amber-700 border-amber-200"
                     }`}
                     data-testid={`esta-semana-badge-${item.badge}`}
                   >
@@ -533,39 +548,39 @@ export default function Dashboard() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
               onClick={() => navigate("/sri-match?tab=con_respaldo")}
-              className="flex flex-col items-center p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition-colors"
+              className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
               data-testid="counter-con-respaldo"
             >
-              <span className="text-2xl mb-1">✅</span>
-              <span className="text-xl font-bold text-emerald-700 dark:text-emerald-400">{sriCounters.con_respaldo}</span>
-              <span className="text-[11px] text-muted-foreground text-center">Con respaldo</span>
+              <LucideCheckCircle size={22} className="mb-1 text-[#16A34A]" />
+              <span className="text-xl font-bold text-slate-900">{sriCounters.con_respaldo}</span>
+              <span className="text-[11px] text-slate-500 text-center">Con respaldo</span>
             </button>
             <button
               onClick={() => navigate("/sri-match?tab=match_aproximado")}
-              className="flex flex-col items-center p-3 rounded-xl bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors"
+              className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
               data-testid="counter-aproximado"
             >
-              <span className="text-2xl mb-1">🔄</span>
-              <span className="text-xl font-bold text-amber-700 dark:text-amber-400">{sriCounters.match_aproximado}</span>
-              <span className="text-[11px] text-muted-foreground text-center">Match aproximado</span>
+              <LucideRefreshCw size={22} className="mb-1 text-amber-600" />
+              <span className="text-xl font-bold text-slate-900">{sriCounters.match_aproximado}</span>
+              <span className="text-[11px] text-slate-500 text-center">Match aproximado</span>
             </button>
             <button
               onClick={() => navigate("/sri-match?tab=pendiente")}
-              className="flex flex-col items-center p-3 rounded-xl bg-blue-50 dark:bg-blue-950/30 hover:bg-blue-100 dark:hover:bg-blue-950/50 transition-colors"
+              className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
               data-testid="counter-pendiente"
             >
-              <span className="text-2xl mb-1">⏳</span>
-              <span className="text-xl font-bold text-blue-700 dark:text-blue-400">{sriCounters.pendiente_match}</span>
-              <span className="text-[11px] text-muted-foreground text-center">Esperando match</span>
+              <LucideClock size={22} className="mb-1 text-blue-600" />
+              <span className="text-xl font-bold text-slate-900">{sriCounters.pendiente_match}</span>
+              <span className="text-[11px] text-slate-500 text-center">Esperando match</span>
             </button>
             <button
               onClick={() => navigate("/sri-match?tab=sin_vincular")}
-              className="flex flex-col items-center p-3 rounded-xl bg-red-50 dark:bg-red-950/30 hover:bg-red-100 dark:hover:bg-red-950/50 transition-colors"
+              className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
               data-testid="counter-sin-vincular"
             >
-              <span className="text-2xl mb-1">⚠️</span>
-              <span className="text-xl font-bold text-red-700 dark:text-red-400">{sriCounters.sin_vincular}</span>
-              <span className="text-[11px] text-muted-foreground text-center">Sin vincular</span>
+              <LucideAlertTriangle size={22} className="mb-1 text-[#DC2626]" />
+              <span className="text-xl font-bold text-slate-900">{sriCounters.sin_vincular}</span>
+              <span className="text-[11px] text-slate-500 text-center">Sin vincular</span>
             </button>
           </div>
         </CardContent>
@@ -755,10 +770,10 @@ export default function Dashboard() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.4 }}
       >
-        <Card className="bento-card bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-950/30 dark:to-cyan-950/30 border-blue-200 dark:border-blue-800">
+        <Card className="bento-card bg-white border border-slate-200 border-l-4 border-l-[#0F766E] shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <TrendUp size={20} className="text-blue-600" weight="duotone" />
+            <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
+              <TrendUp size={20} className="text-[#0F766E]" weight="duotone" />
               Flujo Proyectado (30 días)
             </CardTitle>
             <CardDescription>Proyección de ingresos y gastos</CardDescription>
@@ -875,14 +890,14 @@ export default function Dashboard() {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    className="p-4 rounded-xl border-2 border-violet-300 bg-gradient-to-br from-violet-50 to-purple-50 dark:from-violet-950/30 dark:to-purple-950/30"
+                    className="p-4 rounded-md bg-white border border-slate-200 border-l-4 border-l-[#0F766E] shadow-sm"
                   >
                     <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-sm flex items-center gap-2">
-                        <Airplane size={16} className="text-violet-600" />
+                      <span className="font-medium text-sm flex items-center gap-2 text-slate-900">
+                        <Airplane size={16} className="text-[#0F766E]" />
                         Viajes
                       </span>
-                      <Badge className="text-xs bg-violet-100 text-violet-700 dark:bg-violet-900/50 dark:text-violet-300">
+                      <Badge variant="outline" className="text-xs border-slate-200 text-slate-600">
                         Meta
                       </Badge>
                     </div>
@@ -890,25 +905,25 @@ export default function Dashboard() {
                     <div className="space-y-2">
                       <Progress 
                         value={travelFund.savings_progress || 0} 
-                        className="h-3 [&>div]:bg-violet-500"
+                        className="h-3 [&>div]:bg-[#0F766E]"
                       />
                       
                       <div className="flex justify-between items-center">
-                        <span className="text-lg font-bold text-violet-700">
+                        <span className="text-lg font-bold text-slate-900">
                           {formatCurrency(travelFund.monthly_suggested_saving || 0)}
                         </span>
-                        <span className="text-xs text-violet-600">
+                        <span className="text-xs text-slate-500">
                           /mes
                         </span>
                       </div>
                       
-                      <p className="text-xs text-violet-600">
+                      <p className="text-xs text-slate-500">
                         {(travelFund.savings_progress || 0).toFixed(0)}% ahorrado de {formatCurrency(travelFund.annual_budget)}
                       </p>
                       
                       <Link to="/viajes">
-                        <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-violet-600 hover:text-violet-700 hover:bg-violet-100">
-                          Ver fondo →
+                        <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-[#0F766E] hover:text-[#0D6B63] hover:bg-slate-50">
+                          Ver fondo
                         </Button>
                       </Link>
                     </div>

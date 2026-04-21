@@ -184,3 +184,24 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
     (Solo consumos / Solo servicios / Todos), checkbox Seleccionar todos, botón
     Aprobar seleccionados (N), checkboxes individuales. Toast con resumen categorías
   - Verificado: Supermaxi→alimentacion/Supermercado por default_rule, bulk 2 txs OK
+
+
+- [2026-04-21] SESIÓN 14 - Subcategoría + Rediseño Ejecutivo + Reglas en Perfil:
+  - Task 1 (CargarValidar.js): Segundo dropdown "Subcategoría" junto al de Categoría
+    en pestaña "Por revisar". Estado rowSubcategory[], reset al cambiar categoría,
+    usa PERSONAL_CATEGORIES[selectedCat].subcategories (mismo mapeo del modal Historial).
+    Bulk approve incluye subcategory en PUT /transactions y en query param de reconciliation/approve.
+  - Task 2 (Layout.js, Dashboard.js, CargarValidar.js): Rediseño visual ejecutivo
+    * Sistema: bg #FFFFFF, text #0F172A, acento #0F766E, bordes #E2E8F0, bg2 #F8FAFC
+    * Alertas: rojo #DC2626, verde positivo #16A34A
+    * Sidebar: bg #0F172A, texto #94A3B8, active bg-[#0F766E] text-white, íconos Lucide 18px
+    * Todos los emojis reemplazados por íconos Lucide React (CheckCircle, RefreshCw, Clock,
+      AlertTriangle, FileText, Bell, Edit2, Trash2, Store)
+    * Cards: shadow-sm border border-slate-200, sin gradientes. Borde izquierdo 3px solo para estado
+    * Botones primarios: bg-[#0F766E] hover:bg-[#0D6B63]. Secundarios: border slate-200
+    * Eliminados: gradient-to-r/br violet/blue/cyan, emojis 📋✅🔄⏳⚠️🎭 y Badge Phosphor Scales/Airplane migrados a Lucide
+  - Task 3 (Perfil.js): Nueva sección "Aprendizaje automático" con 2 tabs:
+    * Comercios: lista known_vendors (GET /api/known-vendors), editar inline (Edit2) + eliminar (Trash2)
+    * Reglas activas: lista custom_rules de categorization_rules, eliminar (DELETE /api/categorization-rules/{id})
+    * PUT /api/known-vendors/{id} para editar vendor (endpoints backend ya existían)
+  - Lint JS: 0 issues en los 4 archivos. Backend endpoints verificados vía curl.

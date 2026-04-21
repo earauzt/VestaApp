@@ -177,6 +177,7 @@ export default function CargarValidar() {
   // SESIÓN 12: Rediseño 3 pestañas (Importar / Por revisar / Historial)
   const [budgetCategories, setBudgetCategories] = useState({});
   const [rowCategory, setRowCategory] = useState({}); // {id: categoryKey}
+  const [rowSubcategory, setRowSubcategory] = useState({}); // {id: subcategoryLabel}
   const [reviewSelectedIds, setReviewSelectedIds] = useState([]);
   const [reviewFilter, setReviewFilter] = useState({ source: "all", category: "all" });
   const [reviewBulkApproving, setReviewBulkApproving] = useState(false);
@@ -405,6 +406,7 @@ export default function CargarValidar() {
       const selected = unifiedReview.filter(r => reviewSelectedIds.includes(r.id));
       for (const item of selected) {
         const cat = rowCategory[item.id] || item.suggested_category;
+        const subcat = rowSubcategory[item.id] || "";
         try {
           if (item.source === "gmail") {
             const res = await axios.put(
@@ -413,16 +415,18 @@ export default function CargarValidar() {
               { headers }
             );
             const newTxId = res.data?.transaction_id;
-            if (newTxId && cat && cat !== item.suggested_category) {
+            if (newTxId && ((cat && cat !== item.suggested_category) || subcat)) {
               await axios.put(
                 `${API}/transactions/${newTxId}`,
-                { category: cat, budget_category: cat, amount: item.amount, description: item.comercio, date: item.date, transaction_type: "expense" },
+                { category: cat, budget_category: cat, subcategory: subcat || undefined, amount: item.amount, description: item.comercio, date: item.date, transaction_type: "expense" },
                 { headers }
               ).catch(() => {});
             }
           } else {
+            const params = new URLSearchParams({ category: cat });
+            if (subcat) params.append("subcategory", subcat);
             await axios.put(
-              `${API}/reconciliation/approve/${item.origin_id}?category=${encodeURIComponent(cat)}`,
+              `${API}/reconciliation/approve/${item.origin_id}?${params.toString()}`,
               {},
               { headers }
             );
@@ -436,6 +440,7 @@ export default function CargarValidar() {
       if (errors.length > 0) toast.error(`${errors.length} error(es) al aprobar`);
       setReviewSelectedIds([]);
       setRowCategory({});
+      setRowSubcategory({});
       fetchGmailTransactions();
       fetchPendingData();
     } finally {
@@ -921,9 +926,9 @@ export default function CargarValidar() {
               {/* Sección para Contadora - Categorías SRI */}
               <div className="border-t pt-4 mt-4">
                 <Label className="flex items-center gap-2 mb-3 text-base font-semibold">
-                  <span>📋</span> Clasificación SRI (Contadora)
+                  <FileText size={18} className="text-[#0F766E]" /> Clasificación SRI (Contadora)
                 </Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/10 border border-blue-200">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-md bg-slate-50 border border-slate-200">
                   <div className="space-y-2">
                     <Label className="text-sm">Categoría SRI</Label>
                     {editMode ? (
@@ -932,7 +937,7 @@ export default function CargarValidar() {
                         <SelectContent className="z-[250]">
                           {Object.entries(SRI_CATEGORIES).map(([key, cat]) => (
                             <SelectItem key={key} value={key}>
-                              {cat.name} {cat.deductible ? "✓" : "✗"}
+                              {cat.name} {cat.deductible ? "(Deducible)" : "(No deducible)"}
                             </SelectItem>
                           ))}
                         </SelectContent>
@@ -1212,10 +1217,10 @@ export default function CargarValidar() {
                       
                       {/* Card Info Extracted */}
                       {result.card_info && (
-                        <div className="p-4 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+                        <div className="p-4 rounded-md bg-slate-50 border border-slate-200">
                           <div className="flex items-center gap-2 mb-3">
-                            <CreditCard size={20} className="text-primary" />
-                            <span className="font-semibold">Tarjeta Actualizada</span>
+                            <CreditCard size={20} className="text-[#0F766E]" />
+                            <span className="font-semibold text-slate-900">Tarjeta Actualizada</span>
                           </div>
                           <div className="grid grid-cols-2 gap-3 text-sm">
                             <div>
@@ -1446,9 +1451,12 @@ export default function CargarValidar() {
                           </div>
                           <Select
                             value={selectedCat}
-                            onValueChange={(v) => setRowCategory(prev => ({ ...prev, [item.id]: v }))}
+                            onValueChange={(v) => {
+                              setRowCategory(prev => ({ ...prev, [item.id]: v }));
+                              setRowSubcategory(prev => ({ ...prev, [item.id]: "" }));
+                            }}
                           >
-                            <SelectTrigger className="w-[170px] h-9 shrink-0" data-testid={`review-cat-${item.id}`}>
+                            <SelectTrigger className="w-[160px] h-9 shrink-0" data-testid={`review-cat-${item.id}`}>
                               <SelectValue />
                             </SelectTrigger>
                             <SelectContent className="z-[250]">
@@ -1458,6 +1466,21 @@ export default function CargarValidar() {
                               {!budgetCategories[selectedCat] && (
                                 <SelectItem value={selectedCat}>{selectedCat}</SelectItem>
                               )}
+                            </SelectContent>
+                          </Select>
+                          <Select
+                            value={rowSubcategory[item.id] || ""}
+                            onValueChange={(v) => setRowSubcategory(prev => ({ ...prev, [item.id]: v === "__none__" ? "" : v }))}
+                            disabled={!PERSONAL_CATEGORIES[selectedCat]?.subcategories}
+                          >
+                            <SelectTrigger className="w-[150px] h-9 shrink-0" data-testid={`review-subcat-${item.id}`}>
+                              <SelectValue placeholder="Subcategoría" />
+                            </SelectTrigger>
+                            <SelectContent className="z-[250]">
+                              <SelectItem value="__none__">Sin subcategoría</SelectItem>
+                              {PERSONAL_CATEGORIES[selectedCat]?.subcategories?.map((sub) => (
+                                <SelectItem key={sub} value={sub}>{sub}</SelectItem>
+                              ))}
                             </SelectContent>
                           </Select>
                         </div>
@@ -1498,8 +1521,8 @@ export default function CargarValidar() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="z-[250]">
-                  <SelectItem value="approve">✅ Aprobar todas</SelectItem>
-                  <SelectItem value="reject">❌ Rechazar todas</SelectItem>
+                  <SelectItem value="approve">Aprobar todas</SelectItem>
+                  <SelectItem value="reject">Rechazar todas</SelectItem>
                 </SelectContent>
               </Select>
             </div>
