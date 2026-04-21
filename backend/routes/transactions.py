@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends
 from datetime import datetime, timezone
 from typing import List, Optional
 import uuid
+import re
 
 from database import db
 from models import (
@@ -96,6 +97,34 @@ async def update_transaction(transaction_id: str, transaction: TransactionCreate
     if update_data.get("uso_empresarial"):
         update_data["is_deductible"] = False
     await db.transactions.update_one({"id": transaction_id}, {"$set": update_data})
+    # Propagar aprendizaje a known_vendors si la categoría cambió (SESIÓN 13 Task 1)
+    old_cat = existing.get("category") or existing.get("personal_category")
+    new_cat = update_data.get("category") or update_data.get("personal_category")
+    establishment = (update_data.get("establishment") or existing.get("establishment") or "").strip()
+    if new_cat and new_cat != old_cat and establishment:
+        normalized = establishment.lower()
+        existing_vendor = await db.known_vendors.find_one({
+            "user_id": user["id"],
+            "establishment": {"$regex": f"^{re.escape(normalized)}$", "$options": "i"}
+        })
+        now_iso = datetime.now(timezone.utc).isoformat()
+        vendor_set = {
+            "personal_category": new_cat,
+            "sri_category": update_data.get("sri_category"),
+            "subcategory": update_data.get("subcategory") or "General",
+            "is_deductible": bool(update_data.get("is_deductible")),
+            "last_used": now_iso,
+        }
+        if existing_vendor:
+            await db.known_vendors.update_one(
+                {"id": existing_vendor["id"]},
+                {"$set": vendor_set, "$inc": {"times_used": 1}}
+            )
+        else:
+            await db.known_vendors.insert_one({
+                "id": str(uuid.uuid4()), "user_id": user["id"], "establishment": establishment,
+                **vendor_set, "times_used": 1, "created_at": now_iso
+            })
     updated = await db.transactions.find_one({"id": transaction_id}, {"_id": 0})
     return TransactionResponse(**updated)
 

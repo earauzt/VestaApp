@@ -180,6 +180,7 @@ export default function CargarValidar() {
   const [reviewSelectedIds, setReviewSelectedIds] = useState([]);
   const [reviewFilter, setReviewFilter] = useState({ source: "all", category: "all" });
   const [reviewBulkApproving, setReviewBulkApproving] = useState(false);
+  const [vendorStats, setVendorStats] = useState({}); // {comercio_lower: {found, times_used}}
   const [gmailSummary, setGmailSummary] = useState({});
   const [gmailSyncing, setGmailSyncing] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
@@ -308,6 +309,35 @@ export default function CargarValidar() {
       .then((r) => setBudgetCategories(r.data?.categories || {}))
       .catch(() => {});
   }, []);
+
+  // SESIÓN 13 Task 3: Lookup vendor stats para mostrar "Nuevo" vs "Recurrente (N)"
+  useEffect(() => {
+    const uniqueComercios = [...new Set(
+      gmailTransactions
+        .filter(t => t.estado === "pendiente")
+        .map(t => (t.comercio || "").trim())
+        .filter(Boolean)
+    )];
+    const toLookup = uniqueComercios.filter(c => !(c.toLowerCase() in vendorStats));
+    if (toLookup.length === 0) return;
+    const headers = getAuthHeadersRef.current();
+    Promise.all(
+      toLookup.map(c =>
+        axios.get(`${API}/known-vendors/lookup?establishment=${encodeURIComponent(c)}`, { headers })
+          .then(r => ({ c, data: r.data }))
+          .catch(() => ({ c, data: { found: false } }))
+      )
+    ).then(results => {
+      setVendorStats(prev => {
+        const next = { ...prev };
+        results.forEach(({ c, data }) => {
+          const timesUsed = data.vendor?.times_used ?? data.vendor?.match_count ?? 0;
+          next[c.toLowerCase()] = { found: !!data.found, times_used: timesUsed };
+        });
+        return next;
+      });
+    });
+  }, [gmailTransactions, vendorStats]);
 
   // Lista unificada para "Por revisar" (Gmail + Estados pendientes)
   const unifiedReview = (() => {
@@ -1382,8 +1412,32 @@ export default function CargarValidar() {
                           />
                           <div className="flex-1 min-w-0 flex items-center gap-3">
                             <span className="text-xs text-muted-foreground shrink-0 w-20">{item.date}</span>
-                            <div className="flex-1 min-w-0">
+                            <div className="flex-1 min-w-0 flex items-center gap-2">
                               <p className="font-medium text-sm truncate" data-testid={`review-comercio-${item.id}`}>{item.comercio}</p>
+                              {(() => {
+                                const stats = vendorStats[(item.comercio || "").toLowerCase()];
+                                if (!stats) return null;
+                                if (stats.found && stats.times_used > 0) {
+                                  return (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
+                                      data-testid={`review-badge-recurrente-${item.id}`}
+                                    >
+                                      Recurrente ({stats.times_used})
+                                    </Badge>
+                                  );
+                                }
+                                return (
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[10px] shrink-0 bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300"
+                                    data-testid={`review-badge-nuevo-${item.id}`}
+                                  >
+                                    Nuevo
+                                  </Badge>
+                                );
+                              })()}
                             </div>
                             <span className="font-mono font-semibold text-sm shrink-0">${(item.amount || 0).toFixed(2)}</span>
                             <Badge variant="outline" className={`text-[10px] shrink-0 ${sourceBadgeColor}`} data-testid={`review-source-${item.id}`}>

@@ -414,7 +414,27 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
             pdf_result = await _download_gmail_pdf_attachment(service, gmail_id, user["id"], tipo=tipo, banco=banco_name, fecha=classification.get("fecha") or date_str, numero_factura=numero_factura)
 
         doc = {"user_id": user["id"], "gmail_id": gmail_id, "remitente": sender, "subject": subject, "fecha_email": date_str, "tipo": tipo, "monto": classification.get("monto"), "comercio": classification.get("comercio"), "fecha_transaccion": classification.get("fecha"), "tarjeta_ultimos4": classification.get("tarjeta_ultimos4"), "banco": classification.get("banco"), "descripcion_corta": classification.get("descripcion_corta", subject[:60]), "nivel_urgencia": classification.get("nivel_urgencia", "ninguna"), "estado": "pendiente", "personal_category": vendor_category, "sri_category": vendor_sri, "numero_factura": numero_factura, "ruc_emisor": ruc_emisor, "es_deducible": es_deducible, "es_suscripcion": False, "proxima_renovacion": None, "pdf_filepath": pdf_result.get("filepath"), "pdf_doc_id": pdf_result.get("doc_id"), "extracted_transactions": pdf_result.get("extracted_transactions", 0), "procesado_at": datetime.now(timezone.utc).isoformat()}
+        # Auto-aprobación recurrentes (SESIÓN 13 Task 2): comercio en known_vendors con times_used >= 3
+        auto_ok = False
+        if tipo == "consumo" and classification.get("comercio"):
+            try:
+                vendor_row = await db.known_vendors.find_one(
+                    {"user_id": user["id"], "establishment": {"$regex": f"^{re.escape(classification['comercio'].strip())}$", "$options": "i"}},
+                    {"_id": 0}
+                )
+                if vendor_row and (vendor_row.get("times_used") or 0) >= 3:
+                    doc["estado"] = "auto_aprobado"
+                    doc["auto_aprobado"] = True
+                    auto_ok = True
+            except Exception as e:
+                logger.warning(f"auto-approve check failed for {gmail_id}: {e}")
         await db.gmail_transactions.insert_one(doc)
+        if auto_ok:
+            try:
+                doc_clean = {k: v for k, v in doc.items() if k != "_id"}
+                await _approve_and_insert(user, doc_clean)
+            except Exception as e:
+                logger.warning(f"auto-approve insert failed for {gmail_id}: {e}")
         doc.pop("_id", None)
         nuevos.append(doc)
         procesados += 1
