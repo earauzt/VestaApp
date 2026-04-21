@@ -1041,49 +1041,17 @@ export default function CargarValidar() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Bandeja Financiera</h1>
-          <p className="text-sm text-muted-foreground">Tus movimientos financieros en un solo lugar</p>
-          <p className="text-muted-foreground">Sube archivos y aprueba transacciones en un solo lugar</p>
+          <p className="text-sm text-muted-foreground">Sube archivos y aprueba transacciones en un solo lugar</p>
         </div>
-        {activeTab === "validate" && selectedItems.length > 0 && (
-          <Button onClick={handleBulkApprove} className="gap-2">
-            <CheckSquare size={18} />
-            Aprobar {selectedItems.length} seleccionadas
-          </Button>
-        )}
       </div>
 
       {/* Stats Cards */}
-      {activeTab === "validate" && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <Card className="bento-card">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-amber-600">{stats.pending_review || 0}</p>
-              <p className="text-xs text-muted-foreground">Pendientes</p>
-            </CardContent>
-          </Card>
-          <Card className="bento-card">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-amber-600">{duplicatePairs.length}</p>
-              <p className="text-xs text-muted-foreground">Duplicados</p>
-              {crossCanalCount > 0 && (
-                <Badge className="mt-1 text-[10px] bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50">{crossCanalCount} cross-canal</Badge>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="bento-card">
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{stats.approved || 0}</p>
-              <p className="text-xs text-muted-foreground">Aprobados</p>
-            </CardContent>
-          </Card>
-          <Card className="bento-card">
-            <CardContent className="p-4 text-center">
-              <p className="text-xl font-bold text-primary">{formatCurrency(stats.total_pending_amount)}</p>
-              <p className="text-xs text-muted-foreground">Por revisar</p>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+      <BandejaStats
+        stats={stats}
+        duplicatePairs={duplicatePairs}
+        crossCanalCount={crossCanalCount}
+        formatCurrency={formatCurrency}
+      />
 
       {/* Main Tabs */}
       <Card className="bento-card">
@@ -1167,18 +1135,6 @@ export default function CargarValidar() {
           </Tabs>
         </CardContent>
       </Card>
-
-      <BulkActionDialog
-        open={showBulkDialog}
-        onOpenChange={setShowBulkDialog}
-        selectedCount={selectedItems.length}
-        bulkAction={bulkAction} setBulkAction={setBulkAction}
-        bulkCategory={bulkCategory} setBulkCategory={setBulkCategory}
-        bulkSubcategory={bulkSubcategory} setBulkSubcategory={setBulkSubcategory}
-        PERSONAL_CATEGORIES={PERSONAL_CATEGORIES}
-        handleBulkAction={handleBulkAction}
-        loading={loading}
-      />
 
       <GmailConsentDialog
         open={showGmailConsentModal}

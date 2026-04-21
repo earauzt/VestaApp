@@ -1,0 +1,44 @@
+{
+  "summary": "Retest of CargarValidar.js fixes from iteration_20. All 3 visual regressions are fixed: (1) BandejaStats is now mounted unconditionally above the tabs and renders 4 cards with live data (Pendientes: 33, Duplicados: 2 + '3 cross-canal' badge, Aprobados: 46, Por revisar: $3.302,18). (2) Header has a single subtitle 'Sube archivos y aprueba transacciones en un solo lugar' (duplicate removed). (3) No header-level 'Aprobar seleccionadas' button on Importar tab; bulk approve correctly appears only inside TabPorRevisar as 'Aprobar seleccionados (0)'. Regression checks: 3 tabs render (Importar, Por revisar [badge 83], Historial), dropzone visible, Gmail sync section visible with 'Sincronizar ahora' button + Pendientes:61/Aprobados:0 badges, TabPorRevisar shows the unified pending list (Gmail + Statements) with row-level category selectors and bulk approve button. Forest Palette preserved (teal sidebar active state + primary button). Code review of CargarValidar.js confirms BulkActionDialog import was correctly removed from BandejaDialogs imports (only BulkActionDialog and GmailConsentDialog imported on line 21; only GmailConsentDialog rendered on line 1139) — note BulkActionDialog is still in the import statement but unused; minor cleanup opportunity.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+  "passed_tests": [
+    "Login admin -> navigate to /cargar succeeds",
+    "[data-testid='cargar-validar-page'] visible",
+    "BandejaStats grid renders ABOVE tabs with 4 cards: Pendientes(33) / Duplicados(2 +3 cross-canal badge) / Aprobados(46) / Por revisar($3.302,18)",
+    "Single subtitle paragraph in header (duplicate removed)",
+    "No 'Aprobar seleccionadas' button visible at header level on Importar tab",
+    "[data-testid='tab-importar'], [data-testid='tab-revisar'] (badge 83), [data-testid='tab-historial'] all visible",
+    "[data-testid='dropzone'] visible in Importar tab",
+    "[data-testid='gmail-sync-btn'] 'Sincronizar ahora' visible; gmail-pending-badge shows Pendientes:61 / Aprobados:0",
+    "TabPorRevisar renders unified pending list with row category selectors + 'Aprobar seleccionados (0)' bulk button",
+    "Tab switching importar -> revisar -> historial -> importar works without errors",
+    "Forest Palette #0D9E82 preserved in sidebar active item + primary button"
+  ],
+  "test_report_links": ["/app/test_reports/iteration_21.json"],
+  "action_items": [
+    "Minor cleanup (non-blocking): BulkActionDialog is still listed in the import statement on line 21 of CargarValidar.js but is no longer rendered. Remove it from the import to silence unused-import warnings.",
+    "Minor cleanup (non-blocking): Several state hooks tied to the removed dialog are now dead: showBulkDialog/setShowBulkDialog (line 156), bulkCategory/setBulkCategory (157), bulkSubcategory/setBulkSubcategory (159), bulkAction/setBulkAction (160), selectedItems/setSelectedItems (142), and helpers handleBulkApprove (669-693), handleBulkAction (722-765), toggleSelectItem (805-808), openDetailDialog (767-781). Consider removing them since they are unreachable.",
+    "Investigate console 500 errors observed during /cargar load (4 x 500 from background fetches). These appear pre-existing (not introduced by this fix) but worth checking which endpoints (likely /api/reconciliation/* or /api/gmail/*) are returning 500."
+  ],
+  "critical_code_review_comments": [
+    "Fix correctly applied: BandejaStats is now mounted unconditionally above the Tabs Card (lines 1048-1054), no longer gated on the legacy 'validate' tab value.",
+    "Header cleaned up: single subtitle on line 1044, dead bulk approve button removed.",
+    "Orphaned BulkActionDialog rendering removed from JSX. However, the import on line 21 still lists BulkActionDialog (unused) — recommend removing.",
+    "Significant amount of dead state/handlers (bulk* state, handleBulkAction, handleBulkApprove, toggleSelectItem, openDetailDialog) remain in the parent because they were only consumed by the removed dialog/button. Lint may not flag them since they are referenced inside other handlers. Recommended cleanup.",
+    "Detail dialog (showDetailDialog at lines 817-993) is still present in JSX but only opened by openDetailDialog which is never called by any child after the refactor — row-level edit is currently unreachable. If row-level edit is intentionally removed, this whole block (including showDuplicateDialog) can be moved to BandejaDialogs.jsx or deleted.",
+    "CargarValidar.js still ~1147 lines after fix; further extraction of detail dialog + duplicate dialog into BandejaDialogs.jsx would shrink it materially."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "N/A (frontend-only)", "frontend": "100% (all 7 acceptance items pass)"},
+  "test_credentials": {"admin": "earauzt@gmail.com / Realmadrid2011", "demo": "demo@fintrack.ec / demo2026"},
+  "seed_data_creation": "None - read-only UI regression retest.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "iteration_20 regression (BandejaStats not rendered + duplicate subtitle + dead bulk button + orphaned BulkActionDialog) is fully fixed in iteration_21. Visual layout now matches the refactor plan: stats row above tabs, single subtitle, bulk approve only inside Por revisar tab. Remaining cleanup is cosmetic (unused import + dead handlers) and does not block users. Pre-existing 500 console errors during /cargar load were observed but are unrelated to this fix; if next iteration tests backend, check /api/reconciliation/* and /api/gmail/* responses for admin user.",
+  "rca of the issue": "Original RCA (legacy 'validate' tab gate preventing BandejaStats render) is resolved by mounting BandejaStats unconditionally outside the Tabs component (lines 1048-1054 of CargarValidar.js)."
+}
