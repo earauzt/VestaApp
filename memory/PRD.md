@@ -205,3 +205,28 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
     * Reglas activas: lista custom_rules de categorization_rules, eliminar (DELETE /api/categorization-rules/{id})
     * PUT /api/known-vendors/{id} para editar vendor (endpoints backend ya existían)
   - Lint JS: 0 issues en los 4 archivos. Backend endpoints verificados vía curl.
+
+
+- [2026-04-21] SESIÓN 15 - Rebrand Vesta + RUC + Invitación contadora + Fix factura_sri:
+  - Task 1 (Rebrand): FamilyFinance → Vesta en Layout.js + Login.js (hero, mobile logo, tagline).
+    Tagline "Ecuador" → "Tu patrimonio familiar, en orden." Title en index.html y name en package.json.
+  - Task 2 (RUC): UserBase/UserResponse en models.py con 4 campos opcionales (ruc, nombre_legal,
+    tipo_contribuyente, zona_sri). Nueva sección "Datos fiscales" en Perfil.js editable con
+    5 tipos de contribuyente. PUT /api/auth/profile en routes/auth.py (update parcial).
+    SRILimits y /api/sri/deduction-limits ahora construyen `contribuyente` desde el user doc
+    (fallback a CONTRIBUYENTE_INFO solo si campos están vacíos). RUC hardcoded de Emilio
+    eliminado — cada usuario ve su propio RUC.
+  - Task 3 (Clasificador factura_sri): Prompt de _classify_email_with_ai reforzado con
+    reglas explícitas de palabras clave ("factura", "documento electronico", "comprobante
+    electronico", "comprobante de venta") y emisores (contifico, degeremcia, datil).
+    Prefiltro de remitentes extendido (GMAIL_SENDER_FILTER + checks is_factura_subject
+    e is_invoice_sender). GPT fallback fuerza tipo=factura_sri si invoice_sender.
+    Test 3/3 casos marcan factura_sri y extraen numero_factura + ruc_emisor.
+  - Task 4 (Invitación contadora): POST /api/auth/invite (admin-only, expira 48h, token
+    secrets_mod.token_urlsafe(32)), GET /api/auth/accept-invite/{token} valida, POST
+    /api/auth/register acepta query param invite_token (marca usado + usa email/rol del invite).
+    Nueva ruta /accept-invite/:token en App.js renderiza Login.js con email prellenado y solo
+    nombre+password (via useParams). Sección "Accesos" en Perfil.js visible solo para admin
+    con input email + botón "Invitar contadora" + display del link copiable.
+  - Verificación: /auth/me retorna RUC, screenshot Perfil muestra datos fiscales persistidos,
+    clasificador marca facturas. Lint Python + JS: 0 issues.

@@ -406,6 +406,10 @@ class UserBase(BaseModel):
     email: EmailStr
     name: str
     role: str = UserRole.SPOUSE
+    ruc: Optional[str] = None
+    nombre_legal: Optional[str] = None
+    tipo_contribuyente: Optional[str] = "persona_natural"
+    zona_sri: Optional[str] = None
 
 class UserCreate(UserBase):
     password: str
@@ -421,6 +425,10 @@ class UserResponse(BaseModel):
     name: str
     role: str
     created_at: str
+    ruc: Optional[str] = None
+    nombre_legal: Optional[str] = None
+    tipo_contribuyente: Optional[str] = None
+    zona_sri: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

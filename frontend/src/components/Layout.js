@@ -80,8 +80,8 @@ export default function Layout({ children }) {
       <div className={`border-b border-slate-800 flex items-center justify-between ${mobile ? "p-4" : "p-6"}`}>
         {(!collapsed || mobile) && (
           <div>
-            <h1 className="text-lg font-semibold text-white tracking-tight">FamilyFinance</h1>
-            <p className="text-xs text-slate-400">Ecuador</p>
+            <h1 className="text-lg font-semibold text-white tracking-tight">Vesta</h1>
+            <p className="text-xs text-slate-400">Tu patrimonio familiar, en orden.</p>
           </div>
         )}
         {mobile ? (
@@ -190,7 +190,7 @@ export default function Layout({ children }) {
           </SheetContent>
         </Sheet>
 
-        <h1 className="text-base font-semibold text-slate-900">FamilyFinance</h1>
+        <h1 className="text-base font-semibold text-slate-900">Vesta</h1>
 
         <Avatar className="h-8 w-8">
           <AvatarFallback className="bg-[#0F766E] text-white text-xs">

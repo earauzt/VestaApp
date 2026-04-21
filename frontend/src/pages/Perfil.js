@@ -6,6 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../co
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Input } from "../components/ui/input";
+import { Label } from "../components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
 import {
@@ -18,7 +20,7 @@ import {
   ArrowsClockwise,
   SignOut
 } from "@phosphor-icons/react";
-import { Store, FileText, Edit2, Trash2 } from "lucide-react";
+import { Store, FileText, Edit2, Trash2, IdCard, UserPlus, Copy } from "lucide-react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -37,6 +39,15 @@ export default function Perfil() {
   const [loadingRules, setLoadingRules] = useState(false);
   const [editVendor, setEditVendor] = useState(null);
   const [editForm, setEditForm] = useState({ personal_category: "", subcategory: "" });
+
+  // Fiscal data state
+  const [fiscal, setFiscal] = useState({ ruc: "", nombre_legal: "", tipo_contribuyente: "persona_natural", zona_sri: "" });
+  const [savingFiscal, setSavingFiscal] = useState(false);
+
+  // Invitation state (admin only)
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviting, setInviting] = useState(false);
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
   useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
@@ -70,6 +81,61 @@ export default function Perfil() {
   }, []);
 
   useEffect(() => { fetchGmailStatus(); fetchRulesData(); }, [fetchGmailStatus, fetchRulesData]);
+
+  // Load fiscal data from /auth/me
+  useEffect(() => {
+    axios.get(`${API}/auth/me`, { headers: getAuthHeadersRef.current() })
+      .then((res) => {
+        setFiscal({
+          ruc: res.data?.ruc || "",
+          nombre_legal: res.data?.nombre_legal || "",
+          tipo_contribuyente: res.data?.tipo_contribuyente || "persona_natural",
+          zona_sri: res.data?.zona_sri || "",
+        });
+      })
+      .catch(() => {});
+  }, []);
+
+  const handleSaveFiscal = async () => {
+    setSavingFiscal(true);
+    try {
+      await axios.put(`${API}/auth/profile`, fiscal, { headers: getAuthHeadersRef.current() });
+      toast.success("Datos fiscales guardados");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "No se pudo guardar");
+    } finally {
+      setSavingFiscal(false);
+    }
+  };
+
+  const handleCreateInvite = async () => {
+    if (!inviteEmail) {
+      toast.error("Ingresa un email");
+      return;
+    }
+    setInviting(true);
+    try {
+      const res = await axios.post(
+        `${API}/auth/invite`,
+        { email: inviteEmail, rol: "accountant" },
+        { headers: getAuthHeadersRef.current() }
+      );
+      const link = res.data.invite_link?.startsWith("http")
+        ? res.data.invite_link
+        : `${window.location.origin}${res.data.invite_link}`;
+      setInviteLink(link);
+      toast.success("Invitación creada. Comparte el link con tu contadora.");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "No se pudo crear la invitación");
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const copyInviteLink = () => {
+    navigator.clipboard.writeText(inviteLink);
+    toast.success("Link copiado");
+  };
 
   const handleConnectGmail = async () => {
     setGmailConnecting(true);
@@ -178,7 +244,73 @@ export default function Perfil() {
         </CardContent>
       </Card>
 
-      {/* Gmail Connection */}
+      {/* Datos fiscales */}
+      <Card className="bg-white border border-slate-200 shadow-sm" data-testid="fiscal-data-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-slate-900">
+            <IdCard size={20} className="text-[#0F766E]" />
+            Datos fiscales
+          </CardTitle>
+          <CardDescription>Usados para cálculos SRI, facturas y reportes anuales</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1">
+              <Label htmlFor="fiscal-ruc" className="text-xs text-slate-500">RUC / Cédula</Label>
+              <Input
+                id="fiscal-ruc"
+                data-testid="fiscal-ruc-input"
+                value={fiscal.ruc}
+                onChange={(e) => setFiscal({ ...fiscal, ruc: e.target.value })}
+                placeholder="0912345678001"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="fiscal-nombre" className="text-xs text-slate-500">Nombre legal</Label>
+              <Input
+                id="fiscal-nombre"
+                data-testid="fiscal-nombre-input"
+                value={fiscal.nombre_legal}
+                onChange={(e) => setFiscal({ ...fiscal, nombre_legal: e.target.value })}
+                placeholder="Como aparece en el RUC"
+              />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-slate-500">Tipo de contribuyente</Label>
+              <Select value={fiscal.tipo_contribuyente} onValueChange={(v) => setFiscal({ ...fiscal, tipo_contribuyente: v })}>
+                <SelectTrigger data-testid="fiscal-tipo-select"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="persona_natural">Persona Natural</SelectItem>
+                  <SelectItem value="persona_natural_obligada">Persona Natural Obligada a Llevar Contabilidad</SelectItem>
+                  <SelectItem value="rimpe_emprendedor">RIMPE Emprendedor</SelectItem>
+                  <SelectItem value="rimpe_popular">RIMPE Popular</SelectItem>
+                  <SelectItem value="sociedad">Sociedad</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <Label htmlFor="fiscal-zona" className="text-xs text-slate-500">Zona SRI</Label>
+              <Input
+                id="fiscal-zona"
+                data-testid="fiscal-zona-input"
+                value={fiscal.zona_sri}
+                onChange={(e) => setFiscal({ ...fiscal, zona_sri: e.target.value })}
+                placeholder="Ej: Zona 8 / Guayas / Guayaquil"
+              />
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end">
+            <Button
+              onClick={handleSaveFiscal}
+              disabled={savingFiscal}
+              className="bg-[#0F766E] hover:bg-[#0D6B63] text-white"
+              data-testid="fiscal-save-btn"
+            >
+              {savingFiscal ? "Guardando..." : "Guardar cambios"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
       <Card className="bg-white border border-slate-200 shadow-sm" data-testid="gmail-connection-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-900">
@@ -239,7 +371,7 @@ export default function Perfil() {
             <FileText size={20} className="text-[#0F766E]" />
             Aprendizaje automático
           </CardTitle>
-          <CardDescription>Comercios conocidos y reglas que usa FamilyFinance para categorizar tus gastos</CardDescription>
+          <CardDescription>Comercios conocidos y reglas que usa Vesta para categorizar tus gastos</CardDescription>
         </CardHeader>
         <CardContent>
           <Tabs value={rulesTab} onValueChange={setRulesTab}>
@@ -334,6 +466,56 @@ export default function Perfil() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Accesos (admin only) */}
+      {user?.role === "admin" && (
+        <Card className="bg-white border border-slate-200 shadow-sm" data-testid="access-invite-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-slate-900">
+              <UserPlus size={20} className="text-[#0F766E]" />
+              Accesos
+            </CardTitle>
+            <CardDescription>Invita a tu contadora para que revise tus datos fiscales</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Input
+                type="email"
+                placeholder="contadora@email.com"
+                value={inviteEmail}
+                onChange={(e) => setInviteEmail(e.target.value)}
+                className="flex-1"
+                data-testid="invite-email-input"
+              />
+              <Button
+                onClick={handleCreateInvite}
+                disabled={inviting}
+                className="bg-[#0F766E] hover:bg-[#0D6B63] text-white gap-2"
+                data-testid="invite-create-btn"
+              >
+                <UserPlus size={15} />
+                {inviting ? "Generando..." : "Invitar contadora"}
+              </Button>
+            </div>
+            {inviteLink && (
+              <div className="p-3 rounded-md bg-slate-50 border border-slate-200 flex items-center gap-2" data-testid="invite-link-display">
+                <code className="flex-1 text-xs text-slate-700 truncate">{inviteLink}</code>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={copyInviteLink}
+                  className="border-slate-200 text-slate-700 hover:bg-white gap-1 shrink-0"
+                  data-testid="invite-copy-btn"
+                >
+                  <Copy size={13} />
+                  Copiar
+                </Button>
+              </div>
+            )}
+            <p className="text-xs text-slate-500">El enlace expira en 48 horas.</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Logout */}
       <Card className="bg-white border border-slate-200 border-l-4 border-l-[#DC2626] shadow-sm">

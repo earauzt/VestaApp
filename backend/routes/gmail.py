@@ -53,14 +53,22 @@ async def _get_gmail_credentials(user_id: str) -> Credentials:
 
 async def _classify_email_with_ai(subject: str, body_snippet: str, force_type: str = None) -> dict:
     system_prompt = (
-        'Eres un clasificador financiero de bancos ecuatorianos. '
-        'Analiza el subject y body y devuelve SOLO JSON sin texto adicional: '
+        'Eres un clasificador financiero de bancos y facturas electronicas ecuatorianas. '
+        'Analiza el subject, remitente y body y devuelve SOLO JSON sin texto adicional: '
         '{"tipo": "consumo|estado_de_cuenta|alerta|factura_sri|descarte", '
         '"monto": numero o null, "comercio": string o null, '
         '"fecha": "YYYY-MM-DD" o null, "tarjeta_ultimos4": string o null, '
         '"banco": string, "descripcion_corta": string, '
         '"nivel_urgencia": "alta|media|baja|ninguna", '
-        '"numero_factura": string o null, "ruc_emisor": string o null}'
+        '"numero_factura": string o null, "ruc_emisor": string o null}. '
+        'REGLAS PARA factura_sri (IMPORTANTE): marca tipo="factura_sri" si el subject contiene '
+        'alguna de estas palabras: "factura", "Factura", "FACTURA", "documento electronico", '
+        '"comprobante electronico", "comprobante de venta", "nota de venta" o si el remitente '
+        'pertenece a emisores de facturacion electronica: noreply@contifico.com, '
+        'noreply@www.contifico.com, notifications@degeremcia.com, noreply@datil.co, '
+        'facturacion@* , facturas@* , comprobantes@* , electronica@*. En esos casos extrae '
+        'numero_factura y ruc_emisor del cuerpo si aparecen (patron RUC: 13 digitos, '
+        'patron factura: 001-001-XXXXXXXXX).'
     )
     try:
         chat = LlmChat(
@@ -270,7 +278,10 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         "OR documentoselectronicos@pichincha.com OR estadodecuenta@pacificard.ec "
         "OR estadoscuenta@bancodelpacifico.com.ec "
         "OR email.apple.com OR netflix.com "
-        "OR spotify.com OR google.com OR amazon.com OR adobe.com) is:unread "
+        "OR spotify.com OR google.com OR amazon.com OR adobe.com "
+        "OR noreply@contifico.com OR noreply@www.contifico.com "
+        "OR notifications@degeremcia.com OR noreply@datil.co "
+        "OR facturacion OR facturas OR comprobantes OR electronica) is:unread "
         f"after:{after_ts}"
     )
     results = service.users().messages().list(userId='me', q=GMAIL_SENDER_FILTER, maxResults=max_results).execute()
@@ -295,12 +306,14 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         date_str = headers.get('date', '')
         body_snippet = msg.get('snippet', '')
         subject_lower = subject.lower()
-        is_factura_subject = "factura" in subject_lower
+        is_factura_subject = any(kw in subject_lower for kw in ["factura", "documento electronico", "comprobante electronico", "comprobante de venta", "nota de venta"])
         sender_lower = sender.lower()
+        INVOICE_SENDERS = ["contifico.com", "degeremcia.com", "datil.co", "facturacion@", "facturas@", "comprobantes@", "electronica@"]
+        is_invoice_sender = any(s in sender_lower for s in INVOICE_SENDERS)
         is_bank_email = any(domain in sender_lower for domain in BANK_DOMAINS) or any(addr in sender_lower for addr in BANK_SENDERS)
         is_service_email = any(domain in sender_lower for domain in SERVICE_DOMAINS)
 
-        if not is_bank_email and not is_factura_subject and not is_service_email:
+        if not is_bank_email and not is_factura_subject and not is_service_email and not is_invoice_sender:
             await db.gmail_transactions.insert_one({"user_id": user["id"], "gmail_id": gmail_id, "remitente": sender, "subject": subject, "fecha_email": date_str, "tipo": "descarte", "monto": None, "comercio": None, "fecha_transaccion": None, "tarjeta_ultimos4": None, "banco": None, "descripcion_corta": "No es email bancario ni de servicio", "nivel_urgencia": "ninguna", "estado": "descartado", "numero_factura": None, "ruc_emisor": None, "es_deducible": False, "es_suscripcion": False, "proxima_renovacion": None, "procesado_at": datetime.now(timezone.utc).isoformat()})
             descartados += 1
             continue
@@ -391,7 +404,7 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
             continue
 
         # GPT-4o fallback — no parser matched
-        force_type = "factura_sri" if is_factura_subject else None
+        force_type = "factura_sri" if (is_factura_subject or is_invoice_sender) else None
         classification = await _classify_email_with_ai(subject, body_snippet, force_type=force_type)
         tipo = classification.get("tipo", "descarte")
         numero_factura = classification.get("numero_factura")

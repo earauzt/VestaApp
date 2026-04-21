@@ -165,8 +165,20 @@ async def get_sri_deduction_limits(cargas_familiares: int = 0, user: dict = Depe
     gastos_aplicables = min(total_deductible, limite_efectivo)
     rebaja_ir = gastos_aplicables * PORCENTAJE_REBAJA_IR
 
+    # Build contribuyente from user profile, fall back to legacy hardcoded only if user has no RUC
+    user_contrib = {
+        "ruc": user.get("ruc") or CONTRIBUYENTE_INFO["ruc"],
+        "nombre": user.get("nombre_legal") or user.get("name") or CONTRIBUYENTE_INFO["nombre"],
+        "tipo": user.get("tipo_contribuyente") or CONTRIBUYENTE_INFO["tipo"],
+        "regimen": CONTRIBUYENTE_INFO["regimen"],
+        "jurisdiccion": user.get("zona_sri") or CONTRIBUYENTE_INFO["jurisdiccion"],
+        "obligado_contabilidad": CONTRIBUYENTE_INFO["obligado_contabilidad"],
+        "actividad_principal": CONTRIBUYENTE_INFO["actividad_principal"],
+        "cargas_familiares": cargas_familiares,
+    }
+
     return {
-        "year": now.year, "contribuyente": CONTRIBUYENTE_INFO, "cargas_familiares": cargas_familiares,
+        "year": now.year, "contribuyente": user_contrib, "cargas_familiares": cargas_familiares,
         "canasta_basica": CANASTA_BASICA, "fraccion_basica_exenta": FRACCION_BASICA_EXENTA,
         "ingresos_gravados_anual": ingresos_gravados,
         "limite_20pct": limite_20pct,

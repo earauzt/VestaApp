@@ -52,6 +52,10 @@ function AppRoutes() {
         element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
       />
       <Route 
+        path="/accept-invite/:token" 
+        element={<Login />} 
+      />
+      <Route 
         path="/dashboard" 
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
