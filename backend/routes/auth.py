@@ -139,8 +139,7 @@ async def create_invite(payload: InviteCreate, user: dict = Depends(check_role([
         "created_by": user["id"], "expires_at": expires_at, "usado": False,
         "created_at": datetime.now(timezone.utc).isoformat(),
     })
-    frontend_url = os.environ.get("FRONTEND_URL") or os.environ.get("REACT_APP_BACKEND_URL", "")
-    return {"invite_link": f"{frontend_url.rstrip('/')}/accept-invite/{token}", "token": token, "expires_at": expires_at}
+    return {"token": token, "expires_at": expires_at}
 
 
 @router.get("/auth/accept-invite/{token}")

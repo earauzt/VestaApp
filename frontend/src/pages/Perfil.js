@@ -120,9 +120,7 @@ export default function Perfil() {
         { email: inviteEmail, rol: "accountant" },
         { headers: getAuthHeadersRef.current() }
       );
-      const link = res.data.invite_link?.startsWith("http")
-        ? res.data.invite_link
-        : `${window.location.origin}${res.data.invite_link}`;
+      const link = `${window.location.origin}/accept-invite/${res.data.token}`;
       setInviteLink(link);
       toast.success("Invitación creada. Comparte el link con tu contadora.");
     } catch (e) {
