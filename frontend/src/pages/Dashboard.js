@@ -49,6 +49,7 @@ import {
   Cell
 } from "recharts";
 
+import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Default categories (will be overridden by backend for demo users)
@@ -252,7 +253,7 @@ export default function Dashboard() {
     switch (priority) {
       case "high": return "bg-red-50 dark:bg-red-900/20 border-red-200 text-red-800 dark:text-red-200";
       case "medium": return "bg-amber-50 dark:bg-amber-900/20 border-amber-200 text-amber-800 dark:text-amber-200";
-      case "low": return "bg-blue-50 dark:bg-blue-900/20 border-blue-200 text-blue-800 dark:text-blue-200";
+      case "low": return "bg-slate-50 dark:bg-slate-800 border-slate-200 text-[#0F766E] dark:text-slate-200";
       default: return "bg-muted";
     }
   };
@@ -280,7 +281,7 @@ export default function Dashboard() {
       title: "Promedio Diario", 
       value: stats?.daily_average, 
       icon: CalendarBlank,
-      color: "text-blue-500"
+      color: "text-[#0F766E]"
     }
   ];
 
@@ -322,13 +323,13 @@ export default function Dashboard() {
         const priorityColor = {
           high: "bg-red-50 border-red-200 text-red-900 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200",
           medium: "bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200",
-          low: "bg-blue-50 border-blue-200 text-blue-900 dark:bg-blue-950/30 dark:border-blue-800 dark:text-blue-200",
+          low: "bg-slate-50 border-slate-200 text-[#0F766E] dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200",
         };
         return (
           <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2" data-testid="notificaciones-banner">
             {shown.map((n) => {
               const borderColor = n.prioridad === "high" ? "border-l-[#DC2626]" : n.prioridad === "medium" ? "border-l-amber-500" : "border-l-blue-500";
-              const iconColor = n.prioridad === "high" ? "text-[#DC2626]" : n.prioridad === "medium" ? "text-amber-600" : "text-blue-600";
+              const iconColor = n.prioridad === "high" ? "text-[#DC2626]" : n.prioridad === "medium" ? "text-amber-600" : "text-[#0F766E]";
               return (
               <div
                 key={n.id}
@@ -401,7 +402,7 @@ export default function Dashboard() {
                   </p>
                 </div>
               </div>
-              <Badge className="bg-orange-100 text-orange-700 border-orange-200 hover:bg-orange-100 text-xs shrink-0">
+              <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs shrink-0">
                 Suscripcion
               </Badge>
             </div>
@@ -443,7 +444,7 @@ export default function Dashboard() {
         <Card className="bento-card" data-testid="esta-semana-widget">
           <CardContent className="p-4 sm:p-6">
             <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 rounded-xl bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400">
+              <div className="p-2 rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
                 <CalendarBlank size={18} weight="duotone" />
               </div>
               <div>
@@ -527,7 +528,7 @@ export default function Dashboard() {
         <CardContent className="p-4 sm:p-6">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 shrink-0">
+              <div className="p-2 rounded-xl bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E] shrink-0">
                 <Receipt size={18} weight="duotone" />
               </div>
               <div>
@@ -569,7 +570,7 @@ export default function Dashboard() {
               className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
               data-testid="counter-pendiente"
             >
-              <LucideClock size={22} className="mb-1 text-blue-600" />
+              <LucideClock size={22} className="mb-1 text-[#0F766E]" />
               <span className="text-xl font-bold text-slate-900">{sriCounters.pendiente_match}</span>
               <span className="text-[11px] text-slate-500 text-center">Esperando match</span>
             </button>
@@ -803,7 +804,7 @@ export default function Dashboard() {
                   </div>
                   <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
                     <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                      <Wallet size={12} className="text-blue-500" />
+                      <Wallet size={12} className="text-[#0F766E]" />
                       Neto
                     </p>
                     <p className={`text-lg font-bold ${
@@ -878,7 +879,7 @@ export default function Dashboard() {
           <Card className="bento-card">
             <CardHeader className="pb-3">
               <CardTitle className="text-lg flex items-center gap-2">
-                <Receipt size={20} className="text-violet-600" weight="duotone" />
+                <Receipt size={20} className="text-[#0F766E]" weight="duotone" />
                 Gastos por Categoría
               </CardTitle>
               <CardDescription>Progreso vs presupuesto mensual</CardDescription>

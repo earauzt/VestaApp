@@ -19,6 +19,8 @@ import {
   Percent,
   CurrencyDollar
 } from "@phosphor-icons/react";
+import { Check as LICheck, X as LIX } from "lucide-react";
+import { components, typography } from "../styles/design-system";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -98,7 +100,7 @@ export default function SRILimits() {
 
       {/* Contribuyente Info */}
       {data?.contribuyente && (
-        <Card className="bento-card bg-primary/5 border-primary/20">
+        <Card className="bento-card bg-white border-slate-200 border-l-4 border-l-[#0F766E]">
           <CardContent className="p-4">
             <div className="flex items-start gap-4">
               <div className="p-3 rounded-xl bg-primary/10 text-primary">
@@ -351,10 +353,10 @@ export default function SRILimits() {
       </motion.div>
 
       {/* Info Card */}
-      <Card className="bento-card bg-blue-50 dark:bg-blue-900/10 border-blue-200 dark:border-blue-800">
+      <Card className="bento-card bg-white border border-slate-200">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Info size={20} className="text-blue-500" />
+            <Info size={20} className="text-[#0F766E]" />
             Información Importante SRI
           </CardTitle>
         </CardHeader>
@@ -363,28 +365,28 @@ export default function SRILimits() {
             <div>
               <h4 className="font-medium mb-2">Gastos Deducibles</h4>
               <ul className="space-y-1 text-muted-foreground">
-                <li>✓ Alimentación (supermercados, restaurantes en Ecuador)</li>
-                <li>✓ Salud (consultas, medicinas, seguros)</li>
-                <li>✓ Educación (colegios, universidades, cursos)</li>
-                <li>✓ Vivienda (arriendo, servicios básicos)</li>
-                <li>✓ Vestimenta (ropa y calzado en Ecuador)</li>
-                <li>✓ Turismo Nacional</li>
+                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Alimentación (supermercados, restaurantes en Ecuador)</li>
+                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Salud (consultas, medicinas, seguros)</li>
+                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Educación (colegios, universidades, cursos)</li>
+                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Vivienda (arriendo, servicios básicos)</li>
+                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Vestimenta (ropa y calzado en Ecuador)</li>
+                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Turismo Nacional</li>
               </ul>
             </div>
             <div>
               <h4 className="font-medium mb-2">NO Deducibles</h4>
               <ul className="space-y-1 text-muted-foreground">
-                <li>✗ Gastos en el exterior (viajes internacionales)</li>
-                <li>✗ Compras con tarjeta extranjera</li>
-                <li>✗ Transporte personal (combustible, mantenimiento)</li>
-                <li>✗ Entretenimiento general</li>
-                <li>✗ Gastos sin factura válida</li>
-                <li>✗ IVA e ICE incluido en facturas</li>
+                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Gastos en el exterior (viajes internacionales)</li>
+                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Compras con tarjeta extranjera</li>
+                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Transporte personal (combustible, mantenimiento)</li>
+                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Entretenimiento general</li>
+                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Gastos sin factura válida</li>
+                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> IVA e ICE incluido en facturas</li>
               </ul>
             </div>
           </div>
-          <div className="mt-4 p-3 rounded-lg bg-blue-100 dark:bg-blue-900/20">
-            <p className="text-sm">
+          <div className="mt-4 p-3 rounded-md bg-slate-50 border border-slate-200">
+            <p className="text-sm text-slate-700">
               <strong>Rebaja de Impuesto a la Renta:</strong> 18% del menor valor entre tus gastos deducibles y el límite por cargas familiares. 
               Presenta el Anexo de Gastos Personales en febrero si tus ingresos superan ${data?.fraccion_basica_exenta?.toLocaleString()} anuales.
             </p>

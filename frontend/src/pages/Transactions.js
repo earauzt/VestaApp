@@ -33,6 +33,17 @@ import {
   CheckCircle,
   Eye
 } from "@phosphor-icons/react";
+import {
+  Utensils as LIUtensils,
+  HeartPulse as LIHeart,
+  GraduationCap as LIGrad,
+  Home as LIHome,
+  Shirt as LIShirt,
+  Palmtree as LIPalm,
+  XCircle as LIXCircle,
+  Check as LICheck,
+} from "lucide-react";
+import { components, typography } from "../styles/design-system";
 
 // Import new QuickBooks-style components
 import { SplitTransactionModal } from "../components/SplitTransactionModal";
@@ -44,14 +55,14 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Default category colors
 const CATEGORY_COLORS = {
-  servicios_basicos: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",
-  empleados: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900/30 dark:text-cyan-400",
-  colegio_actividades: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-  seguros: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400",
+  servicios_basicos: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
+  empleados: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
+  colegio_actividades: "bg-slate-50 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
+  seguros: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
   comida: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  restaurantes: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+  restaurantes: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   carros: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  usa: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900/30 dark:text-indigo-400",
+  usa: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
   viajes_entretenimiento: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
   gastos_libres: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   // Demo categories
@@ -59,9 +70,9 @@ const CATEGORY_COLORS = {
   entretenimiento: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
   // Legacy categories for compatibility
   alimentacion: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  salud: "bg-pink-100 text-pink-800 dark:bg-pink-900/30 dark:text-pink-400",
-  educacion: "bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-400",
-  vivienda: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
+  salud: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
+  educacion: "bg-slate-100 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
+  vivienda: "bg-slate-50 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]",
   vestimenta: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   turismo: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
   viajes_internacionales: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
@@ -84,43 +95,43 @@ const SRI_CATEGORIES = {
     name: "Alimentación", 
     deductible: true, 
     subcategories: ["Comida", "Restaurantes", "Supermercado", "Mercado"],
-    icon: "🍽️"
+    Icon: LIUtensils
   },
   salud: { 
     name: "Salud", 
     deductible: true, 
     subcategories: ["Seguros médicos", "Medicina", "Consultas", "Hospitalización", "Laboratorio", "Odontología"],
-    icon: "🏥"
+    Icon: LIHeart
   },
   educacion: { 
     name: "Educación", 
     deductible: true, 
     subcategories: ["Colegio", "Universidad", "Cursos", "Materiales", "Uniformes", "Transporte escolar"],
-    icon: "📚"
+    Icon: LIGrad
   },
   vivienda: { 
     name: "Vivienda", 
     deductible: true, 
     subcategories: ["Arriendo", "Intereses hipoteca", "Servicios básicos", "Mantenimiento"],
-    icon: "🏠"
+    Icon: LIHome
   },
   vestimenta: { 
     name: "Vestimenta", 
     deductible: true, 
     subcategories: ["Ropa", "Calzado", "Accesorios"],
-    icon: "👔"
+    Icon: LIShirt
   },
   turismo: { 
     name: "Turismo Nacional", 
     deductible: true, 
     subcategories: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"],
-    icon: "🏖️"
+    Icon: LIPalm
   },
   no_deducible: { 
     name: "No Deducible", 
     deductible: false, 
     subcategories: ["Viajes internacionales", "Entretenimiento", "Otros"],
-    icon: "❌"
+    Icon: LIXCircle
   }
 };
 
@@ -619,15 +630,18 @@ export default function Transactions() {
                                 <SelectValue placeholder="Seleccionar" />
                               </SelectTrigger>
                               <SelectContent className="z-[250]">
-                                {Object.entries(SRI_CATEGORIES).map(([key, cat]) => (
+                                {Object.entries(SRI_CATEGORIES).map(([key, cat]) => {
+                                  const CIcon = cat.Icon;
+                                  return (
                                   <SelectItem key={key} value={key}>
                                     <span className="flex items-center gap-2">
-                                      <span>{cat.icon}</span>
+                                      <CIcon size={14} className="text-slate-500" />
                                       {cat.name}
                                       {cat.deductible && <CheckCircle size={12} className="text-emerald-500" />}
                                     </span>
                                   </SelectItem>
-                                ))}
+                                  );
+                                })}
                               </SelectContent>
                             </Select>
                           </div>
@@ -650,8 +664,8 @@ export default function Transactions() {
                           </div>
                         </div>
                         {formData.sri_category && SRI_CATEGORIES[formData.sri_category]?.deductible && (
-                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2">
-                            ✓ Este gasto es deducible para el SRI
+                          <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
+                            <LICheck size={12} /> Este gasto es deducible para el SRI
                           </p>
                         )}
                       </div>
@@ -674,7 +688,7 @@ export default function Transactions() {
                         <input
                           id="uso-empresarial-toggle"
                           type="checkbox"
-                          className="h-5 w-5 accent-violet-600"
+                          className="h-5 w-5 accent-[#0F766E]"
                           checked={formData.uso_empresarial}
                           onChange={(e) => setFormData({ ...formData, uso_empresarial: e.target.checked })}
                           data-testid="uso-empresarial-toggle"
@@ -708,7 +722,7 @@ export default function Transactions() {
                         <input
                           id="aplica-iva-toggle"
                           type="checkbox"
-                          className="h-5 w-5 accent-violet-600"
+                          className="h-5 w-5 accent-[#0F766E]"
                           checked={formData.aplica_iva}
                           onChange={(e) => setFormData({ ...formData, aplica_iva: e.target.checked })}
                           data-testid="aplica-iva-toggle"
@@ -864,7 +878,7 @@ export default function Transactions() {
                             </Badge>
                           )}
                           {transaction.linked_goal_name && (
-                            <Badge variant="outline" className="text-xs gap-1 bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-950/30 dark:text-violet-400 dark:border-violet-800" data-testid="linked-goal-badge">
+                            <Badge variant="outline" className="text-xs gap-1 bg-slate-100 text-[#0F766E] border-slate-200 dark:bg-slate-800 dark:text-[#0F766E] dark:border-slate-700" data-testid="linked-goal-badge">
                               <Target size={12} />
                               {transaction.linked_goal_name}
                             </Badge>
@@ -903,11 +917,14 @@ export default function Transactions() {
                         <Badge className={CATEGORY_COLORS[transaction.category] || CATEGORY_COLORS.otros}>
                           {categories[transaction.category]?.name || transaction.category}
                         </Badge>
-                        {transaction.sri_category && SRI_CATEGORIES[transaction.sri_category] && (
-                          <Badge variant="outline" className="ml-1 text-xs text-emerald-600 border-emerald-200">
-                            {SRI_CATEGORIES[transaction.sri_category].icon} {SRI_CATEGORIES[transaction.sri_category].name}
+                        {transaction.sri_category && SRI_CATEGORIES[transaction.sri_category] && (() => {
+                          const CIcon = SRI_CATEGORIES[transaction.sri_category].Icon;
+                          return (
+                          <Badge variant="outline" className="ml-1 text-xs text-emerald-600 border-emerald-200 inline-flex items-center gap-1">
+                            <CIcon size={11} /> {SRI_CATEGORIES[transaction.sri_category].name}
                           </Badge>
-                        )}
+                          );
+                        })()}
                       </div>
                       <span className={`font-mono font-semibold min-w-[100px] text-right ${
                         transaction.transaction_type === "income" 

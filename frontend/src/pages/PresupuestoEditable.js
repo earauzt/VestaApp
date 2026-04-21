@@ -25,6 +25,7 @@ import {
   Airplane
 } from "@phosphor-icons/react";
 
+import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function PresupuestoEditable() {
@@ -279,8 +280,8 @@ export default function PresupuestoEditable() {
           {/* Inversión - Con signo menos */}
           <div className="flex items-center justify-between py-3 border-b bg-muted/30">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
-                <span className="text-blue-600 font-bold text-lg">−</span>
+              <div className="w-8 h-8 rounded-lg bg-slate-50 dark:bg-slate-800 flex items-center justify-center">
+                <span className="text-[#0F766E] font-bold text-lg">−</span>
               </div>
               <div>
                 <p className="font-medium">Inversión</p>
@@ -288,11 +289,11 @@ export default function PresupuestoEditable() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xl font-bold text-blue-600 font-mono">{formatCurrency(investmentGoal.monthly)}</p>
+              <p className="text-xl font-bold text-[#0F766E] font-mono">{formatCurrency(investmentGoal.monthly)}</p>
               <Button 
                 variant="ghost" 
                 size="icon"
-                className="h-7 w-7 text-muted-foreground hover:text-blue-600"
+                className="h-7 w-7 text-muted-foreground hover:text-[#0F766E]"
                 onClick={() => setActiveTab("metas")}
               >
                 <Pencil size={14} />
@@ -303,8 +304,8 @@ export default function PresupuestoEditable() {
           {/* Meta Viajes - Con signo menos */}
           <div className="flex items-center justify-between py-3 border-b">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center">
-                <span className="text-violet-600 font-bold text-lg">−</span>
+              <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                <span className="text-[#0F766E] font-bold text-lg">−</span>
               </div>
               <div>
                 <p className="font-medium">Meta Viajes</p>
@@ -314,14 +315,14 @@ export default function PresupuestoEditable() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xl font-bold text-violet-600 font-mono">
+              <p className="text-xl font-bold text-[#0F766E] font-mono">
                 {formatCurrency(travelFund?.monthly_suggested_saving || 0)}
               </p>
               <Link to="/viajes">
                 <Button 
                   variant="ghost" 
                   size="icon"
-                  className="h-7 w-7 text-muted-foreground hover:text-violet-600"
+                  className="h-7 w-7 text-muted-foreground hover:text-[#0F766E]"
                 >
                   <Airplane size={14} />
                 </Button>
@@ -548,7 +549,7 @@ export default function PresupuestoEditable() {
             <Card className="bento-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <PiggyBank size={24} className="text-blue-600" />
+                  <PiggyBank size={24} className="text-[#0F766E]" />
                   Meta de Ahorro
                 </CardTitle>
               </CardHeader>

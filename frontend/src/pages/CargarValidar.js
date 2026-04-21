@@ -42,6 +42,7 @@ import {
   GoogleLogo
 } from "@phosphor-icons/react";
 
+import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // ============ CATEGORÍAS PERSONALES (del Excel del usuario) ============
@@ -121,7 +122,7 @@ const STATUS_COLORS = {
   pending_review: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
   approved: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
   rejected: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  duplicate_suspect: "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
+  duplicate_suspect: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400"
 };
 
 const STATUS_LABELS = {
@@ -1006,7 +1007,7 @@ export default function CargarValidar() {
         <DialogContent className="sm:max-w-[600px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Copy size={24} className="text-orange-500" />
+              <Copy size={24} className="text-amber-500" />
               Revisar Posible Duplicado
             </DialogTitle>
           </DialogHeader>
@@ -1022,8 +1023,8 @@ export default function CargarValidar() {
                     <div className="flex gap-1 mt-2 flex-wrap">{selectedPair.original.fuentes.map(f => <Badge key={f} variant="outline" className="text-[10px]">{f}</Badge>)}</div>
                   )}
                 </div>
-                <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/10 border border-orange-200">
-                  <span className="font-medium text-orange-800">Posible Duplicado</span>
+                <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/10 border border-amber-200">
+                  <span className="font-medium text-amber-800">Posible Duplicado</span>
                   <p className="font-semibold mt-2">{selectedPair.duplicate?.description}</p>
                   <p className="text-2xl font-mono">{formatCurrency(selectedPair.duplicate?.amount)}</p>
                   <p className="text-sm text-muted-foreground">{selectedPair.duplicate?.date}</p>
@@ -1072,10 +1073,10 @@ export default function CargarValidar() {
           </Card>
           <Card className="bento-card">
             <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-orange-600">{duplicatePairs.length}</p>
+              <p className="text-2xl font-bold text-amber-600">{duplicatePairs.length}</p>
               <p className="text-xs text-muted-foreground">Duplicados</p>
               {crossCanalCount > 0 && (
-                <Badge className="mt-1 text-[10px] bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-50">{crossCanalCount} cross-canal</Badge>
+                <Badge className="mt-1 text-[10px] bg-amber-50 text-amber-600 border-amber-200 hover:bg-amber-50">{crossCanalCount} cross-canal</Badge>
               )}
             </CardContent>
           </Card>
@@ -1400,8 +1401,8 @@ export default function CargarValidar() {
                       const sourceBadgeColor = item.source === "gmail"
                         ? "bg-red-50 text-red-700 border-red-200"
                         : item.source === "manual"
-                        ? "bg-blue-50 text-blue-700 border-blue-200"
-                        : "bg-violet-50 text-violet-700 border-violet-200";
+                        ? "bg-slate-50 text-[#0F766E] border-slate-200"
+                        : "bg-slate-100 text-[#0F766E] border-slate-200";
                       return (
                         <div
                           key={item.id}

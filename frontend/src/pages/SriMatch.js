@@ -9,6 +9,15 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CheckCircle, XCircle, Coins, LinkSimple, Trash, ArrowsClockwise, Receipt } from "@phosphor-icons/react";
+import {
+  CheckCircle as LICheckCircle,
+  RefreshCw as LIRefreshCw,
+  Clock as LIClock,
+  AlertTriangle as LIAlert,
+  FileText as LIFile,
+  CreditCard as LICredit,
+} from "lucide-react";
+import { components, typography } from "../styles/design-system";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -110,8 +119,8 @@ export default function SriMatch() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Receipt size={32} weight="duotone" className="text-violet-600" />
-            Match Factura ↔ Consumo
+            <Receipt size={32} weight="duotone" className="text-[#0F766E]" />
+            Match Factura y Consumo
           </h1>
           <p className="text-muted-foreground">Vincula facturas SRI con sus consumos de tarjeta/débito</p>
         </div>
@@ -124,19 +133,22 @@ export default function SriMatch() {
       {/* Counters */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { key: "con_respaldo", icon: "✅", label: "Con respaldo", value: counters.con_respaldo, bg: "bg-emerald-50 dark:bg-emerald-950/30", fg: "text-emerald-700 dark:text-emerald-400" },
-          { key: "match_aproximado", icon: "🔄", label: "Match aproximado", value: counters.match_aproximado, bg: "bg-amber-50 dark:bg-amber-950/30", fg: "text-amber-700 dark:text-amber-400" },
-          { key: "pendiente", icon: "⏳", label: "Esperando", value: counters.pendiente_match, bg: "bg-blue-50 dark:bg-blue-950/30", fg: "text-blue-700 dark:text-blue-400" },
-          { key: "sin_vincular", icon: "⚠️", label: "Sin vincular", value: counters.sin_vincular, bg: "bg-red-50 dark:bg-red-950/30", fg: "text-red-700 dark:text-red-400" },
-        ].map((c) => (
-          <Card key={c.key} className={`bento-card ${c.bg}`}>
-            <CardContent className="p-4 flex flex-col items-center">
-              <span className="text-2xl mb-1">{c.icon}</span>
-              <span className={`text-2xl font-bold ${c.fg}`}>{c.value}</span>
-              <span className="text-xs text-muted-foreground text-center">{c.label}</span>
-            </CardContent>
-          </Card>
-        ))}
+          { key: "con_respaldo", Icon: LICheckCircle, label: "Con respaldo", value: counters.con_respaldo, iconColor: "text-[#16A34A]" },
+          { key: "match_aproximado", Icon: LIRefreshCw, label: "Match aproximado", value: counters.match_aproximado, iconColor: "text-amber-600" },
+          { key: "pendiente", Icon: LIClock, label: "Esperando", value: counters.pendiente_match, iconColor: "text-slate-500" },
+          { key: "sin_vincular", Icon: LIAlert, label: "Sin vincular", value: counters.sin_vincular, iconColor: "text-[#DC2626]" },
+        ].map((c) => {
+          const CIcon = c.Icon;
+          return (
+            <Card key={c.key} className="bg-white border border-slate-200 rounded-lg shadow-sm">
+              <CardContent className="p-4 flex flex-col items-center">
+                <CIcon size={22} className={`mb-1 ${c.iconColor}`} />
+                <span className="text-2xl font-bold text-slate-900">{c.value}</span>
+                <span className="text-xs text-slate-500 text-center">{c.label}</span>
+              </CardContent>
+            </Card>
+          );
+        })}
       </div>
 
       {/* Tabs */}
@@ -157,7 +169,11 @@ export default function SriMatch() {
                   <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline" className="text-xs">{t.source_type === "invoice" || t.has_invoice ? "📄 Factura" : "💳 Consumo"}</Badge>
+                        <Badge variant="outline" className="text-xs inline-flex items-center gap-1">
+                          {t.source_type === "invoice" || t.has_invoice
+                            ? (<><LIFile size={11} /> Factura</>)
+                            : (<><LICredit size={11} /> Consumo</>)}
+                        </Badge>
                         {t.match_aproximado_confianza && (
                           <Badge variant="secondary" className="text-xs">{Math.round(t.match_aproximado_confianza * 100)}% confianza</Badge>
                         )}
@@ -173,7 +189,7 @@ export default function SriMatch() {
                       )}
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      <Button size="sm" onClick={() => handleConfirm(t.id)} className="gap-1 bg-emerald-600 hover:bg-emerald-700" data-testid={`confirm-${t.id}`}>
+                      <Button size="sm" onClick={() => handleConfirm(t.id)} className="gap-1 bg-[#0F766E] hover:bg-[#0D6B63]" data-testid={`confirm-${t.id}`}>
                         <CheckCircle size={14} /> Sí
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => handleReject(t.id)} className="gap-1" data-testid={`reject-${t.id}`}>
@@ -197,7 +213,11 @@ export default function SriMatch() {
                 <CardContent className="p-4">
                   <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <Badge variant="outline" className="text-xs mb-1">{t.source_type === "invoice" || t.has_invoice ? "📄 Factura" : "💳 Consumo"}</Badge>
+                      <Badge variant="outline" className="text-xs mb-1 inline-flex items-center gap-1">
+                        {t.source_type === "invoice" || t.has_invoice
+                          ? (<><LIFile size={11} /> Factura</>)
+                          : (<><LICredit size={11} /> Consumo</>)}
+                      </Badge>
                       <p className="font-medium truncate">{t.description || t.establishment}</p>
                       <p className="text-sm text-muted-foreground">{format(new Date(t.date), "d MMM yyyy", { locale: es })} · <strong>{fmtCurrency(t.amount)}</strong></p>
                       <p className="text-xs text-amber-600 mt-1">Pasaron 72h sin encontrar contraparte</p>

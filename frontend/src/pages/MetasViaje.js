@@ -34,33 +34,53 @@ import {
   LinkSimple,
   MagnifyingGlass
 } from "@phosphor-icons/react";
+import {
+  Hotel as LIHotel,
+  Plane as LIPlane,
+  Utensils as LIUtensils,
+  Drama as LIDrama,
+  Shirt as LIShirt,
+  Smartphone as LISmart,
+  Car as LICar,
+  Map as LIMap,
+  Package as LIPackage,
+  GraduationCap as LIGrad,
+  Home as LIHome,
+  Shield as LIShield,
+  PartyPopper as LIParty,
+  TrendingUp as LITrend,
+  Star as LIStar,
+} from "lucide-react";
+import { components, typography } from "../styles/design-system";
+
+const IconRender = ({ Comp, size = 16, className = "" }) => Comp ? <Comp size={size} className={className} /> : null;
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SUBCATEGORY_ICONS = {
-  "Hoteles": "🏨",
-  "Pasajes": "✈️",
-  "Comida": "🍽️",
-  "Entretenimiento": "🎭",
-  "Ropa": "👕",
-  "Tech": "📱",
-  "Transporte": "🚗",
-  "Tours": "🗺️",
-  "Otros": "📦"
+  "Hoteles": LIHotel,
+  "Pasajes": LIPlane,
+  "Comida": LIUtensils,
+  "Entretenimiento": LIDrama,
+  "Ropa": LIShirt,
+  "Tech": LISmart,
+  "Transporte": LICar,
+  "Tours": LIMap,
+  "Otros": LIPackage
 };
 
 const GOAL_TYPES = [
-  { value: "viaje", label: "Viaje", icon: "✈️" },
-  { value: "educacion", label: "Educacion", icon: "🎓" },
-  { value: "hogar", label: "Hogar", icon: "🏠" },
-  { value: "emergencia", label: "Emergencia", icon: "🛡️" },
-  { value: "celebracion", label: "Celebracion", icon: "🎉" },
-  { value: "inversion", label: "Inversion", icon: "📈" },
-  { value: "otro", label: "Otro", icon: "⭐" }
+  { value: "viaje", label: "Viaje", Icon: LIPlane },
+  { value: "educacion", label: "Educacion", Icon: LIGrad },
+  { value: "hogar", label: "Hogar", Icon: LIHome },
+  { value: "emergencia", label: "Emergencia", Icon: LIShield },
+  { value: "celebracion", label: "Celebracion", Icon: LIParty },
+  { value: "inversion", label: "Inversion", Icon: LITrend },
+  { value: "otro", label: "Otro", Icon: LIStar }
 ];
 
 const STATUS_CONFIG = {
-  active: { label: "Activa", color: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400", icon: Target },
+  active: { label: "Activa", color: "bg-slate-50 text-[#0F766E] dark:bg-slate-800 dark:text-[#0F766E]", icon: Target },
   completed: { label: "Completada", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle },
   cancelled: { label: "Cancelada", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: Clock }
 };
@@ -319,7 +339,7 @@ export default function MetasViaje() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Airplane size={32} className="text-violet-600" weight="duotone" />
+            <Airplane size={32} className="text-[#0F766E]" weight="duotone" />
             Viajes
           </h1>
           <p className="text-muted-foreground">Gestiona tu fondo de viajes y entretenimiento</p>
@@ -346,17 +366,17 @@ export default function MetasViaje() {
 
       {/* Fondo de Viajes - Resumen Principal */}
       {travelFund && (
-        <Card className="bento-card bg-gradient-to-r from-violet-50 via-purple-50 to-fuchsia-50 dark:from-violet-950/30 dark:via-purple-950/30 dark:to-fuchsia-950/30 border-violet-200 dark:border-violet-800">
+        <Card className="bento-card bg-white ">
           <CardContent className="pt-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
               <div className="text-center">
                 <p className="text-xs text-muted-foreground mb-1">Meta Anual {travelFund.year}</p>
-                <p className="text-2xl font-bold text-violet-700">{formatCurrency(travelFund.annual_budget)}</p>
+                <p className="text-2xl font-bold text-slate-900">{formatCurrency(travelFund.annual_budget)}</p>
                 {canEdit && (
                   <Button 
                     variant="link" 
                     size="sm" 
-                    className="text-xs h-auto p-0 text-violet-600"
+                    className="text-xs h-auto p-0 text-[#0F766E]"
                     onClick={() => {
                       setNewAnnualBudget(travelFund.annual_budget.toString());
                       setFundSettingsDialogOpen(true);
@@ -375,9 +395,9 @@ export default function MetasViaje() {
                 <p className="text-xs text-red-700 dark:text-red-400 mb-1">Gastado</p>
                 <p className="text-2xl font-bold text-red-600">{formatCurrency(totalSpent)}</p>
               </div>
-              <div className="text-center p-3 rounded-xl bg-blue-100/50 dark:bg-blue-900/20">
-                <p className="text-xs text-blue-700 dark:text-blue-400 mb-1">Disponible</p>
-                <p className="text-2xl font-bold text-blue-600">{formatCurrency(Math.max(0, available))}</p>
+              <div className="text-center p-3 rounded-xl bg-slate-50/50 dark:bg-slate-800">
+                <p className="text-xs text-[#0F766E] dark:text-[#0F766E] mb-1">Disponible</p>
+                <p className="text-2xl font-bold text-[#0F766E]">{formatCurrency(Math.max(0, available))}</p>
               </div>
             </div>
             
@@ -389,8 +409,9 @@ export default function MetasViaje() {
               </div>
               <Progress value={travelFund.savings_progress || 0} className="h-3" />
               {travelFund.monthly_suggested_saving > 0 && (
-                <p className="text-sm text-violet-600">
-                  💡 Ahorra <strong>{formatCurrency(travelFund.monthly_suggested_saving)}</strong>/mes para completar tu meta
+                <p className="text-sm text-[#0F766E] flex items-start gap-2">
+                  <LITrend size={14} className="mt-0.5 shrink-0" />
+                  <span>Ahorra <strong>{formatCurrency(travelFund.monthly_suggested_saving)}</strong>/mes para completar tu meta</span>
                 </p>
               )}
             </div>
@@ -448,8 +469,8 @@ export default function MetasViaje() {
                       <CardContent className="p-4">
                         <div className="flex items-center gap-4">
                           {/* Icon */}
-                          <div className="w-12 h-12 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0 text-2xl">
-                            {GOAL_TYPES.find(t => t.value === (goal.tipo || "viaje"))?.icon || "⭐"}
+                          <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-600">
+                            <IconRender Comp={GOAL_TYPES.find(t => t.value === (goal.tipo || "viaje"))?.Icon || LIStar} size={22} />
                           </div>
                           
                           {/* Info */}
@@ -464,11 +485,11 @@ export default function MetasViaje() {
                             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
                               <span>{format(new Date(goal.target_date), "d MMM yyyy", { locale: es })}</span>
                               {goal.monthly_needed > 0 && <span>Ahorrar {formatCurrency(goal.monthly_needed)}/mes</span>}
-                              {goal.total_spent > 0 && <span className="text-orange-600">Gastado: {formatCurrency(goal.total_spent)}</span>}
+                              {goal.total_spent > 0 && <span className="text-amber-600">Gastado: {formatCurrency(goal.total_spent)}</span>}
                             </div>
                             <Progress value={Math.min(progress, 100)} className="h-2 mb-1" />
                             <div className="flex justify-between text-xs">
-                              <span className="font-semibold text-violet-600">
+                              <span className="font-semibold text-[#0F766E]">
                                 {formatCurrency(goal.saved_amount || 0)}
                               </span>
                               <span className="text-muted-foreground">
@@ -550,7 +571,9 @@ export default function MetasViaje() {
                     <Card className="bento-card h-full">
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3 mb-3">
-                          <span className="text-2xl">{SUBCATEGORY_ICONS[cat.subcategory] || "📦"}</span>
+                          <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                            <IconRender Comp={SUBCATEGORY_ICONS[cat.subcategory] || LIPackage} size={18} />
+                          </div>
                           <div className="flex-1">
                             <h3 className="font-semibold">{cat.subcategory}</h3>
                             <p className="text-xs text-muted-foreground">{cat.count} transacciones</p>
@@ -617,9 +640,9 @@ export default function MetasViaje() {
                       }}
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <span className="text-lg shrink-0">
-                          {SUBCATEGORY_ICONS[tx.subcategory] || "📦"}
-                        </span>
+                        <div className="w-8 h-8 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
+                          <IconRender Comp={SUBCATEGORY_ICONS[tx.subcategory] || LIPackage} size={15} />
+                        </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-medium truncate">{tx.description}</p>
                           <div className="flex items-center gap-2 text-xs text-muted-foreground">
@@ -648,7 +671,7 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <span className="text-2xl">{GOAL_TYPES.find(t => t.value === formData.tipo)?.icon || "⭐"}</span>
+              <IconRender Comp={GOAL_TYPES.find(t => t.value === formData.tipo)?.Icon || LIStar} size={18} className="text-[#0F766E]" />
               {editingGoal ? "Editar Meta" : "Nueva Meta"}
             </DialogTitle>
           </DialogHeader>
@@ -661,14 +684,14 @@ export default function MetasViaje() {
                   <button
                     key={type.value}
                     type="button"
-                    className={`flex flex-col items-center gap-1 p-2 rounded-lg border text-xs transition-all ${
+                    className={`flex flex-col items-center gap-1 p-2 rounded-md border text-xs transition-colors ${
                       formData.tipo === type.value 
-                        ? "border-violet-500 bg-violet-50 dark:bg-violet-950/30 ring-1 ring-violet-500" 
-                        : "border-border hover:border-violet-300"
+                        ? "border-[#0F766E] bg-slate-50 ring-1 ring-[#0F766E] text-[#0F766E]" 
+                        : "border-slate-200 hover:border-slate-300 text-slate-600"
                     }`}
                     onClick={() => setFormData({ ...formData, tipo: type.value })}
                   >
-                    <span className="text-lg">{type.icon}</span>
+                    <IconRender Comp={type.Icon} size={18} />
                     <span>{type.label}</span>
                   </button>
                 ))}
@@ -900,7 +923,7 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Receipt size={24} className="text-violet-500" />
+              <Receipt size={24} className="text-[#0F766E]" />
               Detalle de Transacción
             </DialogTitle>
           </DialogHeader>
@@ -908,9 +931,9 @@ export default function MetasViaje() {
             <div className="space-y-4">
               <div className="p-4 rounded-lg bg-muted/30">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-3xl">
-                    {SUBCATEGORY_ICONS[selectedTransaction.subcategory] || "📦"}
-                  </span>
+                  <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center">
+                    <IconRender Comp={SUBCATEGORY_ICONS[selectedTransaction.subcategory] || LIPackage} size={22} />
+                  </div>
                   <span className="text-2xl font-bold text-red-600">
                     {formatCurrency(selectedTransaction.amount)}
                   </span>
@@ -954,7 +977,7 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <LinkSimple size={20} className="text-violet-500" />
+              <LinkSimple size={20} className="text-[#0F766E]" />
               Vincular Gasto a Meta
             </DialogTitle>
           </DialogHeader>

@@ -27,6 +27,7 @@ import {
   Legend
 } from "recharts";
 
+import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SRI_DEDUCTIBLE = ["alimentacion", "salud", "educacion", "vivienda", "vestimenta"];

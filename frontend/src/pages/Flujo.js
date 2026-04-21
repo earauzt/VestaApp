@@ -34,6 +34,7 @@ import {
   User
 } from "@phosphor-icons/react";
 
+import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const PAYMENT_METHODS = [
@@ -497,7 +498,7 @@ export default function Flujo() {
                                   </span>
                                 )}
                                 {payment.total_balance && (
-                                  <span className="px-2 py-1 rounded bg-blue-100 text-blue-700">
+                                  <span className="px-2 py-1 rounded bg-slate-50 text-[#0F766E]">
                                     Saldo: {formatCurrency(payment.total_balance)}
                                   </span>
                                 )}

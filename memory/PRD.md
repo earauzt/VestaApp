@@ -226,6 +226,34 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
     secrets_mod.token_urlsafe(32)), GET /api/auth/accept-invite/{token} valida, POST
     /api/auth/register acepta query param invite_token (marca usado + usa email/rol del invite).
     Nueva ruta /accept-invite/:token en App.js renderiza Login.js con email prellenado y solo
+
+- [2026-04-21] SESIÓN 16 - Design System centralizado + cleanup cromático masivo:
+  - Nuevo archivo /app/frontend/src/styles/design-system.js con constantes
+    colors (primary #0F766E, danger #DC2626, success #16A34A, warning #D97706),
+    typography y components (card, buttonPrimary/Secondary/Ghost, input, badge variants).
+  - Import `{ components, typography } from "../styles/design-system"` agregado a
+    las 11 páginas (Dashboard, Transactions, Ingresos, CargarValidar, Flujo, Deudas,
+    SRILimits, SriMatch, AccountantView, MetasViaje, PresupuestoEditable).
+  - Emojis → Lucide React sin texto visible:
+    * Transactions.js: 🍽️🏥📚🏠👔🏖️❌✓ → Utensils, HeartPulse, GraduationCap,
+      Home, Shirt, Palmtree, XCircle, Check (SRI_CATEGORIES con campo Icon).
+    * MetasViaje.js: 9 subcategory icons + 7 GOAL_TYPES icons + 💡 → Lucide
+      (Hotel, Plane, Utensils, Drama, Shirt, Smartphone, Car, Map, Package, etc.).
+    * SRILimits.js: ✓/✗ (12) → LICheck (verde)/LIX (rojo).
+    * SriMatch.js: ✅🔄⏳⚠️📄💳 → Lucide counters + Factura/Consumo badges.
+    * Ingresos.js: 💡 → Lightbulb.
+  - Colores no-semánticos eliminados (sed global):
+    * violet/purple/indigo/fuchsia/pink/cyan/sky → #0F766E (texto) / slate-100-200 (bg/border).
+    * orange → amber (warning semántico).
+    * blue → teal para acentos, slate para fondos/bordes informativos.
+    * Dark-mode variants también (dark:bg-violet-900 → dark:bg-slate-800, etc.).
+    * Cero gradientes (bg-gradient-to-* from-* to-*) eliminados.
+  - Verificación final: 0 emojis, 0 violet/purple/indigo/fuchsia/pink/cyan/sky/orange,
+    0 blue, 0 gradients en las 11 páginas. Lint JS: ✅ 0 issues en todo /pages.
+  - 4 screenshots verificados (Dashboard, Transacciones, Mi Presupuesto, Bandeja Financiera):
+    sidebar "Vesta" dark con teal activo, cards shadow-sm border-slate-200 sin gradientes,
+    teal como único color de acento, rojo/verde/amber solo semánticos.
+
     nombre+password (via useParams). Sección "Accesos" en Perfil.js visible solo para admin
     con input email + botón "Invitar contadora" + display del link copiable.
   - Verificación: /auth/me retorna RUC, screenshot Perfil muestra datos fiscales persistidos,

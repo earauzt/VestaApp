@@ -34,14 +34,16 @@ import {
   Receipt,
   CalendarCheck
 } from "@phosphor-icons/react";
+import { Lightbulb as LILightbulb } from "lucide-react";
+import { components, typography } from "../styles/design-system";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Income sources with icons
 const DISTRIBUTION_CONFIG = {
   Personal: { icon: CurrencyDollar, color: "text-emerald-600", bgColor: "bg-emerald-100 dark:bg-emerald-900/30" },
-  APX: { icon: Briefcase, color: "text-blue-600", bgColor: "bg-blue-100 dark:bg-blue-900/30" },
-  USA: { icon: Globe, color: "text-purple-600", bgColor: "bg-purple-100 dark:bg-purple-900/30" }
+  APX: { icon: Briefcase, color: "text-[#0F766E]", bgColor: "bg-slate-50 dark:bg-slate-800" },
+  USA: { icon: Globe, color: "text-[#0F766E]", bgColor: "bg-slate-100 dark:bg-slate-800" }
 };
 
 const INCOME_CONCEPTS = ["Salario", "Bonus", "Dividendos", "Arriendo", "Honorarios", "Otros"];
@@ -60,7 +62,7 @@ const STATUS_CONFIG = {
   cancelled: { label: "Cancelado", color: "bg-red-100 text-red-800", icon: Warning },
   overdue: { label: "Vencido", color: "bg-red-100 text-red-800", icon: Warning },
   paid: { label: "Pagado", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle },
-  partial: { label: "Parcial", color: "bg-blue-100 text-blue-800", icon: Clock }
+  partial: { label: "Parcial", color: "bg-slate-50 text-[#0F766E]", icon: Clock }
 };
 
 export default function Ingresos() {
@@ -446,12 +448,12 @@ export default function Ingresos() {
         <Card className="bento-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900/30">
-                <Receipt size={20} className="text-blue-600" />
+              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
+                <Receipt size={20} className="text-[#0F766E]" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Por Cobrar</p>
-                <p className="text-lg font-bold text-blue-600">{formatCurrency(totalReceivablePending)}</p>
+                <p className="text-lg font-bold text-[#0F766E]">{formatCurrency(totalReceivablePending)}</p>
               </div>
             </div>
           </CardContent>
@@ -460,12 +462,12 @@ export default function Ingresos() {
         <Card className="bento-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-100 dark:bg-violet-900/30">
-                <CalendarCheck size={20} className="text-violet-600" />
+              <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                <CalendarCheck size={20} className="text-[#0F766E]" />
               </div>
               <div>
                 <p className="text-xs text-muted-foreground">Flujo Proyectado</p>
-                <p className="text-lg font-bold text-violet-600">
+                <p className="text-lg font-bold text-[#0F766E]">
                   {formatCurrency((summary?.total || 0) + totalExpectedPending + totalReceivablePending)}
                 </p>
               </div>
@@ -745,8 +747,8 @@ export default function Ingresos() {
                         >
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-3">
-                              <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
-                                <User size={20} className="text-blue-600" weight="bold" />
+                              <div className="p-2 rounded-full bg-slate-50 dark:bg-slate-800">
+                                <User size={20} className="text-[#0F766E]" weight="bold" />
                               </div>
                               <div>
                                 <p className="font-medium">{item.client_name}</p>
@@ -761,7 +763,7 @@ export default function Ingresos() {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="font-mono font-bold text-lg text-blue-600">
+                              <p className="font-mono font-bold text-lg text-[#0F766E]">
                                 {formatCurrency(remaining)}
                               </p>
                               <p className="text-xs text-muted-foreground">
@@ -1120,8 +1122,9 @@ export default function Ingresos() {
               value={paymentDate}
               onChange={(date) => setPaymentDate(date)}
             />
-            <p className="text-sm text-muted-foreground">
-              💡 Este pago se registrará también como ingreso con la fecha seleccionada.
+            <p className="text-sm text-muted-foreground flex items-start gap-2">
+              <LILightbulb size={14} className="text-amber-600 mt-0.5 shrink-0" />
+              Este pago se registrará también como ingreso con la fecha seleccionada.
             </p>
             <DialogFooter>
               <Button variant="outline" onClick={() => setPaymentDialogOpen(false)}>Cancelar</Button>

@@ -34,6 +34,7 @@ import {
   Fire
 } from "@phosphor-icons/react";
 
+import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const BANKS = [
@@ -383,12 +384,12 @@ export default function Deudas() {
           <Card className="bento-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-purple-100 dark:bg-purple-900/30">
-                  <Calculator size={20} className="text-purple-600" />
+                <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
+                  <Calculator size={20} className="text-[#0F766E]" />
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Pago Mínimo Total</p>
-                  <p className="text-lg font-bold text-purple-600">{formatCurrency(summary.total_minimum_payment)}</p>
+                  <p className="text-lg font-bold text-[#0F766E]">{formatCurrency(summary.total_minimum_payment)}</p>
                 </div>
               </div>
             </CardContent>
@@ -448,14 +449,14 @@ export default function Deudas() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="p-4 rounded-xl bg-gradient-to-r from-slate-900 to-slate-800 text-white"
+                        className="p-4 rounded-xl  text-white"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <h3 className="font-bold text-lg">{card.name}</h3>
                               {card.is_international && (
-                                <Badge className="bg-purple-500">USA</Badge>
+                                <Badge className="bg-slate-1000">USA</Badge>
                               )}
                               <Badge variant="outline" className="text-amber-400 border-amber-400">
                                 {card.apr}% APR
@@ -660,7 +661,7 @@ export default function Deudas() {
             <Card className="bento-card">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Fire size={20} className="text-orange-500" />
+                  <Fire size={20} className="text-amber-500" />
                   Calculadora Avalanche
                 </CardTitle>
                 <CardDescription>
@@ -696,7 +697,7 @@ export default function Deudas() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <Card className="bento-card border-orange-500/50">
+                <Card className="bento-card border-amber-500/50">
                   <CardHeader>
                     <CardTitle className="text-lg flex items-center gap-2">
                       <Lightning size={20} className="text-amber-500" />
@@ -726,14 +727,14 @@ export default function Deudas() {
 
                     {/* Recommendation */}
                     {snowballPlan.recommendation && (
-                      <div className="p-4 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200">
+                      <div className="p-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200">
                         <div className="flex items-start gap-3">
-                          <Fire size={24} className="text-orange-500 shrink-0" />
+                          <Fire size={24} className="text-amber-500 shrink-0" />
                           <div>
-                            <p className="font-medium text-orange-800 dark:text-orange-200">
+                            <p className="font-medium text-amber-800 dark:text-amber-200">
                               Recomendación Avalanche
                             </p>
-                            <p className="text-sm text-orange-700 dark:text-orange-300">
+                            <p className="text-sm text-amber-700 dark:text-amber-300">
                               {snowballPlan.recommendation}
                             </p>
                           </div>
