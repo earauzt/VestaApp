@@ -247,30 +247,18 @@ export default function Transactions() {
     setBulkApplying(true);
     try {
       const headers = getAuthHeadersRef.current();
-      const updateData = { category: bulkCategory };
-      if (bulkSubcategory) updateData.subcategory = bulkSubcategory;
-      const selectedTxs = transactions.filter((t) => bulkSelectedIds.includes(t.id));
-      await Promise.all(selectedTxs.map((t) => axios.put(`${API}/transactions/${t.id}`, updateData, { headers })));
-      // Upsert known_vendors para cada comercio único
-      const uniqueEstablishments = [...new Set(selectedTxs.map((t) => t.establishment || t.comercio).filter(Boolean))];
-      await Promise.all(
-        uniqueEstablishments.map((est) =>
-          axios
-            .post(
-              `${API}/known-vendors`,
-              { establishment: est, personal_category: bulkCategory, subcategory: bulkSubcategory || "" },
-              { headers }
-            )
-            .catch(() => null)
-        )
+      const res = await axios.post(
+        `${API}/transactions/bulk-categorize`,
+        { ids: bulkSelectedIds, category: bulkCategory, subcategory: bulkSubcategory || "" },
+        { headers }
       );
-      toast.success(`${bulkSelectedIds.length} transacciones actualizadas`);
+      toast.success(`${res.data?.updated ?? bulkSelectedIds.length} transacciones actualizadas`);
       setBulkSelectedIds([]);
       setBulkCategory("");
       setBulkSubcategory("");
       fetchTransactions();
-    } catch {
-      toast.error("No se pudieron actualizar todas las transacciones");
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "No se pudieron actualizar las transacciones");
     } finally {
       setBulkApplying(false);
     }

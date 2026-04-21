@@ -129,6 +129,64 @@ async def update_transaction(transaction_id: str, transaction: TransactionCreate
     return TransactionResponse(**updated)
 
 
+@router.post("/transactions/bulk-categorize")
+async def bulk_categorize_transactions(payload: dict, user: dict = Depends(get_current_user)):
+    """Actualiza categoría/subcategoría de varias transacciones en una sola llamada.
+    Body: {ids: [str], category: str, subcategory?: str}.
+    Adicionalmente upsert de known_vendors para cada establecimiento único."""
+    ids = payload.get("ids") or []
+    category = (payload.get("category") or "").strip()
+    subcategory = (payload.get("subcategory") or "").strip()
+    if not ids or not category:
+        raise HTTPException(status_code=400, detail="ids y category son requeridos")
+
+    update_set = {"category": category}
+    if subcategory:
+        update_set["subcategory"] = subcategory
+    result = await db.transactions.update_many(
+        {"id": {"$in": ids}, "user_id": user["id"]},
+        {"$set": update_set},
+    )
+
+    # Upsert known_vendors para cada establecimiento único de las tx seleccionadas.
+    txs = await db.transactions.find(
+        {"id": {"$in": ids}, "user_id": user["id"]},
+        {"_id": 0, "establishment": 1},
+    ).to_list(len(ids))
+    establishments = {(t.get("establishment") or "").strip() for t in txs}
+    establishments.discard("")
+    now_iso = datetime.now(timezone.utc).isoformat()
+    vendors_upserted = 0
+    for est in establishments:
+        normalized = est.lower()
+        vendor_set = {
+            "personal_category": category,
+            "subcategory": subcategory or "General",
+            "last_used": now_iso,
+        }
+        existing_vendor = await db.known_vendors.find_one({
+            "user_id": user["id"],
+            "establishment": {"$regex": f"^{re.escape(normalized)}$", "$options": "i"},
+        })
+        if existing_vendor:
+            await db.known_vendors.update_one(
+                {"id": existing_vendor["id"]},
+                {"$set": vendor_set, "$inc": {"times_used": 1}},
+            )
+        else:
+            await db.known_vendors.insert_one({
+                "id": str(uuid.uuid4()), "user_id": user["id"], "establishment": est,
+                **vendor_set, "times_used": 1, "created_at": now_iso,
+            })
+        vendors_upserted += 1
+
+    return {
+        "updated": result.modified_count,
+        "matched": result.matched_count,
+        "vendors_upserted": vendors_upserted,
+    }
+
+
 @router.get("/transactions/international")
 async def get_international_transactions(user: dict = Depends(get_current_user)):
     transactions = await db.transactions.find({"user_id": user["id"], "is_international": True}, {"_id": 0}).sort("date", -1).to_list(1000)
