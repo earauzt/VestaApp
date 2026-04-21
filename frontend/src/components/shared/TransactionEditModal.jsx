@@ -65,7 +65,11 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
       <DialogContent className="sm:max-w-[520px] overflow-y-auto max-h-[90vh]" data-testid="transaction-edit-modal">
         <DialogHeader>
           <DialogTitle>{isBulk ? `Categorizar ${bulkCount} transacciones` : "Editar transacción"}</DialogTitle>
-          {isBulk && <DialogDescription>Se aplicará la categoría a todas las seleccionadas.</DialogDescription>}
+          <DialogDescription>
+            {isBulk
+              ? "Se aplicará la categoría a todas las seleccionadas."
+              : "Actualiza la categorización y los campos fiscales de esta transacción."}
+          </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
