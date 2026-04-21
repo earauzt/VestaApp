@@ -1,21 +1,24 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
+import { Card, CardContent } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Label } from "../components/ui/label";
 import { Input } from "../components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Badge } from "../components/ui/badge";
-import { Checkbox } from "../components/ui/checkbox";
 import { Textarea } from "../components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import ReconciliacionEstados from "../components/ReconciliacionEstados";
+import TabImportar from "../components/bandeja/TabImportar";
+import TabPorRevisar from "../components/bandeja/TabPorRevisar";
+import TabHistorial from "../components/bandeja/TabHistorial";
+import BandejaStats from "../components/bandeja/BandejaStats";
+import { BulkActionDialog, GmailConsentDialog } from "../components/bandeja/BandejaDialogs";
 import Transactions from "./Transactions";
 import { 
   CloudArrowUp,
@@ -23,26 +26,13 @@ import {
   CheckCircle,
   XCircle,
   Receipt,
-  X,
-  Images,
-  FileXls,
   Eye,
   Pencil,
-  Storefront,
-  CreditCard,
-  CalendarBlank,
   FileText,
-  Warning,
   Copy,
-  CheckSquare,
-  ArrowRight,
-  Bank,
-  EnvelopeSimple,
-  ArrowsClockwise,
-  GoogleLogo
+  CheckSquare
 } from "@phosphor-icons/react";
 
-import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // ============ CATEGORÍAS PERSONALES (del Excel del usuario) ============
@@ -1121,382 +1111,56 @@ export default function CargarValidar() {
 
             {/* Importar Tab (Cargar + Estados + Gmail sync) */}
             <TabsContent value="importar">
-              <div className="grid lg:grid-cols-2 gap-6">
-                {/* Upload Area */}
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label>Screenshots, Recibos o PDFs</Label>
-                    <p className="text-sm text-muted-foreground">Sube múltiples archivos para procesarlos con AI (OCR)</p>
-                  </div>
-                  
-                  <div
-                    className={`border-2 border-dashed rounded-xl p-6 text-center transition-colors ${
-                      dragActive ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
-                    }`}
-                    onDragEnter={handleDrag}
-                    onDragLeave={handleDrag}
-                    onDragOver={handleDrag}
-                    onDrop={handleDrop}
-                    data-testid="dropzone"
-                  >
-                    <Images size={40} className="mx-auto text-muted-foreground mb-3" />
-                    <p className="text-muted-foreground mb-2">Arrastra archivos aquí o</p>
-                    <label>
-                      <input type="file" accept="image/*,.pdf,application/pdf,.xlsx,.xls" multiple className="hidden" onChange={handleFileSelect} />
-                      <Button variant="outline" asChild><span>Seleccionar archivos</span></Button>
-                    </label>
-                    <p className="text-xs text-muted-foreground mt-2">JPG, PNG, PDF, Excel</p>
-                  </div>
-
-                  {selectedFiles.length > 0 && (
-                    <div className="space-y-2">
-                      <Label>{selectedFiles.length} archivo(s)</Label>
-                      <div className="max-h-[200px] overflow-y-auto space-y-2">
-                        {selectedFiles.map((file, index) => {
-                          const isStatement = isBankStatement(file);
-                          const isExcel = file.name.endsWith('.xlsx') || file.name.endsWith('.xls');
-                          return (
-                            <div key={`${file.name}-${file.size}`} className={`flex items-center justify-between p-3 rounded-lg ${isStatement ? 'bg-primary/10 border border-primary/20' : 'bg-muted'}`}>
-                              <div className="flex items-center gap-3">
-                                {isExcel ? (
-                                  <FileXls size={20} className="text-emerald-600" />
-                                ) : isStatement ? (
-                                  <CreditCard size={20} className="text-primary" />
-                                ) : (
-                                  <Receipt size={20} className="text-muted-foreground" />
-                                )}
-                                <div>
-                                  <span className="text-sm truncate max-w-[180px] block">{file.name}</span>
-                                  {isStatement && <span className="text-xs text-primary">Estado de cuenta detectado</span>}
-                                </div>
-                              </div>
-                              <Button variant="ghost" size="icon" onClick={() => removeFile(index)}>
-                                <X size={16} />
-                              </Button>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  <div className="flex gap-2">
-                    <Button 
-                      onClick={handleMultipleFilesUpload}
-                      disabled={loading || !selectedFiles.some(f => !f.name.endsWith('.xlsx') && !f.name.endsWith('.xls'))}
-                      className="flex-1 gap-2"
-                    >
-                      {loading ? <SpinnerGap size={18} className="animate-spin" /> : <CloudArrowUp size={18} />}
-                      Procesar Archivos
-                    </Button>
-                    <Button 
-                      onClick={handleExcelUpload}
-                      disabled={loading || !selectedFiles.some(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'))}
-                      variant="outline"
-                      className="gap-2"
-                    >
-                      <FileXls size={18} />
-                      Excel
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Results */}
-                <div className="space-y-4">
-                  <Label>Resultado del procesamiento</Label>
-                  {loading ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                      <SpinnerGap size={48} className="animate-spin mb-4" />
-                      <p>{processingStatus || "Procesando con AI..."}</p>
-                    </div>
-                  ) : result ? (
-                    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle size={24} className="text-emerald-500" />
-                        <span className="font-medium">{result.message}</span>
-                      </div>
-                      
-                      {/* Card Info Extracted */}
-                      {result.card_info && (
-                        <div className="p-4 rounded-md bg-slate-50 border border-slate-200">
-                          <div className="flex items-center gap-2 mb-3">
-                            <CreditCard size={20} className="text-[#0D9E82]" />
-                            <span className="font-semibold text-slate-900">Tarjeta Actualizada</span>
-                          </div>
-                          <div className="grid grid-cols-2 gap-3 text-sm">
-                            <div>
-                              <p className="text-muted-foreground">Banco/Tarjeta</p>
-                              <p className="font-medium">{result.card_info.name || result.card_info.bank}</p>
-                            </div>
-                            <div>
-                              <p className="text-muted-foreground">Saldo Actual</p>
-                              <p className="font-bold text-lg">{formatCurrency(result.card_info.current_balance)}</p>
-                            </div>
-                            {result.card_info.minimum_payment > 0 && (
-                              <div>
-                                <p className="text-muted-foreground">Pago Mínimo</p>
-                                <p className="font-medium">{formatCurrency(result.card_info.minimum_payment)}</p>
-                              </div>
-                            )}
-                            {result.card_info.due_date && (
-                              <div>
-                                <p className="text-muted-foreground">Fecha de Pago</p>
-                                <p className="font-medium">{result.card_info.due_date}</p>
-                              </div>
-                            )}
-                            {result.card_info.credit_limit > 0 && (
-                              <div>
-                                <p className="text-muted-foreground">Límite</p>
-                                <p className="font-medium">{formatCurrency(result.card_info.credit_limit)}</p>
-                              </div>
-                            )}
-                            {result.card_info.apr > 0 && (
-                              <div>
-                                <p className="text-muted-foreground">APR</p>
-                                <p className="font-medium">{result.card_info.apr}%</p>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                      
-                      {result.transactions?.length > 0 && (
-                        <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                          <p className="text-sm text-muted-foreground">{result.transactions.length} transacciones extraídas:</p>
-                          {result.transactions.map((t, i) => (
-                            <div key={t.id || `${t.description}-${t.amount}`} className="p-3 rounded-lg bg-muted">
-                              <div className="flex justify-between">
-                                <p className="font-medium truncate">{t.description || t.establishment}</p>
-                                <span className="font-mono">{formatCurrency(t.amount)}</span>
-                              </div>
-                              <div className="flex gap-2 mt-1">
-                                <Badge className="text-xs">{t.category}</Badge>
-                                {t.date && <span className="text-xs text-muted-foreground">{t.date}</span>}
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                      <Button onClick={() => { setActiveTab("revisar"); fetchPendingData(); }} className="w-full gap-2">
-                        <ArrowRight size={18} />
-                        Ir a Validar
-                      </Button>
-                    </motion.div>
-                  ) : (
-                    <div className="flex flex-col items-center justify-center py-12 text-muted-foreground">
-                      <CloudArrowUp size={48} className="mb-4 opacity-50" />
-                      <p>Los resultados aparecerán aquí</p>
-                      <p className="text-xs mt-2">Soporta: recibos, facturas, estados de cuenta</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Sección: Correo electrónico (Gmail sync) */}
-              <div className="mt-6 border rounded-xl p-4 sm:p-6 bg-muted/20" data-testid="gmail-sync-section">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-2 rounded-lg bg-red-50 text-red-500">
-                    <EnvelopeSimple size={18} weight="duotone" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">Correo electrónico</h3>
-                    <p className="text-xs text-muted-foreground">
-                      {gmailStatus.connected
-                        ? `Último sync: ${gmailStatus.last_sync ? new Date(gmailStatus.last_sync).toLocaleString("es-EC") : "Nunca"}`
-                        : "Conecta Gmail para detectar consumos automáticamente"}
-                    </p>
-                  </div>
-                </div>
-                {!gmailStatus.connected ? (
-                  <Button onClick={() => setShowGmailConsentModal(true)} className="gap-2" disabled={gmailConnecting} data-testid="gmail-connect-btn-importar">
-                    {gmailConnecting ? <><SpinnerGap size={16} className="animate-spin" /> Conectando...</> : <><GoogleLogo size={16} weight="bold" /> Conectar Gmail</>}
-                  </Button>
-                ) : (
-                  <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
-                    <div className="flex gap-2 flex-wrap">
-                      <Badge className="gap-1 bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100" data-testid="gmail-pending-badge">
-                        Pendientes: {gmailSummary.pendiente || 0}
-                      </Badge>
-                      <Badge className="gap-1 bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
-                        Aprobados: {gmailSummary.aprobado || 0}
-                      </Badge>
-                    </div>
-                    <Button onClick={handleGmailSync} disabled={gmailSyncing} className="gap-2" data-testid="gmail-sync-btn">
-                      <ArrowsClockwise size={16} className={gmailSyncing ? "animate-spin" : ""} />
-                      {gmailSyncing ? "Sincronizando..." : "Sincronizar ahora"}
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Sección: Estados de cuenta */}
-              <div className="mt-6">
-                <ReconciliacionEstados />
-              </div>
+              <TabImportar
+                selectedFiles={selectedFiles}
+                dragActive={dragActive}
+                loading={loading}
+                result={result}
+                processingStatus={processingStatus}
+                handleDrag={handleDrag}
+                handleDrop={handleDrop}
+                handleFileSelect={handleFileSelect}
+                handleMultipleFilesUpload={handleMultipleFilesUpload}
+                handleExcelUpload={handleExcelUpload}
+                removeFile={removeFile}
+                isBankStatement={isBankStatement}
+                formatCurrency={formatCurrency}
+                setActiveTab={setActiveTab}
+                fetchPendingData={fetchPendingData}
+                gmailStatus={gmailStatus}
+                gmailSummary={gmailSummary}
+                gmailSyncing={gmailSyncing}
+                gmailConnecting={gmailConnecting}
+                setShowGmailConsentModal={setShowGmailConsentModal}
+                handleGmailSync={handleGmailSync}
+              />
             </TabsContent>
 
             {/* Revisar Tab - Unified review list (Gmail + Statements) */}
             <TabsContent value="revisar">
-              <div className="space-y-4" data-testid="revisar-tab-content">
-                {/* Toolbar */}
-                <div className="flex flex-col lg:flex-row gap-3 lg:items-center justify-between pb-2 border-b">
-                  <div className="flex gap-2 flex-wrap">
-                    <Select value={reviewFilter.source} onValueChange={(v) => setReviewFilter({ ...reviewFilter, source: v })}>
-                      <SelectTrigger className="w-[150px] h-9" data-testid="review-source-filter">
-                        <SelectValue placeholder="Origen" />
-                      </SelectTrigger>
-                      <SelectContent className="z-[250]">
-                        <SelectItem value="all">Todos los orígenes</SelectItem>
-                        <SelectItem value="gmail">Solo Gmail</SelectItem>
-                        <SelectItem value="statement">Solo PDF/Estados</SelectItem>
-                        <SelectItem value="manual">Solo manuales</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <Select value={reviewFilter.category} onValueChange={(v) => setReviewFilter({ ...reviewFilter, category: v })}>
-                      <SelectTrigger className="w-[170px] h-9" data-testid="review-category-filter">
-                        <SelectValue placeholder="Categoría" />
-                      </SelectTrigger>
-                      <SelectContent className="z-[250]">
-                        <SelectItem value="all">Todas las categorías</SelectItem>
-                        {Object.entries(budgetCategories).map(([k, v]) => (
-                          <SelectItem key={k} value={k}>{v.name || k}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <label className="flex items-center gap-2 text-xs cursor-pointer">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-primary"
-                        checked={reviewAllSelected}
-                        onChange={toggleReviewSelectAll}
-                        data-testid="review-select-all"
-                      />
-                      Seleccionar todos ({filteredReview.length})
-                    </label>
-                    <Button
-                      size="sm"
-                      onClick={handleReviewBulkApprove}
-                      disabled={reviewSelectedIds.length === 0 || reviewBulkApproving}
-                      data-testid="review-bulk-approve-btn"
-                      className="bg-emerald-600 hover:bg-emerald-700"
-                    >
-                      {reviewBulkApproving ? "Aprobando..." : `Aprobar seleccionados (${reviewSelectedIds.length})`}
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Unified list */}
-                {filteredReview.length === 0 ? (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <CheckCircle size={40} className="mx-auto mb-3 text-emerald-500" />
-                    <p className="font-medium">No hay transacciones por revisar</p>
-                    <p className="text-xs mt-1">Las nuevas transacciones aparecerán aquí</p>
-                  </div>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredReview.map((item) => {
-                      const selectedCat = rowCategory[item.id] || item.suggested_category;
-                      const sourceBadgeColor = item.source === "gmail"
-                        ? "bg-red-50 text-red-700 border-red-200"
-                        : item.source === "manual"
-                        ? "bg-slate-50 text-[#0D9E82] border-slate-200"
-                        : "bg-slate-100 text-[#0D9E82] border-slate-200";
-                      return (
-                        <div
-                          key={item.id}
-                          className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
-                          data-testid={`review-item-${item.id}`}
-                        >
-                          <input
-                            type="checkbox"
-                            className="h-4 w-4 accent-primary shrink-0"
-                            checked={reviewSelectedIds.includes(item.id)}
-                            onChange={() => toggleReviewSelect(item.id)}
-                            data-testid={`review-check-${item.id}`}
-                          />
-                          <div className="flex-1 min-w-0 flex items-center gap-3">
-                            <span className="text-xs text-muted-foreground shrink-0 w-20">{item.date}</span>
-                            <div className="flex-1 min-w-0 flex items-center gap-2">
-                              <p className="font-medium text-sm truncate" data-testid={`review-comercio-${item.id}`}>{item.comercio}</p>
-                              {(() => {
-                                const stats = vendorStats[(item.comercio || "").toLowerCase()];
-                                if (!stats) return null;
-                                if (stats.found && stats.times_used > 0) {
-                                  return (
-                                    <Badge
-                                      variant="outline"
-                                      className="text-[10px] shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
-                                      data-testid={`review-badge-recurrente-${item.id}`}
-                                    >
-                                      Recurrente ({stats.times_used})
-                                    </Badge>
-                                  );
-                                }
-                                return (
-                                  <Badge
-                                    variant="outline"
-                                    className="text-[10px] shrink-0 bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300"
-                                    data-testid={`review-badge-nuevo-${item.id}`}
-                                  >
-                                    Nuevo
-                                  </Badge>
-                                );
-                              })()}
-                            </div>
-                            <span className="font-mono font-semibold text-sm shrink-0">${(item.amount || 0).toFixed(2)}</span>
-                            <Badge variant="outline" className={`text-[10px] shrink-0 ${sourceBadgeColor}`} data-testid={`review-source-${item.id}`}>
-                              {item.source_label}
-                            </Badge>
-                          </div>
-                          <Select
-                            value={selectedCat}
-                            onValueChange={(v) => {
-                              setRowCategory(prev => ({ ...prev, [item.id]: v }));
-                              setRowSubcategory(prev => ({ ...prev, [item.id]: "" }));
-                            }}
-                          >
-                            <SelectTrigger className="w-[160px] h-9 shrink-0" data-testid={`review-cat-${item.id}`}>
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="z-[250]">
-                              {Object.entries(budgetCategories).map(([k, v]) => (
-                                <SelectItem key={k} value={k}>{v.name || k}</SelectItem>
-                              ))}
-                              {!budgetCategories[selectedCat] && (
-                                <SelectItem value={selectedCat}>{selectedCat}</SelectItem>
-                              )}
-                            </SelectContent>
-                          </Select>
-                          <Select
-                            value={rowSubcategory[item.id] || ""}
-                            onValueChange={(v) => setRowSubcategory(prev => ({ ...prev, [item.id]: v === "__none__" ? "" : v }))}
-                            disabled={!PERSONAL_CATEGORIES[selectedCat]?.subcategories}
-                          >
-                            <SelectTrigger className="w-[150px] h-9 shrink-0" data-testid={`review-subcat-${item.id}`}>
-                              <SelectValue placeholder="Subcategoría" />
-                            </SelectTrigger>
-                            <SelectContent className="z-[250]">
-                              <SelectItem value="__none__">Sin subcategoría</SelectItem>
-                              {PERSONAL_CATEGORIES[selectedCat]?.subcategories?.map((sub) => (
-                                <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
+              <TabPorRevisar
+                budgetCategories={budgetCategories}
+                PERSONAL_CATEGORIES={PERSONAL_CATEGORIES}
+                reviewFilter={reviewFilter}
+                setReviewFilter={setReviewFilter}
+                filteredReview={filteredReview}
+                reviewSelectedIds={reviewSelectedIds}
+                toggleReviewSelect={toggleReviewSelect}
+                reviewAllSelected={reviewAllSelected}
+                toggleReviewSelectAll={toggleReviewSelectAll}
+                handleReviewBulkApprove={handleReviewBulkApprove}
+                reviewBulkApproving={reviewBulkApproving}
+                rowCategory={rowCategory}
+                setRowCategory={setRowCategory}
+                rowSubcategory={rowSubcategory}
+                setRowSubcategory={setRowSubcategory}
+                vendorStats={vendorStats}
+              />
             </TabsContent>
 
             {/* Historial Tab - reutiliza componente Transactions */}
             <TabsContent value="historial">
-              <div data-testid="historial-tab-content">
-                <Transactions embedded />
-              </div>
+              <TabHistorial />
             </TabsContent>
 
 
@@ -1504,128 +1168,24 @@ export default function CargarValidar() {
         </CardContent>
       </Card>
 
-      {/* Bulk Action Dialog */}
-      <Dialog open={showBulkDialog} onOpenChange={setShowBulkDialog}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Acción en Lote</DialogTitle>
-            <DialogDescription>
-              Procesar {selectedItems.length} transacciones seleccionadas
-            </DialogDescription>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div>
-              <Label>Acción</Label>
-              <Select value={bulkAction} onValueChange={setBulkAction}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="z-[250]">
-                  <SelectItem value="approve">Aprobar todas</SelectItem>
-                  <SelectItem value="reject">Rechazar todas</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            
-            {bulkAction === "approve" && (
-              <>
-                <div>
-                  <Label>Categoría (opcional)</Label>
-                  <Select value={bulkCategory || "keep"} onValueChange={(v) => { setBulkCategory(v === "keep" ? "" : v); setBulkSubcategory(""); }}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Mantener categoría actual" />
-                    </SelectTrigger>
-                    <SelectContent className="z-[250]">
-                      <SelectItem value="keep">Mantener actual</SelectItem>
-                      {Object.entries(PERSONAL_CATEGORIES).map(([key, cat]) => (
-                        <SelectItem key={key} value={key}>{cat.name}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                {bulkCategory && PERSONAL_CATEGORIES[bulkCategory]?.subcategories && (
-                  <div>
-                    <Label>Subcategoría</Label>
-                    <Select value={bulkSubcategory || "none"} onValueChange={(v) => setBulkSubcategory(v === "none" ? "" : v)}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Seleccionar subcategoría" />
-                      </SelectTrigger>
-                      <SelectContent className="z-[250]">
-                        <SelectItem value="none">Sin subcategoría</SelectItem>
-                        {PERSONAL_CATEGORIES[bulkCategory].subcategories.map(sub => (
-                          <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-          
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowBulkDialog(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleBulkAction} disabled={loading}>
-              {loading ? <SpinnerGap className="animate-spin mr-2" size={16} /> : null}
-              Procesar {selectedItems.length} transacciones
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <BulkActionDialog
+        open={showBulkDialog}
+        onOpenChange={setShowBulkDialog}
+        selectedCount={selectedItems.length}
+        bulkAction={bulkAction} setBulkAction={setBulkAction}
+        bulkCategory={bulkCategory} setBulkCategory={setBulkCategory}
+        bulkSubcategory={bulkSubcategory} setBulkSubcategory={setBulkSubcategory}
+        PERSONAL_CATEGORIES={PERSONAL_CATEGORIES}
+        handleBulkAction={handleBulkAction}
+        loading={loading}
+      />
 
-      {/* Gmail Consent Modal */}
-      <Dialog open={showGmailConsentModal} onOpenChange={setShowGmailConsentModal}>
-        <DialogContent className="sm:max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="text-xl">Que va a leer FamilyFinance de tu correo?</DialogTitle>
-            <DialogDescription>
-              Solo accedemos a emails de remitentes financieros especificos
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-2">
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
-              <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
-              <p className="text-sm">Emails de consumo de tus bancos (Diners, PacifiCard, Pacifico, Pichincha, Bolivariano)</p>
-            </div>
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
-              <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
-              <p className="text-sm">Facturas electronicas que lleguen a tu correo</p>
-            </div>
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/20">
-              <CheckCircle size={20} className="text-emerald-600 shrink-0 mt-0.5" weight="fill" />
-              <p className="text-sm">Estados de cuenta en PDF</p>
-            </div>
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-red-50 dark:bg-red-950/20">
-              <XCircle size={20} className="text-red-500 shrink-0 mt-0.5" weight="fill" />
-              <p className="text-sm">Emails personales, de trabajo o de cualquier otro remitente — nunca los leemos</p>
-            </div>
-            <p className="text-xs text-muted-foreground pt-2">
-              FamilyFinance solo lee emails de remitentes financieros especificos. Nunca almacenamos el contenido de tus emails personales. Puedes desconectar tu cuenta en cualquier momento.
-            </p>
-          </div>
-          <DialogFooter className="gap-2 sm:gap-0">
-            <Button variant="outline" onClick={() => setShowGmailConsentModal(false)}>
-              Cancelar
-            </Button>
-            <Button
-              onClick={() => { setShowGmailConsentModal(false); handleConnectGmail(); }}
-              disabled={gmailConnecting}
-              className="gap-2"
-              data-testid="gmail-consent-confirm-btn"
-            >
-              {gmailConnecting ? (
-                <><SpinnerGap size={16} className="animate-spin" /> Conectando...</>
-              ) : (
-                <><GoogleLogo size={18} weight="bold" /> Entendido, conectar</>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <GmailConsentDialog
+        open={showGmailConsentModal}
+        onOpenChange={setShowGmailConsentModal}
+        handleConnectGmail={handleConnectGmail}
+        gmailConnecting={gmailConnecting}
+      />
     </div>
   );
 }
