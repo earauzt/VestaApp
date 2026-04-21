@@ -34,17 +34,23 @@ export default function SriMatch() {
   const [expired, setExpired] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("match_aproximado");
+  const [facturas, setFacturas] = useState([]);
+  const [facturasUnprocessed, setFacturasUnprocessed] = useState(0);
+  const [processingPdfs, setProcessingPdfs] = useState(false);
 
   const fetchAll = useCallback(async () => {
     try {
       const headers = getAuthHeadersRef.current();
-      const [c, p] = await Promise.all([
+      const [c, p, f] = await Promise.all([
         axios.get(`${API}/sri/counters`, { headers }),
         axios.get(`${API}/sri/pending`, { headers }),
+        axios.get(`${API}/gmail/facturas-summary`, { headers }).catch(() => ({ data: { total: 0, unprocessed: 0, documents: [] } })),
       ]);
       setCounters(c.data);
       setAprox(p.data.match_aproximado || []);
       setExpired(p.data.sin_respaldo_72h || []);
+      setFacturas(f.data.documents || []);
+      setFacturasUnprocessed(f.data.unprocessed || 0);
     } catch {
       toast.error("Error al cargar SRI match");
     } finally {
@@ -100,6 +106,23 @@ export default function SriMatch() {
     }
   };
 
+  const handleProcessPdfs = async () => {
+    setProcessingPdfs(true);
+    try {
+      const r = await axios.post(`${API}/gmail/process-factura-pdfs`, {}, { headers: getAuthHeadersRef.current() });
+      toast.success(`${r.data.processed} PDFs procesados (${r.data.errors} errores)`);
+      fetchAll();
+    } catch {
+      toast.error("Error al procesar PDFs");
+    } finally {
+      setProcessingPdfs(false);
+    }
+  };
+
+  const handleViewPdf = (docId) => {
+    window.open(`${API}/gmail/documents/${docId}/view`, "_blank");
+  };
+
   const handleRescan = async () => {
     try {
       const r = await axios.post(`${API}/sri/scan`, {}, { headers: getAuthHeadersRef.current() });
@@ -124,10 +147,23 @@ export default function SriMatch() {
           </h1>
           <p className="text-muted-foreground">Vincula facturas SRI con sus consumos de tarjeta/débito</p>
         </div>
-        <Button variant="outline" onClick={handleRescan} className="gap-2" data-testid="rescan-btn">
-          <ArrowsClockwise size={16} />
-          Reescanear
-        </Button>
+        <div className="flex gap-2">
+          {facturasUnprocessed > 0 && (
+            <Button
+              onClick={handleProcessPdfs}
+              disabled={processingPdfs}
+              className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
+              data-testid="process-pdfs-btn"
+            >
+              <LIFile size={16} />
+              {processingPdfs ? "Procesando..." : `Procesar PDFs (${facturasUnprocessed})`}
+            </Button>
+          )}
+          <Button variant="outline" onClick={handleRescan} className="gap-2" data-testid="rescan-btn">
+            <ArrowsClockwise size={16} />
+            Reescanear
+          </Button>
+        </div>
       </div>
 
       {/* Counters */}
@@ -151,7 +187,61 @@ export default function SriMatch() {
         })}
       </div>
 
-      {/* Tabs */}
+      {/* Facturas SRI descargadas */}
+      {facturas.length > 0 && (
+        <Card className="bg-white border border-[#E2EAE8] rounded-lg shadow-sm" data-testid="facturas-section">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base font-medium text-[#0F1D1A] flex items-center gap-2">
+              <LIFile size={18} className="text-[#0D9E82]" />
+              Mis Facturas electrónicas ({facturas.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="divide-y divide-[#E2EAE8]">
+              {facturas.map((f) => (
+                <div key={f.id} className="flex items-center gap-3 py-2" data-testid={`factura-row-${f.id}`}>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-medium text-sm text-[#0F1D1A]">
+                        {f.numero_factura || "sin número"}
+                      </span>
+                      {f.filepath && (
+                        <Badge variant="outline" className="text-[10px] border-[#E2EAE8] text-[#5C7A74] inline-flex items-center gap-1" data-testid={`factura-pdf-badge-${f.id}`}>
+                          <LIFile size={10} /> PDF
+                        </Badge>
+                      )}
+                      {!f.procesado && (
+                        <Badge variant="outline" className="text-[10px] bg-amber-50 border-amber-200 text-amber-700">
+                          sin procesar
+                        </Badge>
+                      )}
+                    </div>
+                    <p className="text-xs text-[#5C7A74] truncate">
+                      {f.emisor || (f.remitente || "").split("<").pop().replace(">", "") || "Emisor desconocido"}
+                      {f.ruc_emisor ? ` · RUC ${f.ruc_emisor}` : ""}
+                    </p>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <div className="text-sm font-medium text-[#0F1D1A]" data-testid={`factura-monto-${f.id}`}>
+                      {f.monto != null ? fmtCurrency(f.monto) : "—"}
+                    </div>
+                    <div className="text-xs text-[#5C7A74]">{f.fecha || f.fecha_email || ""}</div>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="border-[#E2EAE8] text-[#0F1D1A] hover:bg-[#F8FAF9] shrink-0"
+                    onClick={() => handleViewPdf(f.id)}
+                    data-testid={`factura-view-${f.id}`}
+                  >
+                    Ver
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="match_aproximado" data-testid="tab-aprox">Match aproximado ({aprox.length})</TabsTrigger>

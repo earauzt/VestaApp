@@ -15,7 +15,7 @@ router = APIRouter()
 async def get_credit_cards(user: dict = Depends(get_current_user)):
     cards = await db.credit_cards.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
     for card in cards:
-        card["available_credit"] = card.get("credit_limit", 0) - card.get("current_balance", 0)
+        card["available_credit"] = (card.get("credit_limit") or 0) - (card.get("current_balance") or 0)
     return cards
 
 
@@ -64,11 +64,11 @@ async def delete_credit_card(card_id: str, user: dict = Depends(get_current_user
 @router.get("/debt/summary")
 async def get_debt_summary(user: dict = Depends(get_current_user)):
     cards = await db.credit_cards.find({"user_id": user["id"]}, {"_id": 0}).to_list(100)
-    total_debt = sum(c.get("current_balance", 0) for c in cards)
-    total_limit = sum(c.get("credit_limit", 0) for c in cards)
-    total_minimum = sum(c.get("minimum_payment", 0) for c in cards)
-    weighted_apr = sum(c.get("current_balance", 0) * c.get("apr", 0) for c in cards) / total_debt if total_debt > 0 else 0
-    cards_by_apr = sorted(cards, key=lambda x: x.get("apr", 0), reverse=True)
+    total_debt = sum((c.get("current_balance") or 0) for c in cards)
+    total_limit = sum((c.get("credit_limit") or 0) for c in cards)
+    total_minimum = sum((c.get("minimum_payment") or 0) for c in cards)
+    weighted_apr = sum((c.get("current_balance") or 0) * (c.get("apr") or 0) for c in cards) / total_debt if total_debt > 0 else 0
+    cards_by_apr = sorted(cards, key=lambda x: x.get("apr") or 0, reverse=True)
     return {"total_debt": total_debt, "total_credit_limit": total_limit, "total_available_credit": total_limit - total_debt, "total_minimum_payment": total_minimum, "weighted_average_apr": round(weighted_apr, 2), "utilization_rate": round((total_debt / total_limit * 100) if total_limit > 0 else 0, 1), "cards_count": len(cards), "cards": cards, "highest_apr_card": cards_by_apr[0] if cards_by_apr else None}
 
 

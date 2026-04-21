@@ -22,6 +22,7 @@ from utils import (
     GOOGLE_REDIRECT_URI, EMERGENT_LLM_KEY, extract_text_from_pdf,
     process_bank_statement_text, lookup_known_vendor
 )
+from routes.documents import _upsert_card_from_statement, _save_deferred_purchases
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from parsers import dispatch as parser_dispatch, extract_html_body, extract_text_body
 from utils import dedup_or_merge
@@ -201,6 +202,7 @@ async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, t
                         ai_result = await process_bank_statement_text(extracted_text)
                         transactions = ai_result.get("transactions", [])
                         card_info = ai_result.get("card_info", {})
+                        deferred_purchases = ai_result.get("deferred_purchases", [])
                         tx_count = 0
                         for t in transactions:
                             amount = t.get("amount") or t.get("monto", 0)
@@ -209,9 +211,20 @@ async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, t
                             tx_doc = {"id": str(uuid.uuid4()), "user_id": user_id, "amount": abs(float(amount)), "description": t.get("description") or t.get("descripcion", ""), "establishment": t.get("establishment") or t.get("comercio", ""), "vendor": t.get("establishment") or t.get("comercio", ""), "date": t.get("date") or t.get("fecha") or fecha, "personal_category": t.get("category") or "otros", "category": t.get("category") or "otros", "source": "gmail_pdf", "gmail_doc_id": doc_id, "status": "pending_review", "created_at": datetime.now(timezone.utc).isoformat()}
                             await db.transactions.insert_one(tx_doc)
                             tx_count += 1
+                        # Upsert credit card info (closes the gap where Gmail flow didn't update credit_cards)
+                        response_data_stub = {}
+                        try:
+                            if card_info.get("current_balance") is not None:
+                                await _upsert_card_from_statement(user_id, card_info, response_data_stub)
+                            if deferred_purchases:
+                                await _save_deferred_purchases(user_id, deferred_purchases, card_info, response_data_stub, filename)
+                        except Exception as e:
+                            logger.error(f"Error updating card from Gmail statement: {e}")
                         doc_record["procesado"] = True
                         doc_record["transactions_count"] = tx_count
                         doc_record["card_info"] = card_info
+                        doc_record["card_updated"] = response_data_stub.get("card_updated", False)
+                        doc_record["deferred_payments_created"] = response_data_stub.get("deferred_payments_created", 0)
                         result["extracted_transactions"] = tx_count
                         logger.info(f"Gmail PDF processed: {tx_count} transactions from {filepath}")
                 except Exception as e:
@@ -789,6 +802,94 @@ async def reprocess_gmail_document(doc_id: str, user: dict = Depends(get_current
         tx_count += 1
     await db.gmail_documents.update_one({"id": doc_id}, {"$set": {"procesado": True, "transactions_count": tx_count}})
     return {"status": "success", "transactions_extracted": tx_count}
+
+
+async def _parse_factura_pdf(filepath: str) -> dict:
+    """Extrae datos estructurados de una factura electrónica ecuatoriana (PDF)."""
+    text = extract_text_from_pdf(filepath) or ""
+    if len(text) < 20:
+        return {"ok": False, "error": "PDF sin texto extraíble"}
+    # Regex extraction (fast, no AI)
+    numero = None
+    m = re.search(r"(\d{3}-\d{3}-\d{6,9})", text)
+    if m:
+        numero = m.group(1)
+    ruc = None
+    m2 = re.search(r"\b(\d{13})\b", text)
+    if m2:
+        ruc = m2.group(1)
+    emisor = None
+    m3 = re.search(r"(?:raz[oó]n\s*social|nombre\s*comercial|emisor)[:\s]*([A-Z0-9 &.,ÑÁÉÍÓÚ-]{5,80})", text, re.IGNORECASE)
+    if m3:
+        emisor = m3.group(1).strip()[:80]
+    monto = None
+    for pat in [r"VALOR\s*TOTAL[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))", r"TOTAL\s*A\s*PAGAR[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))", r"IMPORTE\s*TOTAL[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))"]:
+        mm = re.search(pat, text, re.IGNORECASE)
+        if mm:
+            try:
+                monto = float(mm.group(1).replace(",", "."))
+                break
+            except Exception:
+                pass
+    fecha = None
+    mf = re.search(r"fecha\s*(?:de\s*)?emisi[oó]n[:\s]*(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})", text, re.IGNORECASE)
+    if mf:
+        fecha = mf.group(1)
+    return {"ok": True, "numero_factura": numero, "ruc_emisor": ruc, "emisor": emisor, "monto": monto, "fecha": fecha, "text_length": len(text)}
+
+
+@router.post("/gmail/process-factura-pdfs")
+async def process_factura_pdfs(user: dict = Depends(get_current_user)):
+    """Procesa PDFs de facturas SRI aún no parseados — extrae número, RUC, emisor, monto, fecha."""
+    docs = await db.gmail_documents.find({"user_id": user["id"], "tipo": "factura_sri"}, {"_id": 0}).to_list(100)
+    processed = 0
+    skipped = 0
+    errors = 0
+    results = []
+    for d in docs:
+        filepath = d.get("filepath")
+        if not filepath or not os.path.exists(filepath):
+            skipped += 1
+            continue
+        try:
+            data = await _parse_factura_pdf(filepath)
+            if not data.get("ok"):
+                errors += 1
+                continue
+            update = {"procesado": True}
+            for k in ("numero_factura", "ruc_emisor", "monto", "fecha"):
+                if data.get(k) is not None:
+                    update[k] = data[k]
+            if data.get("emisor"):
+                update["emisor"] = data["emisor"]
+            await db.gmail_documents.update_one({"id": d["id"]}, {"$set": update})
+            # Also update gmail_transactions with enriched data
+            gm_id = d.get("gmail_id")
+            if gm_id:
+                tx_update = {k: v for k, v in update.items() if k in ("numero_factura", "ruc_emisor", "monto", "emisor") and v is not None}
+                if tx_update:
+                    await db.gmail_transactions.update_one({"gmail_id": gm_id, "user_id": user["id"]}, {"$set": tx_update})
+            processed += 1
+            results.append({"id": d["id"], "filename": d.get("filename"), **{k: data.get(k) for k in ("numero_factura", "ruc_emisor", "emisor", "monto", "fecha")}})
+        except Exception as e:
+            logger.error(f"Error processing factura PDF {d.get('id')}: {e}")
+            errors += 1
+    return {"status": "success", "total": len(docs), "processed": processed, "skipped": skipped, "errors": errors, "results": results}
+
+
+@router.get("/gmail/facturas-summary")
+async def gmail_facturas_summary(user: dict = Depends(get_current_user)):
+    """Resumen de facturas SRI en gmail_documents, con estado de procesamiento."""
+    pipeline = [
+        {"$match": {"user_id": user["id"], "tipo": "factura_sri"}},
+        {"$sort": {"created_at": -1}},
+    ]
+    docs = []
+    async for d in db.gmail_documents.aggregate(pipeline):
+        d.pop("_id", None)
+        docs.append(d)
+    unprocessed = sum(1 for d in docs if not d.get("procesado") or not d.get("numero_factura"))
+    return {"total": len(docs), "unprocessed": unprocessed, "documents": docs}
 
 
 @router.get("/gmail/parser-quality")

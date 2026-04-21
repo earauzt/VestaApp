@@ -538,11 +538,12 @@ FORMATO DE RESPUESTA JSON:
     "available_credit": numero,
     "current_balance": numero (deuda total),
     "minimum_payment": numero,
+    "pago_total": numero (TOTAL A PAGAR / Pago de Contado / pago total),
     "apr": numero (tasa efectiva anual),
     "previous_balance": numero,
     "payments_received": numero,
     "period_charges": numero,
-    "deferred_balance": numero (saldo diferido)
+    "deferred_balance": numero (SALDO DIFERIDO / Credito Diferido / saldo actual diferido)
   },
   "transactions": [
     {

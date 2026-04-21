@@ -558,6 +558,8 @@ class CreditCard(BaseModel):
     payment_due_day: int
     currency: str = "USD"
     is_international: bool = False
+    saldo_diferido: Optional[float] = None
+    pago_total: Optional[float] = None
 
 class CreditCardUpdate(BaseModel):
     name: Optional[str] = None
@@ -570,6 +572,8 @@ class CreditCardUpdate(BaseModel):
     payment_due_day: Optional[int] = None
     currency: Optional[str] = None
     is_international: Optional[bool] = None
+    saldo_diferido: Optional[float] = None
+    pago_total: Optional[float] = None
 
 class CreditCardResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -588,6 +592,8 @@ class CreditCardResponse(BaseModel):
     is_international: bool
     created_at: str
     updated_at: Optional[str] = None
+    saldo_diferido: Optional[float] = None
+    pago_total: Optional[float] = None
 
 class DebtPayment(BaseModel):
     card_id: str

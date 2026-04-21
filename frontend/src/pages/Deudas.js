@@ -469,6 +469,22 @@ export default function Deudas() {
                                 <span className="text-slate-400">Saldo / Límite</span>
                                 <span>{formatCurrency(card.current_balance)} / {formatCurrency(card.credit_limit)}</span>
                               </div>
+                              {(card.saldo_diferido || card.pago_total) && (
+                                <div className="grid grid-cols-2 gap-2 text-xs bg-[#F8FAF9] border border-[#E2EAE8] rounded-md p-2 mt-2">
+                                  <div>
+                                    <span className="text-slate-500 block">Saldo diferido</span>
+                                    <span className="text-[#0F1D1A] font-medium" data-testid={`card-saldo-diferido-${card.id}`}>
+                                      {card.saldo_diferido != null ? formatCurrency(card.saldo_diferido) : "—"}
+                                    </span>
+                                  </div>
+                                  <div>
+                                    <span className="text-slate-500 block">Pago total</span>
+                                    <span className="text-[#0F1D1A] font-medium" data-testid={`card-pago-total-${card.id}`}>
+                                      {card.pago_total != null ? formatCurrency(card.pago_total) : "—"}
+                                    </span>
+                                  </div>
+                                </div>
+                              )}
                               <Progress 
                                 value={utilization} 
                                 className="h-2"

@@ -7,6 +7,7 @@ import os
 import logging
 import tempfile
 import aiofiles
+import re
 import openpyxl
 import xlsxwriter
 from io import BytesIO
@@ -124,7 +125,7 @@ async def _upsert_card_from_statement(user_id: str, card_info: dict, response_da
         existing_card = await db.credit_cards.find_one({"user_id": user_id, "$or": [{"name": {"$regex": bank_name, "$options": "i"}}, {"last_four_digits": card_number}]})
 
     if existing_card:
-        update_data = {"current_balance": card_info.get("current_balance", existing_card.get("current_balance", 0)), "minimum_payment": card_info.get("minimum_payment", existing_card.get("minimum_payment", 0)), "credit_limit": card_info.get("credit_limit", existing_card.get("credit_limit", 0)), "available_credit": card_info.get("available_credit"), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "updated_at": datetime.now(timezone.utc).isoformat()}
+        update_data = {"current_balance": card_info.get("current_balance", existing_card.get("current_balance", 0)), "minimum_payment": card_info.get("minimum_payment", existing_card.get("minimum_payment", 0)), "credit_limit": card_info.get("credit_limit", existing_card.get("credit_limit", 0)), "available_credit": card_info.get("available_credit"), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "saldo_diferido": card_info.get("deferred_balance") if card_info.get("deferred_balance") is not None else existing_card.get("saldo_diferido"), "pago_total": card_info.get("pago_total") if card_info.get("pago_total") is not None else existing_card.get("pago_total"), "updated_at": datetime.now(timezone.utc).isoformat()}
         if card_info.get("apr"):
             update_data["apr"] = card_info["apr"]
         await db.credit_cards.update_one({"id": existing_card["id"]}, {"$set": update_data})
@@ -134,7 +135,7 @@ async def _upsert_card_from_statement(user_id: str, card_info: dict, response_da
         card_name_val = existing_card["name"]
     else:
         card_id = str(uuid.uuid4())
-        new_card = {"id": card_id, "user_id": user_id, "name": card_info.get("card_name") or card_info.get("bank_name", "Tarjeta Importada"), "bank": card_info.get("bank_name", ""), "last_four_digits": card_number, "credit_limit": card_info.get("credit_limit", 0), "current_balance": card_info.get("current_balance", 0), "minimum_payment": card_info.get("minimum_payment", 0), "apr": card_info.get("apr", 0), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "available_credit": card_info.get("available_credit"), "currency": "USD", "is_international": False, "created_at": datetime.now(timezone.utc).isoformat()}
+        new_card = {"id": card_id, "user_id": user_id, "name": card_info.get("card_name") or card_info.get("bank_name", "Tarjeta Importada"), "bank": card_info.get("bank_name", ""), "last_four_digits": card_number, "credit_limit": card_info.get("credit_limit", 0), "current_balance": card_info.get("current_balance", 0), "minimum_payment": card_info.get("minimum_payment", 0), "apr": card_info.get("apr", 0), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "available_credit": card_info.get("available_credit"), "saldo_diferido": card_info.get("deferred_balance"), "pago_total": card_info.get("pago_total"), "currency": "USD", "is_international": False, "created_at": datetime.now(timezone.utc).isoformat()}
         await db.credit_cards.insert_one(new_card)
         response_data["card_info"] = {k: v for k, v in new_card.items() if k != "_id"}
         response_data["card_updated"] = True
@@ -155,14 +156,43 @@ async def _upsert_card_from_statement(user_id: str, card_info: dict, response_da
 
 
 async def _save_deferred_purchases(user_id: str, deferred_purchases: list, card_info: dict, response_data: dict, filename: str):
-    """Save deferred purchase records."""
+    """Save deferred purchase records. If a deferred with same description+card already exists
+    as active, decrement its remaining_installments instead of creating a duplicate."""
     deferred_created = []
+    deferred_decremented = []
+    card_name_val = (card_info.get("card_name") or card_info.get("bank_name")) if card_info else None
     for dp in deferred_purchases:
-        if dp.get("remaining_installments", 0) > 0:
-            deferred_doc = {"id": str(uuid.uuid4()), "user_id": user_id, "description": dp.get("description", "Compra Diferida"), "total_amount": dp.get("total_amount", 0), "monthly_payment": dp.get("monthly_payment", 0), "remaining_installments": dp.get("remaining_installments", 0), "total_installments": dp.get("total_installments", dp.get("remaining_installments", 0)), "card_id": response_data.get("card_info", {}).get("id") if response_data.get("card_info") else None, "card_name": card_info.get("card_name") or card_info.get("bank_name") if card_info else None, "created_at": datetime.now(timezone.utc).isoformat(), "source_file": filename}
+        if dp.get("remaining_installments", 0) <= 0:
+            continue
+        description = dp.get("description", "Compra Diferida")
+        # Look up an existing active deferred with the same description + card
+        existing = await db.deferred_payments.find_one({
+            "user_id": user_id,
+            "description": {"$regex": f"^{re.escape(description)}$", "$options": "i"},
+            "card_name": card_name_val,
+            "remaining_installments": {"$gt": 0},
+        })
+        if existing:
+            remaining = existing.get("remaining_installments", 0)
+            monthly_payment = existing.get("monthly_payment", dp.get("monthly_payment", 0))
+            new_remaining = max(0, remaining - 1)
+            new_remaining_amount = new_remaining * monthly_payment
+            await db.deferred_payments.update_one(
+                {"id": existing["id"]},
+                {"$set": {
+                    "remaining_installments": new_remaining,
+                    "remaining_amount": new_remaining_amount,
+                    "last_payment_date": datetime.now(timezone.utc).isoformat(),
+                    "paid_installments": existing.get("paid_installments", 0) + 1,
+                }}
+            )
+            deferred_decremented.append({"id": existing["id"], "description": description, "remaining_installments": new_remaining})
+        else:
+            deferred_doc = {"id": str(uuid.uuid4()), "user_id": user_id, "description": description, "total_amount": dp.get("total_amount", 0), "monthly_payment": dp.get("monthly_payment", 0), "remaining_installments": dp.get("remaining_installments", 0), "total_installments": dp.get("total_installments", dp.get("remaining_installments", 0)), "card_id": response_data.get("card_info", {}).get("id") if response_data.get("card_info") else None, "card_name": card_name_val, "created_at": datetime.now(timezone.utc).isoformat(), "source_file": filename}
             await db.deferred_payments.insert_one(deferred_doc)
             deferred_created.append({k: v for k, v in deferred_doc.items() if k != "_id"})
     response_data["deferred_payments_created"] = len(deferred_created)
+    response_data["deferred_payments_decremented"] = len(deferred_decremented)
     response_data["deferred_payments"] = deferred_created
     return deferred_created
 
