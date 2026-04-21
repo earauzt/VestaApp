@@ -171,7 +171,7 @@ export default function FAB() {
                 className="flex items-center gap-3 bg-white dark:bg-zinc-800 shadow-lg rounded-full pl-4 pr-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
               >
                 <span className="text-sm font-medium whitespace-nowrap">Tomar Foto</span>
-                <div className="w-10 h-10 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                <div className="w-10 h-10 rounded-full bg-[#0D9E82] flex items-center justify-center text-white">
                   <Camera size={20} weight="fill" />
                 </div>
               </motion.button>
@@ -185,7 +185,7 @@ export default function FAB() {
                 className="flex items-center gap-3 bg-white dark:bg-zinc-800 shadow-lg rounded-full pl-4 pr-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
               >
                 <span className="text-sm font-medium whitespace-nowrap">Subir Imagen</span>
-                <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-white">
+                <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white">
                   <Image size={20} weight="fill" />
                 </div>
               </motion.button>
@@ -199,7 +199,7 @@ export default function FAB() {
                 className="flex items-center gap-3 bg-white dark:bg-zinc-800 shadow-lg rounded-full pl-4 pr-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
               >
                 <span className="text-sm font-medium whitespace-nowrap">Gasto Rápido</span>
-                <div className="w-10 h-10 rounded-full bg-violet-500 flex items-center justify-center text-white">
+                <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white">
                   <PencilSimple size={20} weight="fill" />
                 </div>
               </motion.button>
@@ -215,7 +215,7 @@ export default function FAB() {
           className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
             isOpen 
               ? "bg-zinc-700 dark:bg-zinc-600" 
-              : "bg-gradient-to-br from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700"
+              : "bg-[#0D9E82] hover:bg-[#0B8A70]"
           } ${isUploading ? "animate-pulse" : ""}`}
         >
           {isUploading ? (
@@ -233,7 +233,7 @@ export default function FAB() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Receipt size={24} className="text-violet-500" />
+              <Receipt size={24} className="text-[#0D9E82]" />
               Gasto Rápido
             </DialogTitle>
           </DialogHeader>
@@ -293,7 +293,7 @@ export default function FAB() {
             </Button>
             <Button 
               onClick={handleQuickSubmit}
-              className="bg-violet-600 hover:bg-violet-700"
+              className="bg-[#0D9E82] hover:bg-[#0B8A70]"
             >
               Guardar Gasto
             </Button>

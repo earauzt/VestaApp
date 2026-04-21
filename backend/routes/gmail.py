@@ -61,14 +61,13 @@ async def _classify_email_with_ai(subject: str, body_snippet: str, force_type: s
         '"banco": string, "descripcion_corta": string, '
         '"nivel_urgencia": "alta|media|baja|ninguna", '
         '"numero_factura": string o null, "ruc_emisor": string o null}. '
-        'REGLAS PARA factura_sri (IMPORTANTE): marca tipo="factura_sri" si el subject contiene '
-        'alguna de estas palabras: "factura", "Factura", "FACTURA", "documento electronico", '
-        '"comprobante electronico", "comprobante de venta", "nota de venta" o si el remitente '
-        'pertenece a emisores de facturacion electronica: noreply@contifico.com, '
-        'noreply@www.contifico.com, notifications@degeremcia.com, noreply@datil.co, '
-        'facturacion@* , facturas@* , comprobantes@* , electronica@*. En esos casos extrae '
-        'numero_factura y ruc_emisor del cuerpo si aparecen (patron RUC: 13 digitos, '
-        'patron factura: 001-001-XXXXXXXXX).'
+        'REGLAS PARA factura_sri (OBLIGATORIAS): Si el subject contiene "factura", "Factura", '
+        '"FACTURA", "documento electronico", "Documento Electronico", "comprobante electronico", '
+        '"comprobante de venta", "nota de venta", "Ha recibido su documento" o el remitente '
+        'contiene "contifico.com", "degeremcia.com", "datil.co" o es facturacion@* / facturas@* / '
+        'comprobantes@* / electronica@* => tipo DEBE ser factura_sri (NO consumo, NO descarte). '
+        'En esos casos extrae numero_factura y ruc_emisor del cuerpo si aparecen '
+        '(patron RUC: 13 digitos, patron factura: 001-001-XXXXXXXXX).'
     )
     try:
         chat = LlmChat(
@@ -306,7 +305,7 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         date_str = headers.get('date', '')
         body_snippet = msg.get('snippet', '')
         subject_lower = subject.lower()
-        is_factura_subject = any(kw in subject_lower for kw in ["factura", "documento electronico", "comprobante electronico", "comprobante de venta", "nota de venta"])
+        is_factura_subject = any(kw in subject_lower for kw in ["factura", "documento electronico", "comprobante electronico", "comprobante de venta", "nota de venta", "ha recibido su documento"])
         sender_lower = sender.lower()
         INVOICE_SENDERS = ["contifico.com", "degeremcia.com", "datil.co", "facturacion@", "facturas@", "comprobantes@", "electronica@"]
         is_invoice_sender = any(s in sender_lower for s in INVOICE_SENDERS)

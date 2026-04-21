@@ -77,15 +77,15 @@ export default function Layout({ children }) {
   const NavContent = ({ mobile = false }) => (
     <>
       {/* Logo */}
-      <div className={`border-b border-slate-800 flex items-center justify-between ${mobile ? "p-4" : "p-6"}`}>
+      <div className={`border-b border-[#1A3330] flex items-center justify-between ${mobile ? "p-4" : "p-6"}`}>
         {(!collapsed || mobile) && (
           <div>
             <h1 className="text-lg font-semibold text-white tracking-tight">Vesta</h1>
-            <p className="text-xs text-slate-400">Tu patrimonio familiar, en orden.</p>
+            <p className="text-xs text-[#6B8F87]">Tu patrimonio familiar, en orden.</p>
           </div>
         )}
         {mobile ? (
-          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)} className="text-slate-400 hover:text-white hover:bg-slate-800">
+          <Button variant="ghost" size="icon" onClick={() => setMobileOpen(false)} className="text-[#6B8F87] hover:text-white hover:bg-[#1A3330]">
             <X size={18} />
           </Button>
         ) : (
@@ -93,7 +93,7 @@ export default function Layout({ children }) {
             variant="ghost"
             size="icon"
             onClick={() => setCollapsed(!collapsed)}
-            className="shrink-0 hidden lg:flex text-slate-400 hover:text-white hover:bg-slate-800"
+            className="shrink-0 hidden lg:flex text-[#6B8F87] hover:text-white hover:bg-[#1A3330]"
             data-testid="sidebar-toggle"
           >
             {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
@@ -111,8 +111,8 @@ export default function Layout({ children }) {
               <div
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-[#0F766E] text-white"
-                    : "text-slate-400 hover:bg-slate-800 hover:text-white"
+                    ? "bg-[#0D9E82] text-white"
+                    : "text-[#6B8F87] hover:bg-[#1A3330] hover:text-white"
                 }`}
               >
                 <Icon size={18} strokeWidth={2} className="shrink-0" />
@@ -124,23 +124,23 @@ export default function Layout({ children }) {
       </nav>
 
       {/* User section */}
-      <div className={`border-t border-slate-800 ${mobile ? "p-3" : "p-3"}`}>
+      <div className={`border-t border-[#1A3330] ${mobile ? "p-3" : "p-3"}`}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 text-slate-300 hover:bg-slate-800 hover:text-white ${collapsed && !mobile ? "px-2" : "px-3"}`}
+              className={`w-full justify-start gap-3 text-slate-300 hover:bg-[#1A3330] hover:text-white ${collapsed && !mobile ? "px-2" : "px-3"}`}
               data-testid="user-menu-trigger"
             >
               <Avatar className="h-8 w-8">
-                <AvatarFallback className="bg-[#0F766E] text-white text-xs font-medium">
+                <AvatarFallback className="bg-[#0D9E82] text-white text-xs font-medium">
                   {user?.name?.charAt(0)?.toUpperCase() || "U"}
                 </AvatarFallback>
               </Avatar>
               {(!collapsed || mobile) && (
                 <div className="text-left overflow-hidden">
                   <p className="text-sm font-medium truncate max-w-[150px] text-white">{user?.name}</p>
-                  <p className="text-xs text-slate-400">{getRoleLabel(user?.role)}</p>
+                  <p className="text-xs text-[#6B8F87]">{getRoleLabel(user?.role)}</p>
                 </div>
               )}
             </Button>
@@ -174,26 +174,26 @@ export default function Layout({ children }) {
   );
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC]">
+    <div className="min-h-screen bg-[#F8FAF9]">
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-slate-200 z-50 flex items-center justify-between px-4">
+      <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-[#E2EAE8] z-50 flex items-center justify-between px-4">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
           <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" data-testid="mobile-menu-btn" className="text-slate-700">
+            <Button variant="ghost" size="icon" data-testid="mobile-menu-btn" className="text-[#0F1D1A]">
               <Menu size={20} />
             </Button>
           </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-72 bg-[#0F172A] border-slate-800">
+          <SheetContent side="left" className="p-0 w-72 bg-[#0F1D1A] border-[#1A3330]">
             <div className="flex flex-col h-full">
               <NavContent mobile />
             </div>
           </SheetContent>
         </Sheet>
 
-        <h1 className="text-base font-semibold text-slate-900">Vesta</h1>
+        <h1 className="text-base font-semibold text-[#0F1D1A]">Vesta</h1>
 
         <Avatar className="h-8 w-8">
-          <AvatarFallback className="bg-[#0F766E] text-white text-xs">
+          <AvatarFallback className="bg-[#0D9E82] text-white text-xs">
             {user?.name?.charAt(0)?.toUpperCase() || "U"}
           </AvatarFallback>
         </Avatar>
@@ -202,7 +202,7 @@ export default function Layout({ children }) {
       {/* Desktop Sidebar */}
       <aside
         style={{ width: collapsed ? 72 : 256, transition: "width 200ms" }}
-        className="hidden lg:flex fixed left-0 top-0 h-full bg-[#0F172A] z-40 flex-col"
+        className="hidden lg:flex fixed left-0 top-0 h-full bg-[#0F1D1A] z-40 flex-col"
       >
         <NavContent />
       </aside>
@@ -214,7 +214,7 @@ export default function Layout({ children }) {
       >
         {/* Demo Mode Banner */}
         {user?.role === "demo" && (
-          <div className="bg-amber-500 text-slate-900 px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2">
+          <div className="bg-amber-500 text-[#0F1D1A] px-4 py-2 text-center text-sm font-medium flex items-center justify-center gap-2">
             <Info size={16} />
             <span><strong>Modo Demostración</strong> — Estás viendo datos ficticios de ejemplo.</span>
           </div>

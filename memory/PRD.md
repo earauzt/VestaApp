@@ -256,5 +256,29 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
 
     nombre+password (via useParams). Sección "Accesos" en Perfil.js visible solo para admin
     con input email + botón "Invitar contadora" + display del link copiable.
+
+- [2026-04-21] SESIÓN 17 - Paleta Forest + Fix factura_sri + Checklist pre-deploy:
+  - Task 1 (Forest palette):
+    * design-system.js reescrito con colors.primary=#0D9E82, primaryHover=#0B8A70,
+      sidebarBg=#0F1D1A, sidebarText=#6B8F87, sidebarActiveBg=#1A3330, sidebarActiveText=#FFF,
+      background=#F8FAF9, border=#E2EAE8, text=#0F1D1A, textSecondary=#5C7A74.
+    * Layout.js migrado por sed: #0F766E→#0D9E82, #0F172A→#0F1D1A, slate-800→#1A3330,
+      slate-400→#6B8F87, slate-200→#E2EAE8, F8FAFC→F8FAF9, etc. Cero referencias antiguas.
+    * FAB.jsx: botón principal bg-gradient violet/purple → bg-[#0D9E82] sólido; opciones
+      Camera(blue-500)/Image(emerald-500)/Gasto(violet-500) → [#0D9E82] + 2 bg-slate-700;
+      Dialog submit bg-violet-600 → bg-[#0D9E82].
+    * Screenshot confirma aesthetic Forest consistente.
+  - Task 2 (Fix factura_sri):
+    * Prompt reforzado con "Ha recibido su documento" y tono imperativo "DEBE ser factura_sri".
+    * is_factura_subject ampliado con "ha recibido su documento".
+    * Pre-filtro GMAIL_SENDER_FILTER ya incluía contifico/datil/degeremcia (S15).
+    * Test directo 5/5 emails clasificados como factura_sri con extracción de numero + RUC.
+  - Task 3 (Pre-deploy checklist):
+    * backend/.env vars presentes: GOOGLE_CLIENT_ID ✓, GOOGLE_CLIENT_SECRET ✓,
+      GOOGLE_REDIRECT_URI ✓, OPENAI_API_KEY ✓ (alias EMERGENT_LLM_KEY),
+      MONGODB_URL ✓ (alias MONGO_URL), JWT_SECRET ✓ (alias JWT_SECRET_KEY).
+    * CRON Gmail APScheduler activo: interval hours=6 (log "CRON gmail scheduler iniciado (cada 6h)").
+    * Backend running, supervisor status OK.
+
   - Verificación: /auth/me retorna RUC, screenshot Perfil muestra datos fiscales persistidos,
     clasificador marca facturas. Lint Python + JS: 0 issues.
