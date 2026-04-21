@@ -1,0 +1,56 @@
+{
+  "summary": "Full backend + frontend E2E testing of the 5-fix batch (iteration 23). Backend: 10/10 pytest pass covering normalize-sources idempotency (1st call returns {normalized:0} on re-run, 2nd idempotent), fix-null-types idempotency ({fixed_expense:0, fixed_income:0} on re-run), process-factura-pdfs 200 shape, _regex_fill_card_info unit tests (extracts credit_limit=30000/pago_total=27677.32/deferred_balance=5432.10 from 'CUPO AUTORIZADO $30,000.00 / PAGO DE CONTADO $27,677.32 / SALDO DIFERIDO $5,432.10' + does NOT override existing values), regression 200 on credit-cards/budget-categories/transactions/gmail-documents, bulk-categorize with single id. Frontend (1920x1080, admin): (1) TransactionEditModal present in /components/shared/ with all 10 data-testids rendered in single mode (tem-category-select, tem-subcategory-select, tem-sri-category-select, tem-sri-subcategory-select, tem-establishment-input, tem-beneficiario-input, tem-is-business-switch, tem-applies-iva-switch, tem-save-btn, tem-cancel-btn); (2) TabPorRevisar has NO inline dropdowns — each row has review-edit-btn-<id> (9 rows), toolbar has review-bulk-categorize-btn with text 'Categorizar (0)' disabled at 0 and 'Categorizar (9)' enabled when all selected; clicking bulk btn opens the shared modal in bulk mode showing ONLY category+subcategory (sri, establishment, switches all absent as spec requires); (3) Transactions.js has actions-<id> dropdown (101 rows) → recat-<id> menu item opens the same shared modal in single mode with all 5 field families (cat+sri_cat+est+beneficiario+switches). No regressions in navigation or Spanish UI. The only non-blocking console warning observed: 'Missing Description or aria-describedby={undefined} for DialogContent' when modal opens in single mode — DialogDescription is only rendered in bulk mode. A11y polish, not functional.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "TransactionEditModal (single mode)", "issues": ["Missing <DialogDescription> in single mode triggers Radix a11y warning 'Missing Description or aria-describedby={undefined} for DialogContent'. Add a short description (or aria-describedby={undefined} explicit) for the single-edit branch. Non-blocking."]}
+    ]
+  },
+  "passed_tests": [
+    "pytest test_iteration23_batch.py: 10/10 passed",
+    "POST /api/sri/normalize-sources returns {normalized:int} and second call returns {normalized:0} (idempotent)",
+    "POST /api/transactions/fix-null-types returns shape {fixed_expense, fixed_income, unchanged}; second call has fixed_expense=0, fixed_income=0 (idempotent)",
+    "POST /api/gmail/process-factura-pdfs returns 200 with results[] or processed count",
+    "_regex_fill_card_info({credit_limit:None, pago_total:None, deferred_balance:None}, text_with_cupo_pago_saldo) -> {credit_limit:30000.0, pago_total:27677.32, deferred_balance:5432.10}",
+    "_regex_fill_card_info does NOT override pre-existing credit_limit (respects None-only fill)",
+    "GET /api/credit-cards → 200 (list)",
+    "GET /api/budget/categories → 200",
+    "GET /api/transactions → 200",
+    "GET /api/gmail/documents → 200",
+    "POST /api/transactions/bulk-categorize with {ids:[id], category, subcategory} → 200 {updated, matched:>=1, vendors_upserted}",
+    "Frontend /cargar 'Por revisar' tab: 9 review-edit-btn-<id> render; review-bulk-categorize-btn disabled at 0 'Categorizar (0)' and enabled at N 'Categorizar (N)'",
+    "Click review-edit-btn-<id> → transaction-edit-modal opens in single mode with all 10 data-testids present (tem-category-select, tem-subcategory-select, tem-sri-category-select, tem-sri-subcategory-select, tem-establishment-input, tem-beneficiario-input, tem-is-business-switch, tem-applies-iva-switch, tem-save-btn, tem-cancel-btn)",
+    "Click review-bulk-categorize-btn (N>=1) → modal opens in bulk mode: only category+subcategory visible; sri_category/establishment/switches absent (matches spec)",
+    "Frontend /transactions: 101 actions-<id> dropdown triggers; click opens menu containing recat-<id> (data-testid matches tx.id)",
+    "Click recat-<id> → transaction-edit-modal opens in single mode with all fields (cat, sri_cat, est, beneficiario, is_business_switch, applies_iva_switch, save)",
+    "No regressions in /dashboard, /transactions, /cargar, /ingresos navigation"
+  ],
+  "test_report_links": [
+    "/app/backend/tests/test_iteration23_batch.py",
+    "/app/test_reports/pytest/iter23_results.xml"
+  ],
+  "action_items": [
+    "(Low priority a11y) Add <DialogDescription> in TransactionEditModal single-mode branch to silence Radix aria-describedby warning. Currently only rendered when isBulk=true (line 68)."
+  ],
+  "critical_code_review_comments": [
+    "TransactionEditModal.jsx is the single source of truth — DRY win. Clean prop contract (open, transaction, bulkCount, onSave, onClose). Good.",
+    "documents._regex_fill_card_info: 'only fill if None' policy is correct for the PacifiCard scenario (avoids clobbering values already extracted by LLM). The due_date year-fix helper is a nice bonus.",
+    "documents._upsert_card_from_statement line 209: for credit_limit, correctly uses 'card_info.get(\"credit_limit\") if not None else existing_card.get(\"credit_limit\", 0)' — prevents overwrite to None when statement doesn't have it. Same pattern used for saldo_diferido and pago_total. Good.",
+    "transactions.fix_null_transaction_types is idempotent by construction (only matches transaction_type:None/missing). Safe to re-run.",
+    "sri_match.normalize-sources legacy_sources correctly includes 'gmail' in the whitelist (line 384).",
+    "TabPorRevisar.jsx: onSave bulk handler POSTs to bulk-categorize; confirmed via toolbar flow. The removal of inline per-row dropdowns is a nice UX cleanup.",
+    "Transactions.js row 'Recategorizar' DropdownMenuItem wires to setRecatTx(transaction) then POST bulk-categorize with ids:[tx.id] — acceptable (reuses bulk endpoint for a single id).",
+    "constants/categories.js is well-structured; PERSONAL_CATEGORIES + SRI_CATEGORIES + INCOME_SOURCES + getSubcategories all exported; no duplicate local constants remain in Transactions.js or CargarValidar.js."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration23_batch.py (new)"
+  ],
+  "success_rate": {"backend": "100% (10/10 pytest)", "frontend": "100% (16/16 acceptance checks)"},
+  "test_credentials": {"admin": "earauzt@gmail.com / Realmadrid2011", "demo": "demo@fintrack.ec / demo2026"},
+  "seed_data_creation": "None persistent. Bulk-categorize test used an existing transaction with its own category (no mutation).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All 5 fixes in iteration 23 verified end-to-end. /app/backend/tests/test_iteration23_batch.py is reusable as regression: normalize-sources idempotency, fix-null-types idempotency, _regex_fill_card_info unit test (no PDF upload needed — directly tests helper), bulk-categorize, and all regression GETs. TransactionEditModal is the shared single source of truth for both TabPorRevisar and Transactions.js. Only polish left is the DialogDescription a11y in single mode."
+}

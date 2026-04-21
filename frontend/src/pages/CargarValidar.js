@@ -20,6 +20,7 @@ import TabHistorial from "../components/bandeja/TabHistorial";
 import BandejaStats from "../components/bandeja/BandejaStats";
 import { GmailConsentDialog } from "../components/bandeja/BandejaDialogs";
 import Transactions from "./Transactions";
+import { SRI_CATEGORIES } from "../constants/categories";
 import { 
   CloudArrowUp,
   SpinnerGap,
@@ -87,26 +88,8 @@ const PERSONAL_CATEGORIES = {
   }
 };
 
-// ============ CATEGORÍAS SRI (para contadora - deducibles) ============
-const SRI_CATEGORIES = {
-  alimentacion: { name: "Alimentación", deductible: true, limit_percent: 32.5 },
-  salud: { name: "Salud", deductible: true, limit_percent: 200 },
-  educacion: { name: "Educación", deductible: true, limit_percent: 32.5 },
-  vivienda: { name: "Vivienda", deductible: true, limit_percent: 32.5 },
-  vestimenta: { name: "Vestimenta", deductible: true, limit_percent: 32.5 },
-  turismo: { name: "Turismo Nacional", deductible: true, limit_percent: 32.5 },
-  no_deducible: { name: "No Deducible", deductible: false, limit_percent: 0 }
-};
-
-const SRI_SUBCATEGORIES = {
-  alimentacion: ["Supermercado", "Restaurantes", "Mercado", "Delivery"],
-  salud: ["Seguro médico", "Medicina", "Consultas", "Hospitalización", "Laboratorio", "Odontología"],
-  educacion: ["Colegio", "Universidad", "Cursos", "Materiales", "Uniformes"],
-  vivienda: ["Arriendo", "Intereses hipoteca", "Servicios básicos", "Mantenimiento"],
-  vestimenta: ["Ropa", "Calzado", "Accesorios"],
-  turismo: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"],
-  no_deducible: ["Internacional", "Entretenimiento", "Otros"]
-};
+// SRI_CATEGORIES centralizado en /constants/categories.js (SRI_SUBCATEGORIES
+// queda vacío aquí; si se necesita, importar SRI_CATEGORIES[key].subcategories)
 
 const STATUS_COLORS = {
   pending_review: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
@@ -949,7 +932,7 @@ export default function CargarValidar() {
                       <Select value={editForm.sri_subcategory || ""} onValueChange={(v) => setEditForm({ ...editForm, sri_subcategory: v })} disabled={!editForm.sri_category}>
                         <SelectTrigger><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                         <SelectContent className="z-[250]">
-                          {editForm.sri_category && SRI_SUBCATEGORIES[editForm.sri_category]?.map((sub) => (
+                          {editForm.sri_category && SRI_CATEGORIES[editForm.sri_category]?.subcategories?.map((sub) => (
                             <SelectItem key={sub} value={sub}>{sub}</SelectItem>
                           ))}
                         </SelectContent>
@@ -1108,7 +1091,6 @@ export default function CargarValidar() {
             <TabsContent value="revisar">
               <TabPorRevisar
                 budgetCategories={budgetCategories}
-                PERSONAL_CATEGORIES={PERSONAL_CATEGORIES}
                 reviewFilter={reviewFilter}
                 setReviewFilter={setReviewFilter}
                 filteredReview={filteredReview}
@@ -1118,11 +1100,9 @@ export default function CargarValidar() {
                 toggleReviewSelectAll={toggleReviewSelectAll}
                 handleReviewBulkApprove={handleReviewBulkApprove}
                 reviewBulkApproving={reviewBulkApproving}
-                rowCategory={rowCategory}
-                setRowCategory={setRowCategory}
-                rowSubcategory={rowSubcategory}
-                setRowSubcategory={setRowSubcategory}
                 vendorStats={vendorStats}
+                getAuthHeaders={getAuthHeaders}
+                onAfterUpdate={() => { fetchPendingData(); }}
               />
             </TabsContent>
 

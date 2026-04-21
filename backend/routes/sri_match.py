@@ -381,7 +381,7 @@ async def normalize_sources(user: dict = Depends(get_current_user)):
     """Migración: unifica el source de facturas vinculadas a 'factura_sri'.
     Aplica a tx del usuario con factura_vinculada_id seteado y source actual en
     ['gmail_pdf','gmail_factura_pdf','sri_xml',''] (o ausente)."""
-    legacy_sources = ["gmail_pdf", "gmail_factura_pdf", "sri_xml", ""]
+    legacy_sources = ["gmail_pdf", "gmail_factura_pdf", "sri_xml", "gmail", ""]
     result = await db.transactions.update_many(
         {
             "user_id": user["id"],

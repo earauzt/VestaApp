@@ -2,6 +2,8 @@
 // Mirrors the runtime `categories` state loaded from GET /api/budget/categories
 // in Transactions.js (transformedCats), used as fallback when backend data
 // is unavailable and as the canonical list of subcategories for each category.
+import { Utensils, HeartPulse, GraduationCap, Home, Shirt, Palmtree, XCircle } from "lucide-react";
+
 export const PERSONAL_CATEGORIES = {
   servicios_basicos: {
     name: "Servicios Básicos",
@@ -29,3 +31,58 @@ export const PERSONAL_CATEGORIES = {
 export function getSubcategories(categoryKey) {
   return PERSONAL_CATEGORIES[categoryKey]?.subcategories || [];
 }
+
+// Categorías del SRI para deducciones fiscales en Ecuador (fuente única)
+export const SRI_CATEGORIES = {
+  alimentacion: {
+    name: "Alimentación",
+    deductible: true,
+    limit_percent: 32.5,
+    subcategories: ["Comida", "Restaurantes", "Supermercado", "Mercado", "Delivery"],
+    Icon: Utensils,
+  },
+  salud: {
+    name: "Salud",
+    deductible: true,
+    limit_percent: 200,
+    subcategories: ["Seguros médicos", "Medicina", "Consultas", "Hospitalización", "Laboratorio", "Odontología"],
+    Icon: HeartPulse,
+  },
+  educacion: {
+    name: "Educación",
+    deductible: true,
+    limit_percent: 32.5,
+    subcategories: ["Colegio", "Universidad", "Cursos", "Materiales", "Uniformes", "Transporte escolar"],
+    Icon: GraduationCap,
+  },
+  vivienda: {
+    name: "Vivienda",
+    deductible: true,
+    limit_percent: 32.5,
+    subcategories: ["Arriendo", "Intereses hipoteca", "Servicios básicos", "Mantenimiento"],
+    Icon: Home,
+  },
+  vestimenta: {
+    name: "Vestimenta",
+    deductible: true,
+    limit_percent: 32.5,
+    subcategories: ["Ropa", "Calzado", "Accesorios"],
+    Icon: Shirt,
+  },
+  turismo: {
+    name: "Turismo Nacional",
+    deductible: true,
+    limit_percent: 32.5,
+    subcategories: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"],
+    Icon: Palmtree,
+  },
+  no_deducible: {
+    name: "No Deducible",
+    deductible: false,
+    limit_percent: 0,
+    subcategories: ["Viajes internacionales", "Entretenimiento", "Otros"],
+    Icon: XCircle,
+  },
+};
+
+export const INCOME_SOURCES = ["Personal", "APX", "USA"];

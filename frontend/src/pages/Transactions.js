@@ -34,16 +34,11 @@ import {
   Eye
 } from "@phosphor-icons/react";
 import {
-  Utensils as LIUtensils,
-  HeartPulse as LIHeart,
-  GraduationCap as LIGrad,
-  Home as LIHome,
-  Shirt as LIShirt,
-  Palmtree as LIPalm,
-  XCircle as LIXCircle,
   Check as LICheck,
 } from "lucide-react";
 import { components, typography } from "../styles/design-system";
+import { SRI_CATEGORIES, INCOME_SOURCES } from "../constants/categories";
+import TransactionEditModal from "../components/shared/TransactionEditModal";
 
 // Import new QuickBooks-style components
 import { SplitTransactionModal } from "../components/SplitTransactionModal";
@@ -89,53 +84,7 @@ const FALLBACK_CATEGORIES = {
   otros: { name: "Otros", subcategories: ["Varios", "Entretenimiento"] }
 };
 
-// Categorías del SRI para deducciones fiscales en Ecuador
-const SRI_CATEGORIES = {
-  alimentacion: { 
-    name: "Alimentación", 
-    deductible: true, 
-    subcategories: ["Comida", "Restaurantes", "Supermercado", "Mercado"],
-    Icon: LIUtensils
-  },
-  salud: { 
-    name: "Salud", 
-    deductible: true, 
-    subcategories: ["Seguros médicos", "Medicina", "Consultas", "Hospitalización", "Laboratorio", "Odontología"],
-    Icon: LIHeart
-  },
-  educacion: { 
-    name: "Educación", 
-    deductible: true, 
-    subcategories: ["Colegio", "Universidad", "Cursos", "Materiales", "Uniformes", "Transporte escolar"],
-    Icon: LIGrad
-  },
-  vivienda: { 
-    name: "Vivienda", 
-    deductible: true, 
-    subcategories: ["Arriendo", "Intereses hipoteca", "Servicios básicos", "Mantenimiento"],
-    Icon: LIHome
-  },
-  vestimenta: { 
-    name: "Vestimenta", 
-    deductible: true, 
-    subcategories: ["Ropa", "Calzado", "Accesorios"],
-    Icon: LIShirt
-  },
-  turismo: { 
-    name: "Turismo Nacional", 
-    deductible: true, 
-    subcategories: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"],
-    Icon: LIPalm
-  },
-  no_deducible: { 
-    name: "No Deducible", 
-    deductible: false, 
-    subcategories: ["Viajes internacionales", "Entretenimiento", "Otros"],
-    Icon: LIXCircle
-  }
-};
-
-const INCOME_SOURCES = ["Personal", "APX", "USA"];
+// SRI_CATEGORIES and INCOME_SOURCES centralizados en /constants/categories.js
 
 export default function Transactions() {
   const { getAuthHeaders, user } = useAuth();
@@ -168,6 +117,9 @@ export default function Transactions() {
   const [bulkCategory, setBulkCategory] = useState("");
   const [bulkSubcategory, setBulkSubcategory] = useState("");
   const [bulkApplying, setBulkApplying] = useState(false);
+
+  // Recategorize modal (uses shared TransactionEditModal)
+  const [recatTx, setRecatTx] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -237,6 +189,22 @@ export default function Transactions() {
     fetchCategories();
     fetchTransactions();
   }, [fetchCategories, fetchTransactions]);
+
+  const handleRecategorize = async (data) => {
+    if (!recatTx) return;
+    try {
+      const res = await axios.post(
+        `${API}/transactions/bulk-categorize`,
+        { ids: [recatTx.id], category: data.category, subcategory: data.subcategory || "" },
+        { headers: getAuthHeadersRef.current() }
+      );
+      toast.success(`${res.data?.updated ?? 1} transacción actualizada`);
+      setRecatTx(null);
+      fetchTransactions();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "No se pudo recategorizar");
+    }
+  };
 
   const toggleBulkSelect = (id) => {
     setBulkSelectedIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
@@ -1032,6 +1000,10 @@ export default function Transactions() {
                               <Pencil size={16} />
                               Editar
                             </DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setRecatTx(transaction)} className="gap-2" data-testid={`recat-${transaction.id}`}>
+                              <Target size={16} />
+                              Recategorizar
+                            </DropdownMenuItem>
                             <DropdownMenuItem onClick={() => handleAttachment(transaction)} className="gap-2">
                               <Paperclip size={16} />
                               Adjuntar documento
@@ -1061,6 +1033,13 @@ export default function Transactions() {
           )}
         </CardContent>
       </Card>
+
+      <TransactionEditModal
+        open={!!recatTx}
+        transaction={recatTx}
+        onSave={handleRecategorize}
+        onClose={() => setRecatTx(null)}
+      />
     </div>
   );
 }

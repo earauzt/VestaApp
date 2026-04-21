@@ -226,7 +226,7 @@ async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, t
                         response_data_stub = {}
                         try:
                             if card_info.get("current_balance") is not None:
-                                await _upsert_card_from_statement(user_id, card_info, response_data_stub)
+                                await _upsert_card_from_statement(user_id, card_info, response_data_stub, raw_text=extracted_text)
                             if deferred_purchases:
                                 await _save_deferred_purchases(user_id, deferred_purchases, card_info, response_data_stub, filename)
                         except Exception as e:
@@ -818,7 +818,7 @@ async def reprocess_gmail_document(doc_id: str, user: dict = Depends(get_current
     return {"status": "success", "transactions_extracted": tx_count}
 
 
-async def _parse_factura_pdf(filepath: str) -> dict:
+async def _parse_factura_pdf(filepath: str, remitente: str = "") -> dict:
     """Extrae datos estructurados de una factura electrónica ecuatoriana (PDF)."""
     text = extract_text_from_pdf(filepath) or ""
     if len(text) < 20:
@@ -836,8 +836,50 @@ async def _parse_factura_pdf(filepath: str) -> dict:
     m3 = re.search(r"(?:raz[oó]n\s*social|nombre\s*comercial|emisor)[:\s]*([A-Z0-9 &.,ÑÁÉÍÓÚ-]{5,80})", text, re.IGNORECASE)
     if m3:
         emisor = m3.group(1).strip()[:80]
+
+    # Fallback: escanear primeras 15 líneas para una razón social sin encabezado explícito
+    if not emisor:
+        lines = [ln.strip() for ln in text.splitlines() if ln.strip()][:15]
+        for ln in lines:
+            # descartar líneas inválidas
+            if re.fullmatch(r"[\d\s.,/-]+", ln):  # solo números/fechas
+                continue
+            if re.search(r"\bRUC\b", ln, re.IGNORECASE):
+                continue
+            if re.search(r"^(Direcci[oó]n|Calle|Av(\.|enida)|Km\.|Tel[eé]fono|Email|Correo)", ln, re.IGNORECASE):
+                continue
+            words = ln.split()
+            if len(words) < 3:
+                continue
+            upper_words = sum(1 for w in words if w[:1].isupper())
+            if upper_words >= len(words) * 0.6:
+                emisor = ln[:80]
+                break
+
+    # Fallback final: usar remitente del email si seguimos sin emisor
+    if not emisor and remitente:
+        # "Juan Perez <facturas@empresa.com>" -> "Juan Perez"
+        cleaned = re.sub(r"<[^>]*>", "", remitente).strip()
+        cleaned = re.sub(r"\b[\w.+-]+@[\w.-]+\b", "", cleaned).strip()
+        cleaned = cleaned.strip(" -,.\"'")
+        if cleaned:
+            emisor = cleaned[:80]
+        else:
+            # si solo había email, extraer el dominio
+            dom = re.search(r"@([\w.-]+)", remitente)
+            if dom:
+                emisor = dom.group(1).split(".")[0][:80]
+
     monto = None
-    for pat in [r"VALOR\s*TOTAL[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))", r"TOTAL\s*A\s*PAGAR[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))", r"IMPORTE\s*TOTAL[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))"]:
+    for pat in [
+        r"VALOR\s*TOTAL[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))",
+        r"TOTAL\s*A\s*PAGAR[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))",
+        r"IMPORTE\s*TOTAL[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))",
+        r"IMPORTE[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))",
+        r"VALOR[^\d]{0,20}(\d{1,6}(?:[.,]\d{2}))",
+        r"Total\s*:\s*\$?\s*(\d{1,6}(?:[.,]\d{2}))",
+        r"TOTAL\s*:\s*\$?\s*(\d{1,6}(?:[.,]\d{2}))",
+    ]:
         mm = re.search(pat, text, re.IGNORECASE)
         if mm:
             try:
@@ -869,7 +911,14 @@ async def process_factura_pdfs(user: dict = Depends(get_current_user)):
             skipped += 1
             continue
         try:
-            data = await _parse_factura_pdf(filepath)
+            # Buscar remitente en gmail_transactions correspondiente (fallback para emisor)
+            gm_id = d.get("gmail_id")
+            remitente = ""
+            if gm_id:
+                gm_tx = await db.gmail_transactions.find_one({"gmail_id": gm_id, "user_id": user["id"]}, {"_id": 0, "remitente": 1, "sender": 1, "from": 1})
+                if gm_tx:
+                    remitente = gm_tx.get("remitente") or gm_tx.get("sender") or gm_tx.get("from") or ""
+            data = await _parse_factura_pdf(filepath, remitente=remitente)
             if not data.get("ok"):
                 errors += 1
                 continue
@@ -879,6 +928,7 @@ async def process_factura_pdfs(user: dict = Depends(get_current_user)):
                     update[k] = data[k]
             if data.get("emisor"):
                 update["emisor"] = data["emisor"]
+                update["nombre_emisor"] = data["emisor"]
             await db.gmail_documents.update_one({"id": d["id"]}, {"$set": update})
             gm_id = d.get("gmail_id")
             if gm_id:

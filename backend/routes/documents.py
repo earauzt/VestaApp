@@ -116,8 +116,71 @@ async def process_multiple_receipts(files: List[UploadFile] = File(...), user: d
     return {"message": f"Procesados {len(files)} archivos, {len(all_transactions)} transacciones creadas", "transactions": all_transactions, "errors": errors}
 
 
-async def _upsert_card_from_statement(user_id: str, card_info: dict, response_data: dict):
+def _regex_fill_card_info(card_info: dict, raw_text: str) -> dict:
+    """Complementa card_info con campos faltantes usando regex sobre el texto crudo.
+    Solo rellena campos que están None/missing. No sobreescribe valores ya presentes."""
+    if not raw_text:
+        return card_info
+
+    def _parse_num(s: str) -> Optional[float]:
+        s = (s or "").replace(" ", "").replace(",", "")
+        # ES "1.234,56" -> "1234.56" ya quedó arriba sin coma; handle dot-thousands
+        try:
+            return float(s)
+        except ValueError:
+            return None
+
+    def _find_first(patterns, text):
+        for pat in patterns:
+            m = re.search(pat, text, re.IGNORECASE)
+            if m:
+                val = _parse_num(m.group(1))
+                if val is not None and val > 0:
+                    return val
+        return None
+
+    if card_info.get("credit_limit") is None:
+        card_info["credit_limit"] = _find_first([
+            r"CUPO\s*AUTORIZADO[^\d]{0,30}\$?\s*([\d.,]+)",
+            r"Cupo\s*Aprobado[^\d]{0,30}\$?\s*([\d.,]+)",
+            r"L[IÍ]MITE\s*DE\s*CR[EÉ]DITO[^\d]{0,30}\$?\s*([\d.,]+)",
+        ], raw_text)
+
+    if card_info.get("pago_total") is None:
+        card_info["pago_total"] = _find_first([
+            r"PAGO\s*DE\s*CONTADO[^\d]{0,30}\$?\s*([\d.,]+)",
+            r"TOTAL\s*A\s*PAGAR[^\d]{0,30}\$?\s*([\d.,]+)",
+            r"Total\s*a\s*pagar[^\d]{0,30}\$?\s*([\d.,]+)",
+        ], raw_text)
+
+    if card_info.get("deferred_balance") is None:
+        card_info["deferred_balance"] = _find_first([
+            r"SALDO\s*ACTUAL\s*DIFERIDO[^\d]{0,30}\$?\s*([\d.,]+)",
+            r"SALDO\s*DIFERIDO[^\d]{0,30}\$?\s*([\d.,]+)",
+            r"Cr[eé]dito\s*Diferido[^\d]{0,30}\$?\s*([\d.,]+)",
+        ], raw_text)
+
+    # Fix due_date year if it appears in the past vs statement_date: assume same or next year
+    due = card_info.get("due_date")
+    stmt = card_info.get("statement_date")
+    if due and stmt:
+        try:
+            due_dt = datetime.strptime(due[:10], "%Y-%m-%d")
+            stmt_dt = datetime.strptime(stmt[:10], "%Y-%m-%d")
+            if due_dt < stmt_dt:
+                # due_date debe ser >= statement_date; subir al mismo año o siguiente
+                new_due = due_dt.replace(year=stmt_dt.year)
+                if new_due < stmt_dt:
+                    new_due = new_due.replace(year=stmt_dt.year + 1)
+                card_info["due_date"] = new_due.strftime("%Y-%m-%d")
+        except Exception:
+            pass
+    return card_info
+
+
+async def _upsert_card_from_statement(user_id: str, card_info: dict, response_data: dict, raw_text: str = ""):
     """Extract or update credit card info from statement."""
+    card_info = _regex_fill_card_info(dict(card_info or {}), raw_text)
     bank_name = card_info.get("bank_name", "").lower()
     card_number = card_info.get("card_number_last4", "")
     existing_card = None
@@ -143,7 +206,7 @@ async def _upsert_card_from_statement(user_id: str, card_info: dict, response_da
                 break
 
     if existing_card:
-        update_data = {"current_balance": card_info.get("current_balance", existing_card.get("current_balance", 0)), "minimum_payment": card_info.get("minimum_payment", existing_card.get("minimum_payment", 0)), "credit_limit": card_info.get("credit_limit", existing_card.get("credit_limit", 0)), "available_credit": card_info.get("available_credit"), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "saldo_diferido": card_info.get("deferred_balance") if card_info.get("deferred_balance") is not None else existing_card.get("saldo_diferido"), "pago_total": card_info.get("pago_total") if card_info.get("pago_total") is not None else existing_card.get("pago_total"), "updated_at": datetime.now(timezone.utc).isoformat()}
+        update_data = {"current_balance": card_info.get("current_balance", existing_card.get("current_balance", 0)), "minimum_payment": card_info.get("minimum_payment", existing_card.get("minimum_payment", 0)), "credit_limit": card_info.get("credit_limit") if card_info.get("credit_limit") is not None else existing_card.get("credit_limit", 0), "available_credit": card_info.get("available_credit"), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "saldo_diferido": card_info.get("deferred_balance") if card_info.get("deferred_balance") is not None else existing_card.get("saldo_diferido"), "pago_total": card_info.get("pago_total") if card_info.get("pago_total") is not None else existing_card.get("pago_total"), "updated_at": datetime.now(timezone.utc).isoformat()}
         if card_info.get("apr"):
             update_data["apr"] = card_info["apr"]
         await db.credit_cards.update_one({"id": existing_card["id"]}, {"$set": update_data})
@@ -309,7 +372,13 @@ async def process_bank_statement(file: UploadFile = File(...), user: dict = Depe
 
         # 1. Upsert credit card
         if card_info.get("current_balance"):
-            await _upsert_card_from_statement(user["id"], card_info, response_data)
+            # Extract raw text from PDF once for regex fallback
+            try:
+                from utils import extract_text_from_pdf
+                raw_text = extract_text_from_pdf(file_path) or ""
+            except Exception:
+                raw_text = ""
+            await _upsert_card_from_statement(user["id"], card_info, response_data, raw_text=raw_text)
 
         # 2. Save deferred purchases
         deferred_created = await _save_deferred_purchases(

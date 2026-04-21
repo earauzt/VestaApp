@@ -129,6 +129,39 @@ async def update_transaction(transaction_id: str, transaction: TransactionCreate
     return TransactionResponse(**updated)
 
 
+@router.post("/transactions/fix-null-types")
+async def fix_null_transaction_types(user: dict = Depends(get_current_user)):
+    """Itera transacciones con transaction_type None/missing y las infiere por el signo del amount."""
+    cursor = db.transactions.find(
+        {"user_id": user["id"], "$or": [{"transaction_type": None}, {"transaction_type": {"$exists": False}}]},
+        {"_id": 0, "id": 1, "amount": 1},
+    )
+    fixed_expense = 0
+    fixed_income = 0
+    unchanged = 0
+    async for tx in cursor:
+        amount = tx.get("amount")
+        if amount is None:
+            unchanged += 1
+            continue
+        try:
+            a = float(amount)
+        except (TypeError, ValueError):
+            unchanged += 1
+            continue
+        if a < 0:
+            new_type = "expense"
+            fixed_expense += 1
+        elif a > 0:
+            new_type = "income"
+            fixed_income += 1
+        else:
+            unchanged += 1
+            continue
+        await db.transactions.update_one({"id": tx["id"]}, {"$set": {"transaction_type": new_type}})
+    return {"fixed_expense": fixed_expense, "fixed_income": fixed_income, "unchanged": unchanged}
+
+
 @router.post("/transactions/bulk-categorize")
 async def bulk_categorize_transactions(payload: dict, user: dict = Depends(get_current_user)):
     """Actualiza categoría/subcategoría de varias transacciones en una sola llamada.

@@ -1,20 +1,57 @@
+import { useState } from "react";
+import axios from "axios";
+import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { CheckCircle } from "@phosphor-icons/react";
+import { Pencil } from "lucide-react";
+import TransactionEditModal from "../shared/TransactionEditModal";
+
+const API = process.env.REACT_APP_BACKEND_URL + "/api";
 
 export default function TabPorRevisar({
   budgetCategories,
-  PERSONAL_CATEGORIES,
   reviewFilter, setReviewFilter,
   filteredReview,
   reviewSelectedIds, toggleReviewSelect,
   reviewAllSelected, toggleReviewSelectAll,
   handleReviewBulkApprove, reviewBulkApproving,
-  rowCategory, setRowCategory,
-  rowSubcategory, setRowSubcategory,
   vendorStats,
+  getAuthHeaders,
+  onAfterUpdate,
 }) {
+  const [modalMode, setModalMode] = useState(null); // 'single' | 'bulk' | null
+  const [activeItem, setActiveItem] = useState(null);
+
+  const openSingleEdit = (item) => { setActiveItem(item); setModalMode("single"); };
+  const openBulkEdit = () => { setActiveItem(null); setModalMode("bulk"); };
+  const closeModal = () => { setModalMode(null); setActiveItem(null); };
+
+  const handleSave = async (data) => {
+    try {
+      if (modalMode === "bulk") {
+        const res = await axios.post(
+          `${API}/transactions/bulk-categorize`,
+          { ids: reviewSelectedIds, category: data.category, subcategory: data.subcategory || "" },
+          { headers: getAuthHeaders() }
+        );
+        toast.success(`${res.data?.updated ?? reviewSelectedIds.length} transacciones actualizadas`);
+      } else if (activeItem) {
+        await axios.post(
+          `${API}/transactions/bulk-categorize`,
+          { ids: [activeItem.id], category: data.category, subcategory: data.subcategory || "" },
+          { headers: getAuthHeaders() }
+        );
+        toast.success("Transacción actualizada");
+      }
+      closeModal();
+      if (onAfterUpdate) onAfterUpdate();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "No se pudo guardar");
+    }
+  };
+
   return (
     <div className="space-y-4" data-testid="revisar-tab-content">
       {/* Toolbar */}
@@ -56,6 +93,15 @@ export default function TabPorRevisar({
           </label>
           <Button
             size="sm"
+            variant="outline"
+            onClick={openBulkEdit}
+            disabled={reviewSelectedIds.length === 0}
+            data-testid="review-bulk-categorize-btn"
+          >
+            Categorizar ({reviewSelectedIds.length})
+          </Button>
+          <Button
+            size="sm"
             onClick={handleReviewBulkApprove}
             disabled={reviewSelectedIds.length === 0 || reviewBulkApproving}
             data-testid="review-bulk-approve-btn"
@@ -76,13 +122,13 @@ export default function TabPorRevisar({
       ) : (
         <div className="space-y-2">
           {filteredReview.map((item) => {
-            const selectedCat = rowCategory[item.id] || item.suggested_category;
             const sourceBadgeColor = item.source === "gmail"
               ? "bg-red-50 text-red-700 border-red-200"
               : item.source === "manual"
               ? "bg-slate-50 text-[#0D9E82] border-slate-200"
               : "bg-slate-100 text-[#0D9E82] border-slate-200";
             const stats = vendorStats[(item.comercio || "").toLowerCase()];
+            const catName = budgetCategories[item.suggested_category]?.name || item.suggested_category || "—";
             return (
               <div
                 key={item.id}
@@ -122,46 +168,32 @@ export default function TabPorRevisar({
                   <Badge variant="outline" className={`text-[10px] shrink-0 ${sourceBadgeColor}`} data-testid={`review-source-${item.id}`}>
                     {item.source_label}
                   </Badge>
+                  <Badge variant="outline" className="text-[10px] shrink-0">
+                    {catName}
+                  </Badge>
                 </div>
-                <Select
-                  value={selectedCat}
-                  onValueChange={(v) => {
-                    setRowCategory(prev => ({ ...prev, [item.id]: v }));
-                    setRowSubcategory(prev => ({ ...prev, [item.id]: "" }));
-                  }}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 h-8 shrink-0"
+                  onClick={() => openSingleEdit(item)}
+                  data-testid={`review-edit-btn-${item.id}`}
                 >
-                  <SelectTrigger className="w-[160px] h-9 shrink-0" data-testid={`review-cat-${item.id}`}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent className="z-[250]">
-                    {Object.entries(budgetCategories).map(([k, v]) => (
-                      <SelectItem key={k} value={k}>{v.name || k}</SelectItem>
-                    ))}
-                    {!budgetCategories[selectedCat] && (
-                      <SelectItem value={selectedCat}>{selectedCat}</SelectItem>
-                    )}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={rowSubcategory[item.id] || ""}
-                  onValueChange={(v) => setRowSubcategory(prev => ({ ...prev, [item.id]: v === "__none__" ? "" : v }))}
-                  disabled={!PERSONAL_CATEGORIES[selectedCat]?.subcategories}
-                >
-                  <SelectTrigger className="w-[150px] h-9 shrink-0" data-testid={`review-subcat-${item.id}`}>
-                    <SelectValue placeholder="Subcategoría" />
-                  </SelectTrigger>
-                  <SelectContent className="z-[250]">
-                    <SelectItem value="__none__">Sin subcategoría</SelectItem>
-                    {PERSONAL_CATEGORIES[selectedCat]?.subcategories?.map((sub) => (
-                      <SelectItem key={sub} value={sub}>{sub}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                  <Pencil size={14} /> Editar
+                </Button>
               </div>
             );
           })}
         </div>
       )}
+
+      <TransactionEditModal
+        open={modalMode !== null}
+        transaction={modalMode === "single" ? activeItem : null}
+        bulkCount={reviewSelectedIds.length}
+        onSave={handleSave}
+        onClose={closeModal}
+      />
     </div>
   );
 }
