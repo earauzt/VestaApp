@@ -18,7 +18,7 @@ import TabImportar from "../components/bandeja/TabImportar";
 import TabPorRevisar from "../components/bandeja/TabPorRevisar";
 import TabHistorial from "../components/bandeja/TabHistorial";
 import BandejaStats from "../components/bandeja/BandejaStats";
-import { BulkActionDialog, GmailConsentDialog } from "../components/bandeja/BandejaDialogs";
+import { GmailConsentDialog } from "../components/bandeja/BandejaDialogs";
 import Transactions from "./Transactions";
 import { 
   CloudArrowUp,

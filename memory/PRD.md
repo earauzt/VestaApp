@@ -282,3 +282,30 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
 
   - Verificación: /auth/me retorna RUC, screenshot Perfil muestra datos fiscales persistidos,
     clasificador marca facturas. Lint Python + JS: 0 issues.
+
+
+- [2026-04-21] SESIÓN 18 - Fix regresión post-refactor CargarValidar.js:
+  - Refactor previo dividió CargarValidar.js (1600+ líneas) en 5 subcomponentes
+    /app/frontend/src/components/bandeja/ (TabImportar, TabPorRevisar, TabHistorial,
+    BandejaStats, BandejaDialogs) pero quedó una regresión sin detectar.
+  - Bug HIGH encontrado por testing_agent_v3_fork (iteration_20):
+    BandejaStats importado pero nunca montado — bloque inline quedó gated en
+    `activeTab === "validate"` (nombre legacy; tabs renombradas a importar/revisar/historial).
+    Resultado: las 4 cards de stats (Pendientes/Duplicados/Aprobados/Por revisar $)
+    nunca aparecían arriba de las pestañas.
+  - Bug LOW: duplicación de subtítulo en el header de Bandeja Financiera.
+  - Bug MEDIUM: botón "Aprobar seleccionadas" en header gated en 'validate' (muerto);
+    BulkActionDialog montado pero nunca abierto (setShowBulkDialog nunca llamado).
+  - Fix aplicado en CargarValidar.js:
+    * Reemplazado bloque stats inline por `<BandejaStats stats={stats}
+      duplicatePairs={duplicatePairs} crossCanalCount={crossCanalCount}
+      formatCurrency={formatCurrency} />` montado unconditionally arriba de los tabs.
+    * Removido párrafo de subtítulo duplicado (ahora solo "Sube archivos y aprueba
+      transacciones en un solo lugar").
+    * Removido botón bulk approve header-level y BulkActionDialog huérfano.
+    * Import de BulkActionDialog removido (solo GmailConsentDialog).
+  - Retest iteration_21: 100% passed (7/7 acceptance items).
+    BandejaStats renderiza con data viva: Pendientes:33, Duplicados:2 (+3 cross-canal),
+    Aprobados:46, Por revisar: $3.302,18. Forest Palette preservado. Lint: 0 issues.
+  - Pre-existente (no introducido): 500 errors en carga de /cargar (endpoints
+    /api/reconciliation/* o /api/gmail/*). Se sugiere investigar en sesión futura.
