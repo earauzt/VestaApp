@@ -44,9 +44,9 @@ const navItems = [
   { path: "/budget", label: "Mi Presupuesto", icon: ChartLine, roles: ["admin", "demo"] },
   { path: "/predictions", label: "Predicciones AI", icon: Brain, roles: ["admin"] },
   // Accountant-only items
-  { path: "/sri-limits", label: "Límites SRI", icon: Scales, roles: ["admin", "accountant"] },
-  { path: "/sri-match", label: "Match SRI", icon: Scales, roles: ["admin", "spouse", "accountant", "demo"] },
-  { path: "/accountant", label: "Vista Contadora", icon: Calculator, roles: ["admin", "accountant"] },
+  { path: "/sri-limits", label: "Deducciones", icon: Scales, roles: ["admin", "accountant"] },
+  { path: "/sri-match", label: "Mis Facturas", icon: Scales, roles: ["admin", "spouse", "accountant", "demo"] },
+  { path: "/accountant", label: "Vista Fiscal", icon: Calculator, roles: ["admin", "accountant"] },
 ];
 
 export default function Layout({ children }) {

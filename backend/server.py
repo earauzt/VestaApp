@@ -74,6 +74,8 @@ async def startup_db_seed():
     logger.info("Iniciando aplicacion - Ejecutando seed de datos...")
     await seed_database(MONGO_URL, DB_NAME)
     logger.info("Seed de datos completado")
+    from routes.gmail import start_gmail_cron
+    start_gmail_cron()
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

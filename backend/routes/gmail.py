@@ -695,3 +695,80 @@ async def get_parser_quality(user: dict = Depends(get_current_user)):
                     upsert=True
                 )
     return {"alerts": alerts}
+
+
+# ================= CRON job: sync Gmail cada 6h =================
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+
+_gmail_scheduler: Optional[AsyncIOScheduler] = None
+
+
+async def _cron_gmail_sync_all():
+    """Corre sync_gmail para cada usuario con gmail_tokens activos.
+    - Si el token expiró o falla refresh: loguea y continúa
+    - Nunca interrumpe el job por errores individuales
+    """
+    try:
+        tokens = await db.gmail_tokens.find({}, {"_id": 0, "user_id": 1}).to_list(1000)
+        logger.info(f"CRON gmail: {len(tokens)} usuarios a sincronizar")
+        for t in tokens:
+            uid = t.get("user_id")
+            if not uid:
+                continue
+            try:
+                creds = await _get_gmail_credentials(uid)
+                service = build('gmail', 'v1', credentials=creds)
+                token_doc = await db.gmail_tokens.find_one({"user_id": uid}, {"_id": 0, "ultimo_sync": 1}) or {}
+                ultimo = token_doc.get("ultimo_sync")
+                if isinstance(ultimo, str):
+                    try:
+                        ultimo = datetime.fromisoformat(ultimo.replace("Z", "+00:00"))
+                    except Exception:
+                        ultimo = None
+                now_cron = datetime.now(timezone.utc)
+                after_ts = int(ultimo.timestamp()) if ultimo else int((now_cron - timedelta(days=90)).timestamp())
+                q = (
+                    "from:(servicios@dinersclub.com.ec OR notificaciones@infopacificard.com.ec "
+                    "OR servicios@tarjetasbancopichincha.com OR Avisos24@bolivariano.com "
+                    "OR intermail@bancopacifico.ec OR banco@pichincha.com "
+                    "OR documentoselectronicos@pichincha.com OR estadodecuenta@pacificard.ec "
+                    "OR estadoscuenta@bancodelpacifico.com.ec OR email.apple.com OR netflix.com "
+                    "OR spotify.com OR google.com OR amazon.com OR adobe.com) is:unread "
+                    f"after:{after_ts}"
+                )
+                res = service.users().messages().list(userId='me', q=q, maxResults=100).execute()
+                msgs = res.get('messages', []) or []
+                logger.info(f"CRON gmail user={uid}: {len(msgs)} emails nuevos detectados")
+                # Reutiliza el pipeline de gmail_sync pero sin HTTP: delega al endpoint
+                # Para mantener el código mínimo, sólo actualizamos ultimo_sync; el user
+                # verá los pendientes al abrir la Bandeja y presionar Sincronizar manual
+                # si se requiere procesar ahora, se invoca gmail_sync via fake user dict.
+                user_doc = await db.users.find_one({"id": uid}, {"_id": 0})
+                if user_doc:
+                    try:
+                        await gmail_sync(user_doc)
+                    except Exception as e2:
+                        logger.warning(f"CRON gmail user={uid}: sync failed: {e2}")
+                await db.gmail_tokens.update_one({"user_id": uid}, {"$set": {"ultimo_sync": now_cron.isoformat()}})
+            except HTTPException as he:
+                if he.status_code in (401, 403, 404):
+                    logger.warning(f"CRON: usuario {uid} token expirado, skipped")
+                else:
+                    logger.warning(f"CRON gmail user={uid}: HTTP {he.status_code} - {he.detail}")
+            except Exception as e:
+                logger.warning(f"CRON gmail user={uid}: {type(e).__name__} - {e}")
+    except Exception as e:
+        logger.error(f"CRON gmail top-level error: {e}")
+
+
+def start_gmail_cron():
+    """Inicia el scheduler una sola vez (idempotente)."""
+    global _gmail_scheduler
+    if _gmail_scheduler and _gmail_scheduler.running:
+        return _gmail_scheduler
+    _gmail_scheduler = AsyncIOScheduler(timezone="UTC")
+    _gmail_scheduler.add_job(_cron_gmail_sync_all, "interval", hours=6, id="gmail_sync_all", replace_existing=True)
+    _gmail_scheduler.start()
+    logger.info("CRON gmail scheduler iniciado (cada 6h)")
+    return _gmail_scheduler
+
