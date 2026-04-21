@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import ReconciliacionEstados from "../components/ReconciliacionEstados";
+import Transactions from "./Transactions";
 import { 
   CloudArrowUp,
   SpinnerGap,
@@ -135,7 +136,7 @@ export default function CargarValidar() {
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
   useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
-  const [activeTab, setActiveTab] = useState("upload");
+  const [activeTab, setActiveTab] = useState("importar");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
   
@@ -173,6 +174,12 @@ export default function CargarValidar() {
   const [selectedGmailIds, setSelectedGmailIds] = useState([]);
   const [gmailFilter, setGmailFilter] = useState("consumo"); // consumo | recibo_servicio | all
   const [bulkApproving, setBulkApproving] = useState(false);
+  // SESIÓN 12: Rediseño 3 pestañas (Importar / Por revisar / Historial)
+  const [budgetCategories, setBudgetCategories] = useState({});
+  const [rowCategory, setRowCategory] = useState({}); // {id: categoryKey}
+  const [reviewSelectedIds, setReviewSelectedIds] = useState([]);
+  const [reviewFilter, setReviewFilter] = useState({ source: "all", category: "all" });
+  const [reviewBulkApproving, setReviewBulkApproving] = useState(false);
   const [gmailSummary, setGmailSummary] = useState({});
   const [gmailSyncing, setGmailSyncing] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
@@ -227,13 +234,14 @@ export default function CargarValidar() {
   }, []);
 
   useEffect(() => {
-    if (activeTab === "validate") {
+    if (activeTab === "revisar") {
       fetchPendingData();
-    }
-    if (activeTab === "gmail") {
       fetchGmailStatus();
       fetchGmailTransactions();
       fetchGmailDocuments();
+    }
+    if (activeTab === "importar") {
+      fetchGmailStatus();
     }
   }, [activeTab, fetchPendingData, fetchGmailStatus, fetchGmailTransactions, fetchGmailDocuments]);
 
@@ -291,6 +299,117 @@ export default function CargarValidar() {
       setGmailTransactions(prev => prev.filter(t => t.gmail_id !== gmailId));
     } catch (e) {
       toast.error("Error al descartar");
+    }
+  };
+
+  // SESIÓN 12: cargar categorías de presupuesto (una vez)
+  useEffect(() => {
+    axios.get(`${API}/budget/categories`, { headers: getAuthHeadersRef.current() })
+      .then((r) => setBudgetCategories(r.data?.categories || {}))
+      .catch(() => {});
+  }, []);
+
+  // Lista unificada para "Por revisar" (Gmail + Estados pendientes)
+  const unifiedReview = (() => {
+    const items = [];
+    gmailTransactions.filter(t => t.estado === "pendiente").forEach(t => {
+      items.push({
+        id: `gm-${t.gmail_id}`,
+        source: "gmail",
+        source_label: "Gmail",
+        origin_id: t.gmail_id,
+        date: t.fecha_transaccion || "",
+        comercio: (t.comercio || "").trim() || (t.descripcion_corta || "(sin comercio)").slice(0, 40),
+        amount: t.monto || 0,
+        tipo: t.tipo,
+        suggested_category: t.personal_category || "otros",
+      });
+    });
+    pendingTransactions.forEach(t => {
+      items.push({
+        id: `st-${t.id}`,
+        source: t.source || "statement",
+        source_label: t.source === "manual" ? "Manual" : "PDF",
+        origin_id: t.id,
+        date: t.date || "",
+        comercio: (t.establishment || t.description || "(sin comercio)").slice(0, 60),
+        amount: t.amount || 0,
+        tipo: t.transaction_type,
+        suggested_category: t.category || t.budget_category || "otros",
+      });
+    });
+    return items;
+  })();
+
+  const filteredReview = unifiedReview.filter((r) => {
+    if (reviewFilter.source !== "all" && r.source !== reviewFilter.source) return false;
+    if (reviewFilter.category !== "all") {
+      const cat = rowCategory[r.id] || r.suggested_category;
+      if (cat !== reviewFilter.category) return false;
+    }
+    return true;
+  });
+
+  const reviewAllSelected = filteredReview.length > 0 && filteredReview.every(r => reviewSelectedIds.includes(r.id));
+
+  const toggleReviewSelectAll = () => {
+    if (reviewAllSelected) {
+      setReviewSelectedIds(prev => prev.filter(id => !filteredReview.some(r => r.id === id)));
+    } else {
+      const addIds = filteredReview.map(r => r.id);
+      setReviewSelectedIds(prev => [...new Set([...prev, ...addIds])]);
+    }
+  };
+
+  const toggleReviewSelect = (id) => {
+    setReviewSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]);
+  };
+
+  const handleReviewBulkApprove = async () => {
+    if (reviewSelectedIds.length === 0) return;
+    setReviewBulkApproving(true);
+    const headers = getAuthHeadersRef.current();
+    let approved = 0;
+    const errors = [];
+    try {
+      const selected = unifiedReview.filter(r => reviewSelectedIds.includes(r.id));
+      for (const item of selected) {
+        const cat = rowCategory[item.id] || item.suggested_category;
+        try {
+          if (item.source === "gmail") {
+            const res = await axios.put(
+              `${API}/gmail/transactions/${item.origin_id}/approve`,
+              {},
+              { headers }
+            );
+            const newTxId = res.data?.transaction_id;
+            if (newTxId && cat && cat !== item.suggested_category) {
+              await axios.put(
+                `${API}/transactions/${newTxId}`,
+                { category: cat, budget_category: cat, amount: item.amount, description: item.comercio, date: item.date, transaction_type: "expense" },
+                { headers }
+              ).catch(() => {});
+            }
+          } else {
+            await axios.put(
+              `${API}/reconciliation/approve/${item.origin_id}?category=${encodeURIComponent(cat)}`,
+              {},
+              { headers }
+            );
+          }
+          approved += 1;
+        } catch (e) {
+          errors.push({ id: item.id, error: e.response?.data?.detail || e.message });
+        }
+      }
+      if (approved > 0) toast.success(`${approved} transacciones aprobadas y categorizadas`);
+      if (errors.length > 0) toast.error(`${errors.length} error(es) al aprobar`);
+      setReviewSelectedIds([]);
+      setRowCategory({});
+      fetchGmailTransactions();
+      fetchPendingData();
+    } finally {
+      setReviewBulkApproving(false);
     }
   };
 
@@ -421,7 +540,7 @@ export default function CargarValidar() {
       
       // Switch to validation tab and refresh
       setTimeout(() => {
-        setActiveTab("validate");
+        setActiveTab("revisar");
         fetchPendingData();
       }, 1500);
     } catch (error) {
@@ -944,34 +1063,28 @@ export default function CargarValidar() {
       <Card className="bento-card">
         <CardContent className="p-4 sm:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-4 mb-6">
-              <TabsTrigger value="upload" className="gap-2" data-testid="tab-upload">
+            <TabsList className="grid w-full grid-cols-3 mb-6">
+              <TabsTrigger value="importar" className="gap-2" data-testid="tab-importar">
                 <CloudArrowUp size={18} />
-                <span className="hidden sm:inline">Cargar</span>
+                <span className="hidden sm:inline">Importar</span>
               </TabsTrigger>
-              <TabsTrigger value="reconcile" className="gap-2" data-testid="tab-reconcile">
-                <Bank size={18} />
-                <span className="hidden sm:inline">Estados</span>
-                <span className="sm:hidden">Bancos</span>
-              </TabsTrigger>
-              <TabsTrigger value="gmail" className="gap-2" data-testid="tab-gmail">
-                <EnvelopeSimple size={18} />
-                <span className="hidden sm:inline">Gmail</span>
-                {gmailSummary?.pendiente > 0 && (
-                  <Badge variant="secondary" className="ml-1">{gmailSummary.pendiente}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="validate" className="gap-2" data-testid="tab-validate">
+              <TabsTrigger value="revisar" className="gap-2" data-testid="tab-revisar">
                 <CheckSquare size={18} />
-                <span className="hidden sm:inline">Validar</span>
-                {(stats.pending_review || 0) > 0 && (
-                  <Badge variant="secondary" className="ml-1">{stats.pending_review}</Badge>
+                <span className="hidden sm:inline">Por revisar</span>
+                {(gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length) > 0 && (
+                  <Badge variant="secondary" className="ml-1">
+                    {gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length}
+                  </Badge>
                 )}
+              </TabsTrigger>
+              <TabsTrigger value="historial" className="gap-2" data-testid="tab-historial">
+                <Receipt size={18} />
+                <span className="hidden sm:inline">Historial</span>
               </TabsTrigger>
             </TabsList>
 
-            {/* Upload Tab */}
-            <TabsContent value="upload">
+            {/* Importar Tab (Cargar + Estados + Gmail sync) */}
+            <TabsContent value="importar">
               <div className="grid lg:grid-cols-2 gap-6">
                 {/* Upload Area */}
                 <div className="space-y-4">
@@ -1128,7 +1241,7 @@ export default function CargarValidar() {
                           ))}
                         </div>
                       )}
-                      <Button onClick={() => { setActiveTab("validate"); fetchPendingData(); }} className="w-full gap-2">
+                      <Button onClick={() => { setActiveTab("revisar"); fetchPendingData(); }} className="w-full gap-2">
                         <ArrowRight size={18} />
                         Ir a Validar
                       </Button>
@@ -1142,415 +1255,173 @@ export default function CargarValidar() {
                   )}
                 </div>
               </div>
-            </TabsContent>
 
-            {/* Reconcile Tab - Estados de Cuenta */}
-            <TabsContent value="reconcile">
-              <ReconciliacionEstados />
-            </TabsContent>
-
-            {/* Gmail Tab */}
-            <TabsContent value="gmail">
-              <div className="space-y-6" data-testid="gmail-tab-content">
-                {!gmailStatus.connected ? (
-                  <div className="text-center py-12" data-testid="gmail-connect-prompt">
-                    <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-red-50 flex items-center justify-center">
-                      <EnvelopeSimple size={40} className="text-red-500" weight="duotone" />
-                    </div>
-                    <h3 className="text-lg font-semibold mb-2">Conecta tu cuenta de Gmail</h3>
-                    <p className="text-muted-foreground mb-6 max-w-md mx-auto">
-                      FamilyFinance leerá tus notificaciones bancarias para detectar consumos, alertas y estados de cuenta automáticamente.
-                    </p>
-                    <Button onClick={() => setShowGmailConsentModal(true)} className="gap-2" disabled={gmailConnecting} data-testid="gmail-connect-btn">
-                      {gmailConnecting ? (
-                        <>
-                          <SpinnerGap size={18} className="animate-spin" />
-                          Conectando...
-                        </>
-                      ) : (
-                        <>
-                          <GoogleLogo size={18} weight="bold" />
-                          Conectar Gmail
-                        </>
-                      )}
-                    </Button>
+              {/* Sección: Correo electrónico (Gmail sync) */}
+              <div className="mt-6 border rounded-xl p-4 sm:p-6 bg-muted/20" data-testid="gmail-sync-section">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-2 rounded-lg bg-red-50 text-red-500">
+                    <EnvelopeSimple size={18} weight="duotone" />
                   </div>
+                  <div>
+                    <h3 className="font-semibold">Correo electrónico</h3>
+                    <p className="text-xs text-muted-foreground">
+                      {gmailStatus.connected
+                        ? `Último sync: ${gmailStatus.last_sync ? new Date(gmailStatus.last_sync).toLocaleString("es-EC") : "Nunca"}`
+                        : "Conecta Gmail para detectar consumos automáticamente"}
+                    </p>
+                  </div>
+                </div>
+                {!gmailStatus.connected ? (
+                  <Button onClick={() => setShowGmailConsentModal(true)} className="gap-2" disabled={gmailConnecting} data-testid="gmail-connect-btn-importar">
+                    {gmailConnecting ? <><SpinnerGap size={16} className="animate-spin" /> Conectando...</> : <><GoogleLogo size={16} weight="bold" /> Conectar Gmail</>}
+                  </Button>
                 ) : (
-                  <>
-                    {/* Header */}
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <h3 className="font-semibold">Emails Bancarios</h3>
-                        <p className="text-sm text-muted-foreground">
-                          Último sync: {gmailStatus.last_sync ? new Date(gmailStatus.last_sync).toLocaleString("es-EC") : "Nunca"}
-                        </p>
-                      </div>
-                      <Button 
-                        onClick={handleGmailSync} 
-                        disabled={gmailSyncing} 
-                        className="gap-2"
-                        data-testid="gmail-sync-btn"
-                      >
-                        <ArrowsClockwise size={18} className={gmailSyncing ? "animate-spin" : ""} />
-                        {gmailSyncing ? "Sincronizando..." : "Sincronizar ahora"}
-                      </Button>
-                    </div>
-
-                    {/* Summary badges */}
-                    <div className="flex gap-3 flex-wrap">
-                      <Badge variant="outline" className="gap-1">
-                        <EnvelopeSimple size={14} /> Total: {gmailSummary.total || 0}
-                      </Badge>
-                      <Badge className="gap-1 bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
+                  <div className="flex flex-col sm:flex-row gap-3 sm:items-center justify-between">
+                    <div className="flex gap-2 flex-wrap">
+                      <Badge className="gap-1 bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100" data-testid="gmail-pending-badge">
                         Pendientes: {gmailSummary.pendiente || 0}
                       </Badge>
                       <Badge className="gap-1 bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100">
                         Aprobados: {gmailSummary.aprobado || 0}
                       </Badge>
                     </div>
-
-                    {/* Transaction list */}
-                    {gmailLoading ? (
-                      <div className="text-center py-8">
-                        <SpinnerGap size={32} className="animate-spin mx-auto text-muted-foreground" />
-                      </div>
-                    ) : gmailTransactions.length === 0 ? (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <CheckCircle size={32} className="mx-auto mb-2 text-emerald-500" />
-                        <p>No hay transacciones pendientes de Gmail</p>
-                        <p className="text-xs mt-1">Pulsa "Sincronizar ahora" para buscar nuevos emails</p>
-                      </div>
-                    ) : (
-                      <div className="space-y-2">
-                        {/* Filter tabs + bulk toolbar */}
-                        <div className="flex flex-col sm:flex-row gap-2 sm:items-center justify-between pb-2 border-b">
-                          <div className="flex gap-1" data-testid="gmail-filters">
-                            {[
-                              { key: "consumo", label: "Solo consumos" },
-                              { key: "recibo_servicio", label: "Solo servicios" },
-                              { key: "all", label: "Todos" },
-                            ].map((f) => (
-                              <Button
-                                key={f.key}
-                                size="sm"
-                                variant={gmailFilter === f.key ? "default" : "outline"}
-                                onClick={() => { setGmailFilter(f.key); setSelectedGmailIds([]); }}
-                                className="text-xs"
-                                data-testid={`gmail-filter-${f.key}`}
-                              >
-                                {f.label}
-                              </Button>
-                            ))}
-                          </div>
-                          <div className="flex items-center gap-3">
-                            <label className="flex items-center gap-2 text-xs cursor-pointer">
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-primary"
-                                checked={allSelected}
-                                onChange={toggleSelectAllGmail}
-                                data-testid="select-all-gmail"
-                              />
-                              Seleccionar todos los pendientes ({filteredGmailTxs.length})
-                            </label>
-                            <Button
-                              size="sm"
-                              onClick={handleGmailBulkApprove}
-                              disabled={selectedGmailIds.length === 0 || bulkApproving}
-                              data-testid="bulk-approve-btn"
-                              className="bg-emerald-600 hover:bg-emerald-700"
-                            >
-                              {bulkApproving ? "Aprobando..." : `Aprobar seleccionados (${selectedGmailIds.length})`}
-                            </Button>
-                          </div>
-                        </div>
-                        {filteredGmailTxs.length === 0 && (
-                          <div className="text-center py-6 text-sm text-muted-foreground">
-                            No hay resultados con este filtro
-                          </div>
-                        )}
-                        {filteredGmailTxs.map((tx) => (
-                          <div 
-                            key={tx.gmail_id} 
-                            className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                            data-testid={`gmail-tx-${tx.gmail_id}`}
-                          >
-                            {tx.estado === "pendiente" && (
-                              <input
-                                type="checkbox"
-                                className="h-4 w-4 accent-primary shrink-0"
-                                checked={selectedGmailIds.includes(tx.gmail_id)}
-                                onChange={() => toggleSelectGmail(tx.gmail_id)}
-                                data-testid={`gmail-check-${tx.gmail_id}`}
-                              />
-                            )}
-                            <div className={`w-2 h-2 rounded-full shrink-0 ${
-                              tx.tipo === "consumo" ? "bg-blue-500" : 
-                              tx.tipo === "alerta" ? "bg-red-500" : 
-                              tx.tipo === "estado_de_cuenta" ? "bg-violet-500" : 
-                              tx.tipo === "factura_sri" ? "bg-emerald-500" :
-                              tx.tipo === "recibo_servicio" ? "bg-orange-500" : "bg-gray-300"
-                            }`} />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {tx.tipo === "factura_sri" && <span className="text-base" title="Factura SRI">🧾</span>}
-                                {tx.tipo === "recibo_servicio" && <span className="text-base" title="Recibo servicio digital">🔄</span>}
-                                <span className="font-medium text-sm truncate">{tx.descripcion_corta || tx.subject}</span>
-                                <Badge variant="outline" className={`text-xs shrink-0 ${
-                                  tx.tipo === "factura_sri" ? "border-emerald-300 text-emerald-700" :
-                                  tx.tipo === "recibo_servicio" ? "border-orange-300 text-orange-700" : ""
-                                }`}>
-                                  {tx.tipo === "factura_sri" ? "Factura SRI" : tx.tipo === "recibo_servicio" ? "Servicio Digital" : tx.tipo}
-                                </Badge>
-                                {tx.nivel_urgencia === "alta" && (
-                                  <Badge className="text-xs bg-red-100 text-red-700 border-red-200 hover:bg-red-100">Urgente</Badge>
-                                )}
-                                {tx.es_deducible && (
-                                  <Badge className="text-xs bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-50">Deducible</Badge>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                {tx.banco && <span>{tx.banco}</span>}
-                                {tx.tarjeta_ultimos4 && <span>****{tx.tarjeta_ultimos4}</span>}
-                                {tx.comercio && <span>· {tx.comercio}</span>}
-                                {tx.fecha_transaccion && <span>· {tx.fecha_transaccion}</span>}
-                                {tx.numero_factura && <span>· Fact. {tx.numero_factura}</span>}
-                                {tx.ruc_emisor && <span>· RUC: {tx.ruc_emisor}</span>}
-                                {tx.es_suscripcion && (
-                                  <Badge className="text-xs bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-50">Suscripcion</Badge>
-                                )}
-                                {tx.proxima_renovacion && <span>· Renueva: {tx.proxima_renovacion}</span>}
-                              </div>
-                            </div>
-                            {tx.monto && (
-                              <span className="font-bold font-mono text-sm shrink-0">
-                                ${tx.monto.toLocaleString("es-EC", { minimumFractionDigits: 2 })}
-                              </span>
-                            )}
-                            {tx.estado === "pendiente" && (
-                              <div className="flex gap-1 shrink-0">
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost" 
-                                  className="h-8 w-8 p-0 text-emerald-600 hover:bg-emerald-50"
-                                  onClick={() => handleApproveGmail(tx.gmail_id)}
-                                  data-testid={`gmail-approve-${tx.gmail_id}`}
-                                >
-                                  <CheckCircle size={18} />
-                                </Button>
-                                <Button 
-                                  size="sm" 
-                                  variant="ghost" 
-                                  className="h-8 w-8 p-0 text-red-500 hover:bg-red-50"
-                                  onClick={() => handleDiscardGmail(tx.gmail_id)}
-                                  data-testid={`gmail-discard-${tx.gmail_id}`}
-                                >
-                                  <XCircle size={18} />
-                                </Button>
-                              </div>
-                            )}
-                            {tx.estado === "aprobado" && (
-                              <Badge className="bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-100 text-xs">Aprobado</Badge>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Documents Section */}
-                    {gmailDocuments.length > 0 && (
-                      <div className="space-y-3 mt-6" data-testid="gmail-documents-section">
-                        <h4 className="font-semibold flex items-center gap-2">
-                          <FileText size={18} className="text-primary" />
-                          Documentos recibidos
-                          <Badge variant="outline" className="ml-1">{gmailDocuments.length}</Badge>
-                        </h4>
-                        <div className="space-y-2">
-                          {gmailDocuments.map((doc) => (
-                            <div 
-                              key={doc.id} 
-                              className="flex items-center gap-3 p-3 rounded-lg border bg-card"
-                              data-testid={`gmail-doc-${doc.id}`}
-                            >
-                              <div className="p-2 rounded-lg bg-red-50 text-red-500">
-                                <FileText size={20} weight="duotone" />
-                              </div>
-                              <div className="flex-1 min-w-0">
-                                <p className="font-medium text-sm truncate">{doc.filename}</p>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                                  {doc.banco && <span>{doc.banco}</span>}
-                                  {doc.fecha_email && <span>· {doc.fecha_email}</span>}
-                                  {doc.tipo === "factura_sri" && doc.numero_factura && <span>· Fact. {doc.numero_factura}</span>}
-                                  {doc.transactions_count > 0 && (
-                                    <Badge className="text-xs bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-50">
-                                      {doc.transactions_count} transacciones
-                                    </Badge>
-                                  )}
-                                  {doc.procesado && (
-                                    <Badge className="text-xs bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-50">Procesado</Badge>
-                                  )}
-                                </div>
-                              </div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                className="gap-1 shrink-0"
-                                onClick={() => window.open(`${API}/gmail/documents/${doc.id}/view`, '_blank')}
-                                data-testid={`gmail-doc-view-${doc.id}`}
-                              >
-                                <Eye size={14} />
-                                Ver
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </>
+                    <Button onClick={handleGmailSync} disabled={gmailSyncing} className="gap-2" data-testid="gmail-sync-btn">
+                      <ArrowsClockwise size={16} className={gmailSyncing ? "animate-spin" : ""} />
+                      {gmailSyncing ? "Sincronizando..." : "Sincronizar ahora"}
+                    </Button>
+                  </div>
                 )}
+              </div>
+
+              {/* Sección: Estados de cuenta */}
+              <div className="mt-6">
+                <ReconciliacionEstados />
               </div>
             </TabsContent>
 
-            {/* Validate Tab */}
-            <TabsContent value="validate">
-              <div className="space-y-4">
-                {/* Pending Transactions */}
-                {pendingTransactions.length === 0 && duplicatePairs.length === 0 ? (
+            {/* Revisar Tab - Unified review list (Gmail + Statements) */}
+            <TabsContent value="revisar">
+              <div className="space-y-4" data-testid="revisar-tab-content">
+                {/* Toolbar */}
+                <div className="flex flex-col lg:flex-row gap-3 lg:items-center justify-between pb-2 border-b">
+                  <div className="flex gap-2 flex-wrap">
+                    <Select value={reviewFilter.source} onValueChange={(v) => setReviewFilter({ ...reviewFilter, source: v })}>
+                      <SelectTrigger className="w-[150px] h-9" data-testid="review-source-filter">
+                        <SelectValue placeholder="Origen" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[250]">
+                        <SelectItem value="all">Todos los orígenes</SelectItem>
+                        <SelectItem value="gmail">Solo Gmail</SelectItem>
+                        <SelectItem value="statement">Solo PDF/Estados</SelectItem>
+                        <SelectItem value="manual">Solo manuales</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Select value={reviewFilter.category} onValueChange={(v) => setReviewFilter({ ...reviewFilter, category: v })}>
+                      <SelectTrigger className="w-[170px] h-9" data-testid="review-category-filter">
+                        <SelectValue placeholder="Categoría" />
+                      </SelectTrigger>
+                      <SelectContent className="z-[250]">
+                        <SelectItem value="all">Todas las categorías</SelectItem>
+                        {Object.entries(budgetCategories).map(([k, v]) => (
+                          <SelectItem key={k} value={k}>{v.name || k}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <label className="flex items-center gap-2 text-xs cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 accent-primary"
+                        checked={reviewAllSelected}
+                        onChange={toggleReviewSelectAll}
+                        data-testid="review-select-all"
+                      />
+                      Seleccionar todos ({filteredReview.length})
+                    </label>
+                    <Button
+                      size="sm"
+                      onClick={handleReviewBulkApprove}
+                      disabled={reviewSelectedIds.length === 0 || reviewBulkApproving}
+                      data-testid="review-bulk-approve-btn"
+                      className="bg-emerald-600 hover:bg-emerald-700"
+                    >
+                      {reviewBulkApproving ? "Aprobando..." : `Aprobar seleccionados (${reviewSelectedIds.length})`}
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Unified list */}
+                {filteredReview.length === 0 ? (
                   <div className="text-center py-12 text-muted-foreground">
-                    <CheckCircle size={48} className="mx-auto mb-4 text-emerald-500" />
-                    <p className="font-medium">¡Todo validado!</p>
-                    <p className="text-sm">No hay transacciones pendientes</p>
+                    <CheckCircle size={40} className="mx-auto mb-3 text-emerald-500" />
+                    <p className="font-medium">No hay transacciones por revisar</p>
+                    <p className="text-xs mt-1">Las nuevas transacciones aparecerán aquí</p>
                   </div>
                 ) : (
-                  <>
-                    {/* Duplicates Warning */}
-                    {duplicatePairs.length > 0 && (
-                      <div className="p-4 rounded-xl bg-orange-50 dark:bg-orange-900/10 border border-orange-200 mb-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <Warning size={24} className="text-orange-500" />
-                            <div>
-                              <p className="font-medium text-orange-800">{duplicatePairs.length} posible(s) duplicado(s)</p>
-                              <p className="text-sm text-orange-600">Revisa antes de aprobar</p>
-                            </div>
-                          </div>
-                          <Button size="sm" variant="outline" onClick={() => { setSelectedPair(duplicatePairs[0]); setShowDuplicateDialog(true); }}>
-                            Revisar
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Transaction List */}
-                    {pendingTransactions.length > 0 && (
-                      <>
-                        {/* Search Filter */}
-                        <div className="flex flex-col sm:flex-row gap-3 mb-4">
-                          <div className="flex-1 relative">
-                            <Input
-                              placeholder="Buscar transacción... (ej: uber, netflix, supermaxi)"
-                              value={searchFilter}
-                              onChange={(e) => setSearchFilter(e.target.value)}
-                              className="pl-10"
-                              data-testid="search-filter"
-                            />
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">🔍</span>
-                          </div>
-                          {selectedItems.length > 0 && (
-                            <Button 
-                              onClick={() => setShowBulkDialog(true)}
-                              className="bg-primary"
-                            >
-                              <CheckSquare size={16} className="mr-2" />
-                              Acción en lote ({selectedItems.length})
-                            </Button>
-                          )}
-                        </div>
-                        
-                        <div className="flex justify-between items-center mb-2">
-                          <div className="flex gap-2">
-                            <Button variant="outline" size="sm" onClick={() => {
-                              const filtered = pendingTransactions
-                                .filter(t => !searchFilter || 
-                                  t.description?.toLowerCase().includes(searchFilter.toLowerCase()) ||
-                                  t.establishment?.toLowerCase().includes(searchFilter.toLowerCase()))
-                                .map(t => t._id || t.id);
-                              setSelectedItems(filtered);
-                            }}>
-                              Seleccionar {searchFilter ? "filtradas" : "todas"}
-                            </Button>
-                            {selectedItems.length > 0 && (
-                              <Button variant="ghost" size="sm" onClick={() => setSelectedItems([])}>
-                                Deseleccionar
-                              </Button>
-                            )}
-                          </div>
-                          <span className="text-sm text-muted-foreground">
-                            {searchFilter 
-                              ? `${pendingTransactions.filter(t => 
-                                  t.description?.toLowerCase().includes(searchFilter.toLowerCase()) ||
-                                  t.establishment?.toLowerCase().includes(searchFilter.toLowerCase())
-                                ).length} de ${pendingTransactions.length}`
-                              : `${pendingTransactions.length} pendiente(s)`
-                            }
-                          </span>
-                        </div>
-                      </>
-                    )}
-
-                    <div className="space-y-2">
-                      {pendingTransactions
-                        .filter(t => !searchFilter || 
-                          t.description?.toLowerCase().includes(searchFilter.toLowerCase()) ||
-                          t.establishment?.toLowerCase().includes(searchFilter.toLowerCase()) ||
-                          t.category?.toLowerCase().includes(searchFilter.toLowerCase())
-                        )
-                        .map((t, index) => (
-                        <motion.div
-                          key={t.id}
-                          initial={{ opacity: 0, x: -10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: index * 0.02 }}
-                          className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border transition-all ${
-                            selectedItems.includes(t._id || t.id) ? "bg-primary/5 border-primary" : "bg-muted/50 border-transparent hover:bg-muted"
-                          }`}
+                  <div className="space-y-2">
+                    {filteredReview.map((item) => {
+                      const selectedCat = rowCategory[item.id] || item.suggested_category;
+                      const sourceBadgeColor = item.source === "gmail"
+                        ? "bg-red-50 text-red-700 border-red-200"
+                        : item.source === "manual"
+                        ? "bg-blue-50 text-blue-700 border-blue-200"
+                        : "bg-violet-50 text-violet-700 border-violet-200";
+                      return (
+                        <div
+                          key={item.id}
+                          className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                          data-testid={`review-item-${item.id}`}
                         >
-                          <div className="flex items-center gap-3 flex-1">
-                            <Checkbox checked={selectedItems.includes(t._id || t.id)} onCheckedChange={() => toggleSelectItem(t)} />
+                          <input
+                            type="checkbox"
+                            className="h-4 w-4 accent-primary shrink-0"
+                            checked={reviewSelectedIds.includes(item.id)}
+                            onChange={() => toggleReviewSelect(item.id)}
+                            data-testid={`review-check-${item.id}`}
+                          />
+                          <div className="flex-1 min-w-0 flex items-center gap-3">
+                            <span className="text-xs text-muted-foreground shrink-0 w-20">{item.date}</span>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                {t.establishment && <span className="font-semibold text-primary">{t.establishment}</span>}
-                                {t.has_receipt && <Badge variant="outline" className="text-xs"><Receipt size={12} className="mr-1" />Recibo</Badge>}
-                              </div>
-                              <p className="text-sm text-muted-foreground truncate">{t.description}</p>
-                              <div className="flex items-center gap-2 mt-1 text-xs flex-wrap">
-                                <span>{t.date}</span>
-                                <Badge variant="secondary">{PERSONAL_CATEGORIES[t.category]?.name || t.category}</Badge>
-                              </div>
+                              <p className="font-medium text-sm truncate" data-testid={`review-comercio-${item.id}`}>{item.comercio}</p>
                             </div>
+                            <span className="font-mono font-semibold text-sm shrink-0">${(item.amount || 0).toFixed(2)}</span>
+                            <Badge variant="outline" className={`text-[10px] shrink-0 ${sourceBadgeColor}`} data-testid={`review-source-${item.id}`}>
+                              {item.source_label}
+                            </Badge>
                           </div>
-                          
-                          <div className="flex items-center justify-between sm:justify-end gap-3">
-                            <p className="font-mono font-bold text-lg">{formatCurrency(t.amount)}</p>
-                            <div className="flex gap-1">
-                              <Button variant="ghost" size="icon" onClick={() => openDetailDialog(t)} title="Ver detalles">
-                                <Eye size={18} />
-                              </Button>
-                              <Button variant="outline" size="icon" onClick={() => handleReject(t.id)} className="text-red-600" title="Rechazar">
-                                <XCircle size={16} />
-                              </Button>
-                              <Button size="icon" onClick={() => handleApprove(t.id)} className="bg-emerald-600 hover:bg-emerald-700" title="Aprobar">
-                                <CheckCircle size={16} />
-                              </Button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </>
+                          <Select
+                            value={selectedCat}
+                            onValueChange={(v) => setRowCategory(prev => ({ ...prev, [item.id]: v }))}
+                          >
+                            <SelectTrigger className="w-[170px] h-9 shrink-0" data-testid={`review-cat-${item.id}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="z-[250]">
+                              {Object.entries(budgetCategories).map(([k, v]) => (
+                                <SelectItem key={k} value={k}>{v.name || k}</SelectItem>
+                              ))}
+                              {!budgetCategories[selectedCat] && (
+                                <SelectItem value={selectedCat}>{selectedCat}</SelectItem>
+                              )}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      );
+                    })}
+                  </div>
                 )}
               </div>
             </TabsContent>
+
+            {/* Historial Tab - reutiliza componente Transactions */}
+            <TabsContent value="historial">
+              <div data-testid="historial-tab-content">
+                <Transactions embedded />
+              </div>
+            </TabsContent>
+
+
           </Tabs>
         </CardContent>
       </Card>
