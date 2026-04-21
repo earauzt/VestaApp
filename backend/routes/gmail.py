@@ -51,6 +51,44 @@ async def _get_gmail_credentials(user_id: str) -> Credentials:
     return creds
 
 
+# ================= FACTURA SRI DETECTION =================
+
+FACTURA_KEYWORDS = [
+    "factura", "fact", "fct", "fac ",
+    "facturación", "facturacion",
+    "factura electronica", "factura electrónica",
+    "documento electronico", "documento electrónico",
+    "documentoselectronicos", "doc.electronico",
+    "comprobante electronico", "comprobante electrónico",
+    "recibo electronico", "recibo electrónico",
+    "ha recibido su documento",
+    "su documento electronico",
+    "su factura",
+    "nota de venta",
+    "liquidacion de compra",
+    "001-001-", "001-002-", "001-003-",
+]
+
+FACTURA_BODY_KEYWORDS = [
+    "número de autorización", "numero de autorizacion",
+    "clave de acceso",
+    "ruc:",
+    "ambiente: producción", "ambiente: produccion",
+    "comprobante de retención", "comprobante de retencion",
+]
+
+
+def _is_factura_electronica(subject: str, body: str) -> bool:
+    """Detecta si un email es una factura electrónica SRI basándose en subject o body."""
+    s = (subject or "").lower()
+    b = (body or "").lower()
+    if any(kw.lower() in s for kw in FACTURA_KEYWORDS):
+        return True
+    if any(kw.lower() in b for kw in (FACTURA_KEYWORDS + FACTURA_BODY_KEYWORDS)):
+        return True
+    return False
+
+
 async def _classify_email_with_ai(subject: str, body_snippet: str, force_type: str = None) -> dict:
     system_prompt = (
         'Eres un clasificador financiero de bancos y facturas electronicas ecuatorianas. '
@@ -61,12 +99,18 @@ async def _classify_email_with_ai(subject: str, body_snippet: str, force_type: s
         '"banco": string, "descripcion_corta": string, '
         '"nivel_urgencia": "alta|media|baja|ninguna", '
         '"numero_factura": string o null, "ruc_emisor": string o null}. '
-        'REGLAS PARA factura_sri (OBLIGATORIAS): Si el subject contiene "factura", "Factura", '
-        '"FACTURA", "documento electronico", "Documento Electronico", "comprobante electronico", '
-        '"comprobante de venta", "nota de venta", "Ha recibido su documento" o el remitente '
-        'contiene "contifico.com", "degeremcia.com", "datil.co" o es facturacion@* / facturas@* / '
-        'comprobantes@* / electronica@* => tipo DEBE ser factura_sri (NO consumo, NO descarte). '
-        'En esos casos extrae numero_factura y ruc_emisor del cuerpo si aparecen '
+        'REGLAS PARA factura_sri (OBLIGATORIAS): El subject o body contiene cualquiera de: '
+        '"factura", "fact", "fct", "fac ", "facturacion", "facturacion electronica", '
+        '"factura electronica", "documento electronico", "documentoselectronicos", '
+        '"doc.electronico", "comprobante electronico", "recibo electronico", '
+        '"ha recibido su documento", "su documento electronico", "su factura", '
+        '"nota de venta", "liquidacion de compra", "001-001-", "001-002-", "001-003-". '
+        'O el body contiene: "numero de autorizacion", "clave de acceso", "RUC:", '
+        '"ambiente: produccion", "comprobante de retencion". '
+        'O el remitente contiene: "contifico.com", "degeremcia.com", "datil.co", "sri.gob.ec", '
+        'facturacion@*, facturas@*, comprobantes@*, documentos@*, documentoselectronicos@*, '
+        'electronica@*. En CUALQUIERA de estos casos => tipo DEBE ser factura_sri '
+        '(NO consumo, NO descarte). Extrae numero_factura y ruc_emisor del cuerpo '
         '(patron RUC: 13 digitos, patron factura: 001-001-XXXXXXXXX).'
     )
     try:
@@ -280,7 +324,9 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         "OR spotify.com OR google.com OR amazon.com OR adobe.com "
         "OR noreply@contifico.com OR noreply@www.contifico.com "
         "OR notifications@degeremcia.com OR noreply@datil.co "
-        "OR facturacion OR facturas OR comprobantes OR electronica) is:unread "
+        "OR noreply@sri.gob.ec OR no-reply@sri.gob.ec OR sri.gob.ec "
+        "OR facturacion OR facturación OR facturas OR comprobantes OR electronica "
+        "OR documentos OR documentoselectronicos) is:unread "
         f"after:{after_ts}"
     )
     results = service.users().messages().list(userId='me', q=GMAIL_SENDER_FILTER, maxResults=max_results).execute()
@@ -305,9 +351,11 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         date_str = headers.get('date', '')
         body_snippet = msg.get('snippet', '')
         subject_lower = subject.lower()
-        is_factura_subject = any(kw in subject_lower for kw in ["factura", "documento electronico", "comprobante electronico", "comprobante de venta", "nota de venta", "ha recibido su documento"])
+        # Extract body early for factura detection (full text, not just snippet)
+        full_text_body = extract_text_body(msg) or body_snippet
+        is_factura_subject = _is_factura_electronica(subject, full_text_body)
         sender_lower = sender.lower()
-        INVOICE_SENDERS = ["contifico.com", "degeremcia.com", "datil.co", "facturacion@", "facturas@", "comprobantes@", "electronica@"]
+        INVOICE_SENDERS = ["contifico.com", "degeremcia.com", "datil.co", "sri.gob.ec", "facturacion@", "facturación@", "facturas@", "comprobantes@", "documentos@", "documentoselectronicos@", "electronica@"]
         is_invoice_sender = any(s in sender_lower for s in INVOICE_SENDERS)
         is_bank_email = any(domain in sender_lower for domain in BANK_DOMAINS) or any(addr in sender_lower for addr in BANK_SENDERS)
         is_service_email = any(domain in sender_lower for domain in SERVICE_DOMAINS)
@@ -354,7 +402,48 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
 
         # Bank / invoice path — try dedicated parsers first, then GPT-4o fallback
         html_body = extract_html_body(msg)
-        text_body = extract_text_body(msg) or body_snippet
+        text_body = full_text_body
+
+        # SHORTCUT: If factura detected by keywords (subject/body) or invoice sender,
+        # classify directly as factura_sri without calling GPT.
+        if (is_factura_subject or is_invoice_sender) and not is_bank_email:
+            # Extract numero_factura and ruc_emisor with regex
+            numero_match = re.search(r'(\d{3}-\d{3}-\d{6,9})', text_body or "")
+            ruc_match = re.search(r'\b(\d{13})\b', text_body or "")
+            numero_factura = numero_match.group(1) if numero_match else None
+            ruc_emisor = ruc_match.group(1) if ruc_match else None
+
+            pdf_result = await _download_gmail_pdf_attachment(
+                service, gmail_id, user["id"],
+                tipo="factura_sri",
+                banco=sender.split("@")[-1].split(".")[0] if "@" in sender else "desconocido",
+                fecha=date_str,
+                numero_factura=numero_factura,
+            )
+            doc = {
+                "user_id": user["id"], "gmail_id": gmail_id, "remitente": sender,
+                "subject": subject, "fecha_email": date_str,
+                "tipo": "factura_sri",
+                "monto": None, "comercio": None, "fecha_transaccion": None,
+                "tarjeta_ultimos4": None, "banco": None,
+                "descripcion_corta": subject[:60],
+                "nivel_urgencia": "ninguna",
+                "estado": "pendiente",
+                "personal_category": None, "sri_category": None,
+                "numero_factura": numero_factura, "ruc_emisor": ruc_emisor,
+                "es_deducible": True,
+                "es_suscripcion": False, "proxima_renovacion": None,
+                "parsed_by": "factura_shortcut",
+                "pdf_filepath": pdf_result.get("filepath"),
+                "pdf_doc_id": pdf_result.get("doc_id"),
+                "extracted_transactions": pdf_result.get("extracted_transactions", 0),
+                "procesado_at": datetime.now(timezone.utc).isoformat()
+            }
+            await db.gmail_transactions.insert_one(doc)
+            doc.pop("_id", None)
+            nuevos.append(doc)
+            procesados += 1
+            continue
 
         parsed = parser_dispatch(sender, subject, html_body, text_body)
 
