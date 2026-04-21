@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
@@ -27,6 +27,16 @@ from routes.sri_match import try_sri_match
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from parsers import dispatch as parser_dispatch, extract_html_body, extract_text_body
 from utils import dedup_or_merge
+
+GOOGLE_REDIRECT_URI_PROD = os.environ.get("GOOGLE_REDIRECT_URI_PROD", "")
+PROD_HOST = "finwise-ec.emergent.host"
+
+
+def _resolve_redirect_uri(request: Request) -> str:
+    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(":")[0].lower()
+    if host == PROD_HOST and GOOGLE_REDIRECT_URI_PROD:
+        return GOOGLE_REDIRECT_URI_PROD
+    return GOOGLE_REDIRECT_URI
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -242,13 +252,14 @@ async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, t
 
 
 @router.get("/gmail/auth-url")
-async def gmail_auth_url(user: dict = Depends(get_current_user)):
+async def gmail_auth_url(request: Request, user: dict = Depends(get_current_user)):
     if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
         raise HTTPException(status_code=500, detail="Google OAuth2 no configurado")
+    redirect_uri = _resolve_redirect_uri(request)
     state = secrets_mod.token_urlsafe(32)
     flow = Flow.from_client_config(
-        {"web": {"client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET, "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token", "redirect_uris": [GOOGLE_REDIRECT_URI]}},
-        scopes=GMAIL_SCOPES, redirect_uri=GOOGLE_REDIRECT_URI,
+        {"web": {"client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET, "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token", "redirect_uris": [redirect_uri]}},
+        scopes=GMAIL_SCOPES, redirect_uri=redirect_uri,
         autogenerate_code_verifier=True
     )
     auth_url, _ = flow.authorization_url(access_type='offline', include_granted_scopes='true', prompt='consent', state=state)
@@ -257,6 +268,7 @@ async def gmail_auth_url(user: dict = Depends(get_current_user)):
         "state": state,
         "user_id": user["id"],
         "code_verifier": getattr(flow, "code_verifier", None),
+        "redirect_uri": redirect_uri,
         "created_at": now.isoformat(),
         "expires_at": (now + timedelta(minutes=10)).isoformat()
     })
@@ -264,7 +276,7 @@ async def gmail_auth_url(user: dict = Depends(get_current_user)):
 
 
 @router.get("/gmail/callback")
-async def gmail_callback(code: str, state: str):
+async def gmail_callback(code: str, state: str, request: Request):
     state_doc = await db.gmail_oauth_states.find_one({"state": state})
     if not state_doc:
         raise HTTPException(status_code=400, detail="invalid_state")
@@ -276,12 +288,13 @@ async def gmail_callback(code: str, state: str):
     if not code_verifier:
         await db.gmail_oauth_states.delete_one({"state": state})
         raise HTTPException(status_code=400, detail="missing_code_verifier")
+    redirect_uri = state_doc.get("redirect_uri") or _resolve_redirect_uri(request)
     await db.gmail_oauth_states.delete_one({"state": state})
     user_id = state_doc["user_id"]
     try:
         flow = Flow.from_client_config(
-            {"web": {"client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET, "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token", "redirect_uris": [GOOGLE_REDIRECT_URI]}},
-            scopes=GMAIL_SCOPES, redirect_uri=GOOGLE_REDIRECT_URI
+            {"web": {"client_id": GOOGLE_CLIENT_ID, "client_secret": GOOGLE_CLIENT_SECRET, "auth_uri": "https://accounts.google.com/o/oauth2/auth", "token_uri": "https://oauth2.googleapis.com/token", "redirect_uris": [redirect_uri]}},
+            scopes=GMAIL_SCOPES, redirect_uri=redirect_uri
         )
         flow.code_verifier = code_verifier
         flow.fetch_token(code=code)
