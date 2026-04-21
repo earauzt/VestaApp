@@ -326,7 +326,7 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         "OR notifications@degeremcia.com OR noreply@datil.co "
         "OR noreply@sri.gob.ec OR no-reply@sri.gob.ec OR sri.gob.ec "
         "OR facturacion OR facturación OR facturas OR comprobantes OR electronica "
-        "OR documentos OR documentoselectronicos) is:unread "
+        "OR documentos OR documentoselectronicos) "
         f"after:{after_ts}"
     )
     results = service.users().messages().list(userId='me', q=GMAIL_SENDER_FILTER, maxResults=max_results).execute()
@@ -854,7 +854,7 @@ async def _cron_gmail_sync_all():
                     "OR intermail@bancopacifico.ec OR banco@pichincha.com "
                     "OR documentoselectronicos@pichincha.com OR estadodecuenta@pacificard.ec "
                     "OR estadoscuenta@bancodelpacifico.com.ec OR email.apple.com OR netflix.com "
-                    "OR spotify.com OR google.com OR amazon.com OR adobe.com) is:unread "
+                    "OR spotify.com OR google.com OR amazon.com OR adobe.com) "
                     f"after:{after_ts}"
                 )
                 res = service.users().messages().list(userId='me', q=q, maxResults=100).execute()
