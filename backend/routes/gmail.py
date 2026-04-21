@@ -23,6 +23,7 @@ from utils import (
     process_bank_statement_text, lookup_known_vendor
 )
 from routes.documents import _upsert_card_from_statement, _save_deferred_purchases
+from routes.sri_match import try_sri_match
 from emergentintegrations.llm.chat import LlmChat, UserMessage
 from parsers import dispatch as parser_dispatch, extract_html_body, extract_text_body
 from utils import dedup_or_merge
@@ -840,11 +841,14 @@ async def _parse_factura_pdf(filepath: str) -> dict:
 
 @router.post("/gmail/process-factura-pdfs")
 async def process_factura_pdfs(user: dict = Depends(get_current_user)):
-    """Procesa PDFs de facturas SRI aún no parseados — extrae número, RUC, emisor, monto, fecha."""
+    """Procesa PDFs de facturas SRI aún no parseados — extrae número, RUC, emisor, monto, fecha.
+    Luego crea la transacción factura en `transactions` (si no existe) y ejecuta try_sri_match
+    para vincularla con un consumo de tarjeta/débito."""
     docs = await db.gmail_documents.find({"user_id": user["id"], "tipo": "factura_sri"}, {"_id": 0}).to_list(100)
     processed = 0
     skipped = 0
     errors = 0
+    match_stats = {"con_respaldo": 0, "match_aproximado": 0, "pendiente_match": 0, "skipped_no_amount": 0}
     results = []
     for d in docs:
         filepath = d.get("filepath")
@@ -863,18 +867,58 @@ async def process_factura_pdfs(user: dict = Depends(get_current_user)):
             if data.get("emisor"):
                 update["emisor"] = data["emisor"]
             await db.gmail_documents.update_one({"id": d["id"]}, {"$set": update})
-            # Also update gmail_transactions with enriched data
             gm_id = d.get("gmail_id")
             if gm_id:
                 tx_update = {k: v for k, v in update.items() if k in ("numero_factura", "ruc_emisor", "monto", "emisor") and v is not None}
                 if tx_update:
                     await db.gmail_transactions.update_one({"gmail_id": gm_id, "user_id": user["id"]}, {"$set": tx_update})
+
+            # Insert into `transactions` as invoice + run SRI matcher
+            monto = data.get("monto")
+            fecha_raw = data.get("fecha") or d.get("fecha") or d.get("fecha_email", "")[:10]
+            # Normalize fecha to YYYY-MM-DD
+            fecha_iso = None
+            if fecha_raw:
+                for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%d/%m/%y", "%d-%m-%y"):
+                    try:
+                        fecha_iso = datetime.strptime(fecha_raw[:10], fmt).strftime("%Y-%m-%d")
+                        break
+                    except Exception:
+                        continue
+            numero = data.get("numero_factura")
+            if monto and fecha_iso and numero:
+                existing_tx = await db.transactions.find_one({"user_id": user["id"], "numero_factura": numero, "transaction_type": "expense"}, {"_id": 0, "id": 1})
+                if existing_tx:
+                    tx_id = existing_tx["id"]
+                else:
+                    tx_id = str(uuid.uuid4())
+                    tx_doc = {
+                        "id": tx_id, "user_id": user["id"],
+                        "amount": float(monto), "date": fecha_iso,
+                        "description": data.get("emisor") or d.get("remitente", "Factura"),
+                        "establishment": data.get("emisor") or "", "vendor": data.get("emisor") or "",
+                        "transaction_type": "expense",
+                        "category": "otros", "personal_category": "otros",
+                        "source": "gmail_factura_pdf", "source_type": "invoice",
+                        "has_invoice": True,
+                        "numero_factura": numero, "ruc_emisor": data.get("ruc_emisor"),
+                        "gmail_doc_id": d["id"],
+                        "status": "pending_review",
+                        "estado_sri": None,
+                        "created_at": datetime.now(timezone.utc).isoformat(),
+                    }
+                    await db.transactions.insert_one(tx_doc)
+                match_res = await try_sri_match(user["id"], tx_id)
+                match_stats[match_res.get("status", "pendiente_match")] = match_stats.get(match_res.get("status"), 0) + 1
+            else:
+                match_stats["skipped_no_amount"] += 1
+
             processed += 1
             results.append({"id": d["id"], "filename": d.get("filename"), **{k: data.get(k) for k in ("numero_factura", "ruc_emisor", "emisor", "monto", "fecha")}})
         except Exception as e:
             logger.error(f"Error processing factura PDF {d.get('id')}: {e}")
             errors += 1
-    return {"status": "success", "total": len(docs), "processed": processed, "skipped": skipped, "errors": errors, "results": results}
+    return {"status": "success", "total": len(docs), "processed": processed, "skipped": skipped, "errors": errors, "match_stats": match_stats, "results": results}
 
 
 @router.get("/gmail/facturas-summary")
