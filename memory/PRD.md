@@ -11,6 +11,36 @@ La app Vesta se usa desde laptop, iPad y celular. Todo diseño debe ser responsi
 - H1: `text-2xl sm:text-3xl md:text-4xl`
 
 
+## [2026-04-22] SESIÓN 11 — 3 grupos: dead code + delete button + Dashboard Parker rewrite
+### GRUPO 1 — Dead code removal
+- `PresupuestoEditable.js` líneas 250-394 — Card "Resumen Mensual (legacy)" oculto reemplazado por Card vacío con display:none (145 LOC inactivas → 3).
+- `Deudas.js` línea 45 — opción `{ value: "apple", label: "Apple Card" }` removida del array BANKS.
+- `Dashboard.js` — bloque `<div className="hidden">` de statCards eliminado junto con todo el rewrite.
+
+### GRUPO 2 — Botón eliminar transacciones approved
+- `Transactions.js:941-958` — ícono Trash standalone visible solo cuando `transaction.status === "approved"` (100 botones renderizados en admin).
+- Confirmación nativa: "¿Eliminar esta transacción? Esta acción no se puede deshacer."
+- DropdownMenu preservado con su propia opción "Eliminar".
+
+### GRUPO 3 — Dashboard Parker-style rewrite
+- `Dashboard.js` 1047 → 426 líneas.
+- Nuevo return JSX con 3 secciones: (1) Balance hero text-5xl, (2) Gastos por categoría lista limpia Progress verde #0D9E82 uniforme máx 8 filas, (3) Card "N movimientos por revisar" click-to-navigate.
+- Eliminadas 9 secciones visuales (notificaciones banner, suscripciones, Esta Semana, SRI Deducibles, SRI Counters, Charts Area+Bar, Quick Stats, Flujo Proyectado, Gastos burbujas).
+- AutoRuleModal preservado.
+- Nuevo state `porRevisarCount` derivado de transactions status pending/pending_review.
+
+### Testing (iteration_31.json)
+- 5/5 test groups PASS, 9/9 criterios verificados en DOM vivo.
+- Balance hero renderizado con $-2.589,89 en rojo (path negativo ejercitado).
+- 8 category-row con Progress verde uniforme.
+- 4 tx pending → Sección 3 visible con label correcto.
+- 100 botones Trash standalone (todas approved) + confirm nativo verificado.
+
+### Code review backlog (no-blocker)
+- Dashboard.js aún importa ~120 líneas de símbolos muertos (recharts, phosphor, lucide extras, states sin uso). Pass de limpieza es seguro.
+- PresupuestoEditable.js: eliminar completamente el Card placeholder oculto (reducir de 519 → 514 líneas).
+
+
 ## [2026-04-22] SESIÓN 10 — 4 fixes UX quirúrgicos frontend
 - **TabPorRevisar.jsx línea 208**: badge `Recurrente (N)` → `Conocido (N)`.
 - **Transactions.js fetchTransactions**: `toast.error` silenciado cuando `error.response?.status === 404` (evita toast fantasma al cargar Movimientos sin data).

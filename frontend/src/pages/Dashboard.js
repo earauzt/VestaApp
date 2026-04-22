@@ -337,7 +337,7 @@ export default function Dashboard() {
             <span className="text-emerald-600 font-medium">+{formatCurrency(stats?.total_income)}</span>
             <span className="mx-2 text-slate-300">·</span>
             <span className="text-slate-700 font-medium">{formatCurrency(stats?.monthly_total || stats?.total_expenses)}</span>
-            <span className="ml-1 text-slate-400">gastos</span>
+            <span className="ml-1.5 text-slate-400">gastos</span>
           </p>
           <p className="text-xs text-slate-400 mt-2" data-testid="dashboard-daily-average">
             Promedio diario {formatCurrency(stats?.daily_average)}
