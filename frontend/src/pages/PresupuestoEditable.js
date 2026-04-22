@@ -247,10 +247,6 @@ export default function PresupuestoEditable() {
       </Card>
 
       {/* Hidden sections (replaced by the simplified summary above) */}
-      <Card className="bento-card hidden" style={{display:'none'}}>
-        <CardContent className="hidden" />
-      </Card>
-
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="grid w-full grid-cols-2">
