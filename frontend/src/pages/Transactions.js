@@ -157,7 +157,10 @@ export default function Transactions() {
       const response = await axios.get(`${API}/transactions`, { headers: getAuthHeadersRef.current() });
       setTransactions(response.data);
     } catch (error) {
-      toast.error("Error al cargar transacciones");
+      // Silenciar 404 al cargar (sin transacciones aún o endpoint temporalmente vacío)
+      if (error.response?.status !== 404) {
+        toast.error("Error al cargar transacciones");
+      }
     } finally {
       setLoading(false);
     }

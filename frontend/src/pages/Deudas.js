@@ -441,14 +441,14 @@ export default function Deudas() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
-                        className="p-4 rounded-xl  text-white"
+                        className="p-4 rounded-xl bg-slate-800 text-white"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <h3 className="font-bold text-lg">{card.name}</h3>
                               {card.is_international && (
-                                <Badge className="bg-slate-1000">USA</Badge>
+                                <Badge className="bg-slate-900">USA</Badge>
                               )}
                               <Badge variant="outline" className="text-amber-400 border-amber-400">
                                 {card.apr}% APR

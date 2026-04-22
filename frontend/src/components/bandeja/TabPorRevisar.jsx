@@ -205,7 +205,7 @@ export default function TabPorRevisar({
                     )}
                     {stats && stats.found && stats.times_used > 0 && (
                       <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200" data-testid={`review-badge-recurrente-${item.id}`}>
-                        Recurrente ({stats.times_used})
+                        Conocido ({stats.times_used})
                       </Badge>
                     )}
                     <span className="text-xs text-slate-400">· {catName}</span>

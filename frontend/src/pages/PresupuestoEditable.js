@@ -395,9 +395,8 @@ export default function PresupuestoEditable() {
 
       {/* Tabs */}
       <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="gastos">Categorías de Gastos</TabsTrigger>
-          <TabsTrigger value="ingresos">Proyección Ingresos</TabsTrigger>
           <TabsTrigger value="metas">Ahorro e Inversión</TabsTrigger>
         </TabsList>
 
@@ -523,55 +522,7 @@ export default function PresupuestoEditable() {
           </div>
         </TabsContent>
 
-        {/* Ingresos Tab */}
-        <TabsContent value="ingresos" className="space-y-4 mt-4">
-          <Card className="bento-card">
-            <CardHeader>
-              <CardTitle>Proyección de Ingresos</CardTitle>
-              <CardDescription>Ingreso mensual estimado por fuente (variable)</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {Object.entries(incomeProjection).map(([key, source]) => (
-                <div key={key} className="grid grid-cols-3 gap-4 items-end">
-                  <div>
-                    <Label className="capitalize">{key}</Label>
-                    <Input
-                      type="number"
-                      value={source.monthly || 0}
-                      onChange={(e) => setIncomeProjection(prev => ({
-                        ...prev,
-                        [key]: {
-                          ...prev[key],
-                          monthly: parseFloat(e.target.value) || 0,
-                          annual: (parseFloat(e.target.value) || 0) * 12
-                        }
-                      }))}
-                      className="font-mono"
-                    />
-                  </div>
-                  <div className="text-center">
-                    <Label className="text-muted-foreground text-xs">Anual</Label>
-                    <p className="font-mono text-lg">{formatCurrency((source.monthly || 0) * 12)}</p>
-                  </div>
-                  <div>
-                    <Badge variant="secondary">Estimado variable</Badge>
-                  </div>
-                </div>
-              ))}
-              
-              <div className="pt-4 border-t">
-                <div className="flex justify-between items-center">
-                  <span className="font-semibold">Total Mensual</span>
-                  <span className="text-2xl font-bold text-emerald-600">{formatCurrency(totalIncome)}</span>
-                </div>
-                <div className="flex justify-between items-center text-muted-foreground">
-                  <span>Total Anual</span>
-                  <span className="font-mono">{formatCurrency(totalIncome * 12)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+        {/* Ingresos Tab — eliminado. La proyección de ingresos se maneja en /mi-dinero?tab=ingresos (Ingresos.js). State incomeProjection preservado por si se consume desde otro lado. */}
 
         {/* Metas Tab */}
         <TabsContent value="metas" className="space-y-4 mt-4">
