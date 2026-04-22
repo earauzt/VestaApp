@@ -24,7 +24,7 @@ export const PERSONAL_CATEGORIES = {
     name: "Viajes y Entretenimiento",
     subcategories: ["Hoteles", "Pasajes", "Comida", "Entretenimiento", "Ropa", "Tech", "Transporte", "Tours", "Otros"],
   },
-  gastos_libres: { name: "Gastos Libres", subcategories: ["Varios"] },
+  gastos_libres: { name: "Gastos Libres", subcategories: ["Entretenimiento", "Compras personales", "Suscripciones", "Hobbies", "Otros gastos"] },
   otros: { name: "Otros", subcategories: ["General"] },
 };
 

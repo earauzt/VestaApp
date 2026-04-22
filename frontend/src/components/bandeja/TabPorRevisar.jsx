@@ -5,7 +5,7 @@ import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { CheckCircle } from "@phosphor-icons/react";
-import { Pencil } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import TransactionEditModal from "../shared/TransactionEditModal";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
@@ -27,6 +27,42 @@ export default function TabPorRevisar({
   const openSingleEdit = (item) => { setActiveItem(item); setModalMode("single"); };
   const openBulkEdit = () => { setActiveItem(null); setModalMode("bulk"); };
   const closeModal = () => { setModalMode(null); setActiveItem(null); };
+
+  const isZeroValue = (it) => it.amount == null || Number(it.amount) === 0;
+
+  const handleDiscard = async (item) => {
+    try {
+      await axios.put(`${API}/gmail/transactions/${item.id}/discard`, {}, { headers: getAuthHeaders() });
+      toast.success("Descartado");
+      if (onAfterUpdate) onAfterUpdate();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "No se pudo descartar");
+    }
+  };
+
+  const handleDiscardAllZero = async () => {
+    const zeros = (filteredReview || []).filter(isZeroValue);
+    if (zeros.length === 0) { toast.info("No hay items sin valor"); return; }
+    try {
+      const results = await Promise.allSettled(
+        zeros.map((z) => axios.put(`${API}/gmail/transactions/${z.id}/discard`, {}, { headers: getAuthHeaders() }))
+      );
+      const ok = results.filter((r) => r.status === "fulfilled").length;
+      toast.success(`${ok} de ${zeros.length} descartados`);
+      if (onAfterUpdate) onAfterUpdate();
+    } catch {
+      toast.error("Error al descartar en batch");
+    }
+  };
+
+  // Ordenar: items sin valor al final
+  const sortedReview = [...(filteredReview || [])].sort((a, b) => {
+    const az = isZeroValue(a) ? 1 : 0;
+    const bz = isZeroValue(b) ? 1 : 0;
+    return az - bz;
+  });
+
+  const zeroCount = sortedReview.filter(isZeroValue).length;
 
   const handleSave = async (data) => {
     try {
@@ -102,6 +138,16 @@ export default function TabPorRevisar({
           </Button>
           <Button
             size="sm"
+            variant="outline"
+            onClick={handleDiscardAllZero}
+            disabled={zeroCount === 0}
+            className="text-red-600 border-red-200 hover:bg-red-50"
+            data-testid="review-discard-zero-btn"
+          >
+            Descartar sin valor ({zeroCount})
+          </Button>
+          <Button
+            size="sm"
             onClick={handleReviewBulkApprove}
             disabled={reviewSelectedIds.length === 0 || reviewBulkApproving}
             data-testid="review-bulk-approve-btn"
@@ -113,7 +159,7 @@ export default function TabPorRevisar({
       </div>
 
       {/* Unified list */}
-      {filteredReview.length === 0 ? (
+      {sortedReview.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <CheckCircle size={40} className="mx-auto mb-3 text-emerald-500" />
           <p className="font-medium">No hay transacciones por revisar</p>
@@ -121,7 +167,8 @@ export default function TabPorRevisar({
         </div>
       ) : (
         <div className="space-y-2">
-          {filteredReview.map((item) => {
+          {sortedReview.map((item) => {
+            const zero = isZeroValue(item);
             const sourceBadgeColor = item.source === "gmail"
               ? "bg-red-50 text-red-700 border-red-200"
               : item.source === "manual"
@@ -165,6 +212,11 @@ export default function TabPorRevisar({
                     ) : null}
                   </div>
                   <span className="font-mono font-semibold text-sm shrink-0">${(item.amount || 0).toFixed(2)}</span>
+                  {zero && (
+                    <Badge variant="outline" className="text-[10px] shrink-0 bg-red-50 text-red-700 border-red-200" data-testid={`review-zero-${item.id}`}>
+                      Sin valor
+                    </Badge>
+                  )}
                   <Badge variant="outline" className={`text-[10px] shrink-0 ${sourceBadgeColor}`} data-testid={`review-source-${item.id}`}>
                     {item.source_label}
                   </Badge>
@@ -180,6 +232,16 @@ export default function TabPorRevisar({
                   data-testid={`review-edit-btn-${item.id}`}
                 >
                   <Pencil size={14} /> Editar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 h-8 shrink-0 text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={() => handleDiscard(item)}
+                  data-testid={`review-discard-btn-${item.id}`}
+                  aria-label="Descartar"
+                >
+                  <X size={14} />
                 </Button>
               </div>
             );

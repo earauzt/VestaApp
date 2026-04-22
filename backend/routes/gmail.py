@@ -42,6 +42,63 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
+def _normalize_comercio(s: str) -> str:
+    return " ".join((s or "").strip().lower().split())
+
+
+def _parse_fecha_any(s: str):
+    """Intenta parsear fechas en formatos comunes, retorna datetime o None."""
+    if not s:
+        return None
+    from datetime import datetime as _dt
+    s = s.strip()
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+        try:
+            return _dt.strptime(s[:10], fmt)
+        except Exception:
+            pass
+    return None
+
+
+async def _content_duplicate_exists(user_id: str, monto, comercio, fecha_transaccion) -> bool:
+    """True si existe un gmail_transactions del mismo usuario con:
+    monto ±1%, comercio SequenceMatcher≥0.80, fecha_transaccion ±1 día.
+    Solo aplica a registros con monto>0 y comercio no vacío."""
+    if monto is None or comercio is None:
+        return False
+    try:
+        amt = float(monto)
+    except (TypeError, ValueError):
+        return False
+    if amt <= 0:
+        return False
+    com_norm = _normalize_comercio(comercio)
+    if not com_norm:
+        return False
+    tol = max(abs(amt) * 0.01, 0.01)
+    lo, hi = amt - tol, amt + tol
+    # Filtro inicial por monto, luego filtro fino por comercio+fecha en Python
+    cursor = db.gmail_transactions.find(
+        {"user_id": user_id, "monto": {"$gte": lo, "$lte": hi}, "estado": {"$ne": "descartado"}},
+        {"_id": 0, "comercio": 1, "fecha_transaccion": 1, "monto": 1},
+    ).limit(50)
+    f_dt = _parse_fecha_any(fecha_transaccion) if fecha_transaccion else None
+    from difflib import SequenceMatcher
+    async for cand in cursor:
+        cand_com = _normalize_comercio(cand.get("comercio") or "")
+        if not cand_com:
+            continue
+        sim = SequenceMatcher(None, com_norm, cand_com).ratio()
+        if sim < 0.80:
+            continue
+        if f_dt:
+            c_dt = _parse_fecha_any(cand.get("fecha_transaccion"))
+            if c_dt and abs((f_dt - c_dt).days) > 1:
+                continue
+        return True
+    return False
+
+
 async def _get_gmail_credentials(user_id: str) -> Credentials:
     token_doc = await db.gmail_tokens.find_one({"user_id": user_id})
     if not token_doc:
@@ -364,6 +421,7 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
 
     procesados = 0
     descartados = 0
+    duplicados_omitidos = 0
     nuevos = []
 
     for msg_info in messages:
@@ -421,6 +479,9 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
                 "proxima_renovacion": classification.get("proxima_renovacion"),
                 "procesado_at": datetime.now(timezone.utc).isoformat()
             }
+            if await _content_duplicate_exists(user["id"], doc.get("monto"), doc.get("comercio"), doc.get("fecha_transaccion")):
+                duplicados_omitidos += 1
+                continue
             await db.gmail_transactions.insert_one(doc)
             doc.pop("_id", None)
             nuevos.append(doc)
@@ -512,6 +573,9 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
                 "extracted_transactions": pdf_result.get("extracted_transactions", 0),
                 "procesado_at": datetime.now(timezone.utc).isoformat()
             }
+            if await _content_duplicate_exists(user["id"], doc.get("monto"), doc.get("comercio"), doc.get("fecha_transaccion")):
+                duplicados_omitidos += 1
+                continue
             await db.gmail_transactions.insert_one(doc)
             doc.pop("_id", None)
             nuevos.append(doc)
@@ -556,6 +620,9 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
                     auto_ok = True
             except Exception as e:
                 logger.warning(f"auto-approve check failed for {gmail_id}: {e}")
+        if await _content_duplicate_exists(user["id"], doc.get("monto"), doc.get("comercio"), doc.get("fecha_transaccion")):
+            duplicados_omitidos += 1
+            continue
         await db.gmail_transactions.insert_one(doc)
         if auto_ok:
             try:
@@ -568,7 +635,84 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         procesados += 1
 
     await db.gmail_tokens.update_one({"user_id": user["id"]}, {"$set": {"ultimo_sync": now.isoformat()}})
-    return {"status": "success", "total": len(messages), "procesados": procesados, "descartados": descartados, "ya_procesados": len(messages) - procesados - descartados, "transacciones": nuevos}
+    return {"status": "success", "total": len(messages), "procesados": procesados, "descartados": descartados, "duplicados_omitidos": duplicados_omitidos, "ya_procesados": len(messages) - procesados - descartados - duplicados_omitidos, "transacciones": nuevos}
+
+
+@router.post("/gmail/dedup-cleanup")
+async def gmail_dedup_cleanup(user: dict = Depends(get_current_user)):
+    """Operación única: encuentra grupos de gmail_transactions duplicadas por contenido
+    (mismo comercio SequenceMatcher≥0.80, monto ±1%, fecha ±1 día) y elimina los duplicados
+    manteniendo el registro más completo (mayor cantidad de campos no nulos)."""
+    from difflib import SequenceMatcher
+    cursor = db.gmail_transactions.find(
+        {"user_id": user["id"], "monto": {"$gt": 0}, "estado": {"$ne": "descartado"}, "comercio": {"$nin": [None, ""]}},
+        {"_id": 0},
+    )
+    docs = []
+    async for d in cursor:
+        docs.append(d)
+
+    def _score_completeness(doc):
+        return sum(1 for v in doc.values() if v not in (None, "", [], {}))
+
+    def _fecha_dt(s):
+        return _parse_fecha_any(s)
+
+    # Clustering O(n^2) simple
+    clusters = []
+    assigned = set()
+    for i, d in enumerate(docs):
+        if i in assigned:
+            continue
+        group = [i]
+        com_i = _normalize_comercio(d.get("comercio") or "")
+        amt_i = float(d.get("monto") or 0)
+        dt_i = _fecha_dt(d.get("fecha_transaccion"))
+        for j in range(i + 1, len(docs)):
+            if j in assigned:
+                continue
+            c = docs[j]
+            com_j = _normalize_comercio(c.get("comercio") or "")
+            amt_j = float(c.get("monto") or 0)
+            if amt_j == 0:
+                continue
+            if abs(amt_i - amt_j) > max(abs(amt_i) * 0.01, 0.01):
+                continue
+            if SequenceMatcher(None, com_i, com_j).ratio() < 0.80:
+                continue
+            dt_j = _fecha_dt(c.get("fecha_transaccion"))
+            if dt_i and dt_j and abs((dt_i - dt_j).days) > 1:
+                continue
+            group.append(j)
+            assigned.add(j)
+        if len(group) > 1:
+            clusters.append(group)
+        assigned.add(i)
+
+    eliminated = 0
+    kept_samples = []
+    for group in clusters:
+        group_docs = [docs[g] for g in group]
+        # Mantener el más completo (desempate: created_at más antiguo)
+        group_docs.sort(
+            key=lambda x: (-_score_completeness(x), x.get("procesado_at") or x.get("created_at") or "")
+        )
+        keeper = group_docs[0]
+        to_delete = group_docs[1:]
+        for d in to_delete:
+            gmail_id = d.get("gmail_id")
+            if gmail_id:
+                res = await db.gmail_transactions.delete_one({"user_id": user["id"], "gmail_id": gmail_id})
+                if res.deleted_count:
+                    eliminated += 1
+        kept_samples.append({
+            "comercio": keeper.get("comercio"),
+            "monto": keeper.get("monto"),
+            "fecha": keeper.get("fecha_transaccion"),
+            "duplicates_removed": len(to_delete),
+        })
+    return {"clusters": len(clusters), "eliminated": eliminated, "samples": kept_samples[:10]}
+
 
 
 @router.get("/gmail/transactions")
