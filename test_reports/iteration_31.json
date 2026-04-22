@@ -1,0 +1,47 @@
+{
+  "summary": "Verified the 3 grupos of changes (dead-code removal, Trash button for approved tx, Dashboard Parker minimal rewrite) live on preview URL with admin earauzt@gmail.com. All 9 acceptance criteria PASS.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Dashboard income/expenses line", "issues": ["Visual micro-spacing: '$8,88·$2.598,77gastos' renders without a space before 'gastos' on narrow widths because the 'gastos' label uses ml-1 only after the amount. Cosmetic only — not blocking."]}
+    ]
+  },
+  "tests_executed": {
+    "dashboard_3_sections": {
+      "status": "PASS",
+      "details": "balance-hero-card visible. dashboard-balance-hero='$-2.589,89' (red, negative). dashboard-income-expenses-line='+$8,88 · $2.598,77 gastos'. dashboard-daily-average='Promedio diario $118,13'. categories-list-card visible with 8 category-row-<key> entries; first row Progress bar contains the [#0D9E82] class (uniform green). por-revisar-card RENDERED with '4 movimientos por revisar' (admin has 4 pending review tx)."
+    },
+    "dashboard_removed_sections": {
+      "status": "PASS",
+      "details": "0 .recharts-wrapper on Dashboard (Charts removed). No subscription-renewals / esta-semana / sri-deductible-card / sri-counters / flujo-proyectado-card / category-bubble data-testids present. AutoRuleModal present at end of return."
+    },
+    "transactions_trash_approved": {
+      "status": "PASS",
+      "details": "/movimientos?tab=todos rendered 100 [data-testid^='delete-approved-'] standalone Trash buttons (one per approved tx). Click triggers window.confirm with EXACT text '¿Eliminar esta transacción? Esta acción no se puede deshacer.' Cancelling does not call DELETE. DropdownMenu still has its own 'Eliminar' option (preserved as designed)."
+    },
+    "deudas_banks_no_apple": {
+      "status": "PASS",
+      "details": "Add-card dialog → bank Select shows exactly 4 options: Diners Club (Ecuador), Banco Pichincha (Ecuador), Banco del Pacífico / Pacificard (Ecuador), Banco de Guayaquil (Ecuador). Apple Card removed from BANKS array."
+    },
+    "presupuesto_legacy_hidden": {
+      "status": "PASS",
+      "details": "/mi-dinero?tab=presupuesto loads without errors. Legacy 'Resumen Mensual' text NOT visible. Card at line 250 collapsed to <Card hidden style=display:none><CardContent hidden/></Card> — DOM regression-safe. New summary Card above renders: $10.605,00 gastos proyectados, +$12.500 ingresos, $1.250 ahorro mensual."
+    }
+  },
+  "test_report_links": [],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Dashboard.js still imports a large set of unused symbols after the rewrite (recharts AreaChart/Area/Bar/Cell/etc., phosphor TrendUp/Airplane/Receipt/Sparkle/X/FirstAid/CheckCircle, lucide LucideRefreshCw/LucideAlertTriangle/LucideTarget/LucideFileText/LucideBell, design-system components/typography). These can be deleted to reduce bundle and dead-imports. Also unused state setters: setStats/chartData/reminders/dismissedReminders/cashflowProjection/travelGoals/travelFund/sriDeductible/sriLimits/sriCounters/subscriptionRenewals/notificaciones/estaSemana/dismissedIds/showAllReminders/showAllNotif and helpers dismissReminder/handleReminderAction/dismissNotif/handleNotifAction/getReminderIcon/getReminderColor/statCards remain but are no longer referenced in JSX.",
+    "PresupuestoEditable.js: the empty hidden Card at line 250 is a placeholder. Once verified safe, the whole block can be deleted to reduce the file from 519 lines.",
+    "Dashboard.js Sección 1 income/expenses line: add a non-breaking space or ml-1 before the literal 'gastos' word so '$2.598,77 gastos' reads naturally on all widths (currently 'gastos' visually sticks to the amount because formatCurrency contains trailing chars and ml-1 is small)."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (frontend-only)", "frontend": "100% (5/5 test groups passed, 9/9 acceptance criteria verified)"},
+  "test_credentials": "earauzt@gmail.com / Realmadrid2011 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "None",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 3 grupos (dead code removal in PresupuestoEditable+Deudas+Dashboard, Trash button for approved tx in Transactions, Dashboard Parker-style rewrite) verified live. Admin has 100 approved tx (Trash button shown for each), 4 pending tx (porRevisarCount=4 → Sección 3 visible), 8 categorías con gasto > 0 (todas las 8 filas mostradas con Progress verde uniforme). Negative balance path exercised ($-2.589,89 in red). The Dashboard.js file still carries many unused imports/state from the previous version (~120 lines of dead code) — recommend cleanup pass but does not affect functionality."
+}

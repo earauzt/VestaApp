@@ -124,6 +124,7 @@ export default function Dashboard() {
   const [showAllNotif, setShowAllNotif] = useState(false);
   const [ruleModalOpen, setRuleModalOpen] = useState(false);
   const [ruleEstablishment, setRuleEstablishment] = useState("");
+  const [porRevisarCount, setPorRevisarCount] = useState(0);
 
   const dismissNotif = (id) => {
     const next = [...new Set([...dismissedIds, id])];
@@ -169,6 +170,10 @@ export default function Dashboard() {
       const goalsData = goalsRes.data?.goals || [];
       setTravelGoals(goalsData.filter(g => g.status === "active").slice(0, 2));
       
+      // Transacciones por revisar (status === 'pending' o 'pending_review')
+      const allTxRaw = txRes.data?.transactions || txRes.data?.items || (Array.isArray(txRes.data) ? txRes.data : []);
+      setPorRevisarCount(allTxRaw.filter(t => t.status === "pending" || t.status === "pending_review").length);
+
       // Transform category data to match Flujo categories with budgets
       const byCategory = statsRes.data?.by_category || {};
       // Use demo categories for demo users, default categories for others
@@ -301,7 +306,7 @@ export default function Dashboard() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-sm sm:text-base text-muted-foreground">
-            ¡Hola {user?.name?.split(" ")[0]}! Aquí está tu resumen financiero
+            Hola {user?.name?.split(" ")[0]}, aquí está tu resumen del mes.
           </p>
         </div>
         <Select value={period} onValueChange={setPeriod}>
@@ -316,724 +321,98 @@ export default function Dashboard() {
         </Select>
       </div>
 
-      {/* Smart Notifications Banner (SESIÓN 10) */}
+      {/* Sección 1 — Balance hero */}
+      <Card className="bento-card" data-testid="balance-hero-card">
+        <CardContent className="p-6 sm:p-8">
+          <p className="text-xs text-slate-400 uppercase tracking-wide">Balance del mes</p>
+          <p
+            className={`text-4xl sm:text-5xl font-bold tracking-tight mt-1 ${
+              stats?.balance >= 0 ? "text-slate-800" : "text-red-600"
+            }`}
+            data-testid="dashboard-balance-hero"
+          >
+            {formatCurrency(stats?.balance)}
+          </p>
+          <p className="text-sm text-slate-500 mt-3" data-testid="dashboard-income-expenses-line">
+            <span className="text-emerald-600 font-medium">+{formatCurrency(stats?.total_income)}</span>
+            <span className="mx-2 text-slate-300">·</span>
+            <span className="text-slate-700 font-medium">{formatCurrency(stats?.monthly_total || stats?.total_expenses)}</span>
+            <span className="ml-1 text-slate-400">gastos</span>
+          </p>
+          <p className="text-xs text-slate-400 mt-2" data-testid="dashboard-daily-average">
+            Promedio diario {formatCurrency(stats?.daily_average)}
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Sección 2 — Gastos este mes por categoría */}
       {(() => {
-        const visible = notificaciones.filter(n => !dismissedIds.includes(n.id));
-        if (visible.length === 0) return null;
-        const shown = showAllNotif ? visible : visible.slice(0, 3);
-        const priorityColor = {
-          high: "bg-red-50 border-red-200 text-red-900 dark:bg-red-950/30 dark:border-red-800 dark:text-red-200",
-          medium: "bg-amber-50 border-amber-200 text-amber-900 dark:bg-amber-950/30 dark:border-amber-800 dark:text-amber-200",
-          low: "bg-slate-50 border-slate-200 text-[#0D9E82] dark:bg-slate-800 dark:border-slate-700 dark:text-slate-200",
-        };
+        const totalSpent = sortedCategoryData.reduce((s, c) => s + (c.value || 0), 0);
+        const rows = sortedCategoryData.slice(0, 8);
+        if (rows.length === 0) return null;
         return (
-          <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="space-y-2" data-testid="notificaciones-banner">
-            {shown.map((n) => {
-              const borderColor = n.prioridad === "high" ? "border-l-[#DC2626]" : n.prioridad === "medium" ? "border-l-amber-500" : "border-l-blue-500";
-              const iconColor = n.prioridad === "high" ? "text-[#DC2626]" : n.prioridad === "medium" ? "text-amber-600" : "text-[#0D9E82]";
-              return (
-              <div
-                key={n.id}
-                data-testid={`notif-${n.tipo}`}
-                className={`bg-white border border-slate-200 border-l-4 ${borderColor} rounded-md shadow-sm p-4 flex items-center justify-between gap-4`}
-              >
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <LucideBell size={18} className={`shrink-0 ${iconColor}`} />
-                  <div className="min-w-0">
-                    <p className="font-medium truncate text-slate-900">{n.titulo}</p>
-                    <p className="text-sm text-slate-600 truncate">{n.texto}</p>
+          <Card className="bento-card" data-testid="categories-list-card">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Gastos este mes por categoría</CardTitle>
+              <CardDescription className="text-xs sm:text-sm">
+                {rows.length} categorías · {formatCurrency(totalSpent)} total
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {rows.map((cat) => {
+                const pct = totalSpent > 0 ? Math.round((cat.value / totalSpent) * 100) : 0;
+                return (
+                  <div
+                    key={cat.key}
+                    className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 items-center"
+                    data-testid={`category-row-${cat.key}`}
+                  >
+                    <span className="text-sm font-medium text-slate-800 truncate">{cat.name}</span>
+                    <span className="text-sm font-mono text-slate-600 tabular-nums">
+                      {formatCurrency(cat.value)}
+                    </span>
+                    <Progress
+                      value={pct}
+                      className="h-2 [&>div]:bg-[#0D9E82] col-start-1"
+                    />
+                    <span className="text-xs text-slate-500 tabular-nums col-start-2">
+                      {pct}%
+                    </span>
                   </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  {n.accion_url && (
-                    <Button size="sm" variant="outline" onClick={() => handleNotifAction(n)} data-testid={`notif-action-${n.id}`} className="border-slate-200 text-slate-700 hover:bg-slate-50">
-                      {n.accion_label || "Ver"}
-                    </Button>
-                  )}
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-slate-400 hover:text-slate-700" onClick={() => dismissNotif(n.id)} data-testid={`notif-dismiss-${n.id}`}>
-                    <X size={16} />
-                  </Button>
-                </div>
-              </div>
-              );
-            })}
-            {visible.length > 3 && (
-              <button
-                onClick={() => setShowAllNotif(!showAllNotif)}
-                className="text-sm text-primary hover:underline px-1"
-                data-testid="show-more-notif"
-              >
-                {showAllNotif ? "Colapsar" : `Ver más (${visible.length - 3})`}
-              </button>
-            )}
-          </motion.div>
+                );
+              })}
+            </CardContent>
+          </Card>
         );
       })()}
 
-      {/* Subscription Renewals This Week */}
-      {subscriptionRenewals.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="space-y-2"
-          data-testid="subscriptions-this-week"
+      {/* Sección 3 — Movimientos por revisar */}
+      {porRevisarCount > 0 && (
+        <Card
+          className="bento-card cursor-pointer hover:bg-slate-50 transition-colors"
+          onClick={() => navigate("/movimientos?tab=por-revisar")}
+          data-testid="por-revisar-card"
         >
-          <p className="text-sm font-medium text-muted-foreground px-1 flex items-center gap-2">
-            <LucideRefreshCw size={14} /> Esta semana ({subscriptionRenewals.length})
-          </p>
-          {subscriptionRenewals.map((sub) => (
-            <div 
-              key={`sub-${sub.gmail_id || sub.comercio}`}
-              className="bg-white border border-slate-200 border-l-4 border-l-amber-500 rounded-md shadow-sm p-4 flex items-center justify-between gap-4"
-              data-testid={`subscription-renewal-${sub.comercio}`}
-            >
-              <div className="flex items-center gap-3 flex-1">
-                <div className="p-2 rounded-md bg-amber-50 text-amber-700">
-                  <LucideRefreshCw size={18} />
-                </div>
-                <div>
-                  <p className="font-medium">{sub.comercio || "Suscripcion"}</p>
-                  <p className="text-sm opacity-80" data-testid={`renewal-text-${sub.comercio}`}>
-                    {typeof sub.days_until_renewal === "number"
-                      ? (sub.days_until_renewal === 0
-                          ? "Se renueva hoy"
-                          : `Se renueva en ${sub.days_until_renewal} ${sub.days_until_renewal === 1 ? "día" : "días"}`)
-                      : (sub.proxima_renovacion ? `Renueva el ${sub.proxima_renovacion}` : "Suscripcion activa")}
-                    {sub.monto ? ` — $${sub.monto.toFixed(2)}` : ""}
-                  </p>
-                </div>
+          <CardContent className="p-5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="shrink-0 h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
+                <LucideClock size={18} className="text-[#0D9E82]" />
               </div>
-              <Badge className="bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100 text-xs shrink-0">
-                Suscripcion
-              </Badge>
-            </div>
-          ))}
-        </motion.div>
-      )}
-
-      {/* Balance Mensual - Parker-style big number */}
-      <Card className="bento-card" data-testid="balance-hero-card">
-        <CardContent className="p-6 sm:p-8">
-          <div className="flex flex-col gap-1">
-            <p className="text-xs text-slate-400 uppercase tracking-wide">Balance del mes</p>
-            <p
-              className={`text-4xl sm:text-5xl font-bold tracking-tight ${stats?.balance >= 0 ? "text-slate-800" : "text-red-600"}`}
-              data-testid="dashboard-balance-hero"
-            >
-              {formatCurrency(stats?.balance)}
-            </p>
-            <div className="flex flex-wrap gap-x-6 gap-y-1 mt-3">
-              <p className="text-lg font-medium text-emerald-600" data-testid="dashboard-income-line">
-                +{formatCurrency(stats?.total_income)}
-                <span className="text-xs text-slate-400 font-normal ml-1">ingresos</span>
-              </p>
-              <p className="text-lg font-medium text-slate-700" data-testid="dashboard-expenses-line">
-                {formatCurrency(stats?.monthly_total)}
-                <span className="text-xs text-slate-400 font-normal ml-1">gastos</span>
-              </p>
-            </div>
-            <p className="text-xs text-slate-400 mt-2" data-testid="dashboard-meta">
-              Promedio diario {formatCurrency(stats?.daily_average)} · {new Date().toLocaleDateString("es-EC", { month: "long", year: "numeric" })}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Legacy Stats Grid - Kept hidden for any consumers referencing statCards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 hidden">
-        {statCards.map((stat, index) => (
-          <motion.div
-            key={stat.title}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.3, delay: index * 0.05 }}
-          >
-            <Card className="bento-card hover:-translate-y-1 transition-all duration-300">
-              <CardContent className="p-3 sm:p-6">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-muted-foreground mb-1 truncate">{stat.title}</p>
-                    <p className={`text-base sm:text-xl lg:text-2xl font-bold ${stat.color} truncate`}>
-                      {formatCurrency(stat.value)}
-                    </p>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">Este mes</p>
-                  </div>
-                  <div className={`p-2 rounded-xl bg-muted ${stat.color} shrink-0`}>
-                    <stat.icon size={18} weight="duotone" className="sm:w-5 sm:h-5" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Esta Semana Widget (SESIÓN 10) */}
-      {estaSemana.length > 0 && (
-        <Card className="bento-card" data-testid="esta-semana-widget">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400">
-                <CalendarBlank size={18} weight="duotone" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Esta semana</p>
-                <p className="text-xs text-muted-foreground">Próximos pagos y límites de presupuesto</p>
-              </div>
-            </div>
-            <div className="space-y-2">
-              {estaSemana.map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => navigate(item.accion_url)}
-                  className="w-full flex items-center justify-between gap-3 p-3 rounded-md border border-slate-200 hover:bg-slate-50 transition-colors text-left"
-                  data-testid={`esta-semana-item-${item.tipo}`}
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <LucideClock size={18} className="shrink-0 text-slate-500" />
-                    <div className="min-w-0">
-                      <p className="font-medium truncate text-sm text-slate-900">{item.titulo}</p>
-                      <p className="text-xs text-slate-500 truncate">{item.texto}</p>
-                    </div>
-                  </div>
-                  <Badge
-                    variant="outline"
-                    className={`shrink-0 text-[10px] ${
-                      item.badge === "red"
-                        ? "bg-red-50 text-[#DC2626] border-red-200"
-                        : "bg-amber-50 text-amber-700 border-amber-200"
-                    }`}
-                    data-testid={`esta-semana-badge-${item.badge}`}
-                  >
-                    {item.days_until <= 2 ? "Urgente" : item.days_until <= 7 ? `En ${item.days_until}d` : "Pendiente"}
-                  </Badge>
-                </button>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* SRI Deductible Widget */}
-      <Card className="bento-card" data-testid="sri-deductible-widget">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 shrink-0">
-                <Receipt size={18} weight="duotone" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Gastos deducibles SRI {new Date().getFullYear()}</p>
-                <p className="text-xs text-muted-foreground" data-testid="sri-limit-explanation">
-                  Tu límite: <strong>{formatCurrency(sriLimits.limite_efectivo)}</strong>
-                  {sriLimits.limite_20pct > 0 && (
-                    <> (20% de {formatCurrency(sriLimits.ingresos_gravados_anual)} = {formatCurrency(sriLimits.limite_20pct)})</>
-                  )}
-                  {" — "}Tope legal: <strong>{formatCurrency(sriLimits.limite_legal)}</strong>
+              <div className="min-w-0">
+                <p className="text-base font-semibold text-slate-900" data-testid="por-revisar-count">
+                  {porRevisarCount} {porRevisarCount === 1 ? "movimiento" : "movimientos"} por revisar
                 </p>
+                <p className="text-xs text-slate-500">Abre Movimientos para aprobarlos</p>
               </div>
             </div>
-            <span className="text-lg font-bold font-mono text-emerald-600">
-              {formatCurrency(sriDeductible)}
-            </span>
-          </div>
-          <div className="space-y-1">
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>{formatCurrency(sriDeductible)} de {formatCurrency(sriLimits.limite_efectivo)} máx.</span>
-              <span className={sriDeductible > sriLimits.limite_efectivo ? "text-amber-600 font-semibold" : ""}>
-                {sriLimits.limite_efectivo > 0 ? Math.min(100, Math.round((sriDeductible / sriLimits.limite_efectivo) * 100)) : 0}%
-              </span>
-            </div>
-            <Progress 
-              value={sriLimits.limite_efectivo > 0 ? Math.min(100, (sriDeductible / sriLimits.limite_efectivo) * 100) : 0} 
-              className={`h-2 ${sriDeductible > sriLimits.limite_efectivo ? "[&>div]:bg-amber-500" : "[&>div]:bg-emerald-500"}`}
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* SRI Match Counters (4 buckets) */}
-      <Card className="bento-card" data-testid="sri-match-counters">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-xl bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82] shrink-0">
-                <Receipt size={18} weight="duotone" />
-              </div>
-              <div>
-                <p className="text-sm font-medium">Match Factura ↔ Consumo</p>
-                <p className="text-xs text-muted-foreground">Estado de respaldo SRI de tus transacciones</p>
-              </div>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs"
-              onClick={() => navigate("/fiscal?tab=facturas")}
-              data-testid="sri-match-details-btn"
+            <Badge
+              variant="outline"
+              className="border-slate-200 text-slate-600 shrink-0"
             >
-              Ver detalles
-            </Button>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            <button
-              onClick={() => navigate("/fiscal?tab=con_respaldo")}
-              className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-              data-testid="counter-con-respaldo"
-            >
-              <LucideCheckCircle size={22} className="mb-1 text-[#16A34A]" />
-              <span className="text-xl font-bold text-slate-900">{sriCounters.con_respaldo}</span>
-              <span className="text-[11px] text-slate-500 text-center">Con respaldo</span>
-            </button>
-            <button
-              onClick={() => navigate("/fiscal?tab=match_aproximado")}
-              className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-              data-testid="counter-aproximado"
-            >
-              <LucideRefreshCw size={22} className="mb-1 text-amber-600" />
-              <span className="text-xl font-bold text-slate-900">{sriCounters.match_aproximado}</span>
-              <span className="text-[11px] text-slate-500 text-center">Match aproximado</span>
-            </button>
-            <button
-              onClick={() => navigate("/fiscal?tab=pendiente")}
-              className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-              data-testid="counter-pendiente"
-            >
-              <LucideClock size={22} className="mb-1 text-[#0D9E82]" />
-              <span className="text-xl font-bold text-slate-900">{sriCounters.pendiente_match}</span>
-              <span className="text-[11px] text-slate-500 text-center">Esperando match</span>
-            </button>
-            <button
-              onClick={() => navigate("/fiscal?tab=sin_vincular")}
-              className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
-              data-testid="counter-sin-vincular"
-            >
-              <LucideAlertTriangle size={22} className="mb-1 text-[#DC2626]" />
-              <span className="text-xl font-bold text-slate-900">{sriCounters.sin_vincular}</span>
-              <span className="text-[11px] text-slate-500 text-center">Sin vincular</span>
-            </button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Charts Row - Responsive */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-6">
-        {/* Area Chart - Money Flow */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.2 }}
-        >
-          <Card className="bento-card h-full">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base sm:text-lg">Flujo de Dinero</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Ingresos vs Gastos</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[250px] sm:h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={chartData}>
-                    <defs>
-                      <linearGradient id="colorIncome" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#22c55e" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#22c55e" stopOpacity={0}/>
-                      </linearGradient>
-                      <linearGradient id="colorExpenses" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0}/>
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis 
-                      dataKey="date" 
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                      tickFormatter={(val) => val?.slice(5) || val}
-                    />
-                    <YAxis 
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }} 
-                      width={60}
-                      tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        background: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        fontSize: '12px'
-                      }}
-                      formatter={(value) => formatCurrency(value)}
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="income" 
-                      name="Ingresos"
-                      stroke="#22c55e" 
-                      fillOpacity={1} 
-                      fill="url(#colorIncome)" 
-                    />
-                    <Area 
-                      type="monotone" 
-                      dataKey="expenses" 
-                      name="Gastos"
-                      stroke="#ef4444" 
-                      fillOpacity={1} 
-                      fill="url(#colorExpenses)" 
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Bar Chart - Categories from Flujo */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-        >
-          <Card className="bento-card h-full">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base sm:text-lg">Gastos por Categoría</CardTitle>
-              <CardDescription className="text-xs sm:text-sm">Según tu presupuesto (Flujos)</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="h-[250px] sm:h-[300px]">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={categoryData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                    <XAxis 
-                      type="number" 
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 12 }}
-                      tickFormatter={(val) => `$${(val/1000).toFixed(0)}k`}
-                    />
-                    <YAxis 
-                      type="category" 
-                      dataKey="name" 
-                      width={100}
-                      tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }}
-                    />
-                    <Tooltip 
-                      contentStyle={{ 
-                        background: 'hsl(var(--card))', 
-                        border: '1px solid hsl(var(--border))',
-                        borderRadius: '8px',
-                        fontSize: '12px'
-                      }}
-                      formatter={(value) => formatCurrency(value)}
-                    />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                      {categoryData.map((entry, index) => (
-                        <Cell key={`cell-${entry.key}`} fill={entry.color} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
-
-      {/* Quick Stats Row */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Transactions Count */}
-        <Card className="bento-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Transacciones este mes</p>
-                <p className="text-2xl font-bold">{stats?.transaction_count || 0}</p>
-              </div>
-              <Badge variant="secondary">{period === "month" ? "Este mes" : period}</Badge>
-            </div>
+              Ver →
+            </Badge>
           </CardContent>
         </Card>
-
-        {/* Top Category */}
-        <Card className="bento-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Mayor gasto</p>
-                <p className="text-lg font-bold truncate">
-                  {categoryData[0]?.name || "Sin datos"}
-                </p>
-              </div>
-              <span className="font-mono font-semibold text-red-500">
-                {formatCurrency(categoryData[0]?.value || 0)}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Savings Rate */}
-        <Card className="bento-card">
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Tasa de ahorro</p>
-                <p className={`text-2xl font-bold ${
-                  stats?.total_income > 0 && stats?.balance > 0 
-                    ? "text-emerald-600" 
-                    : "text-red-500"
-                }`}>
-                  {stats?.total_income > 0 
-                    ? `${((stats?.balance / stats?.total_income) * 100).toFixed(0)}%`
-                    : "0%"
-                  }
-                </p>
-              </div>
-              <CheckCircle 
-                size={32} 
-                weight="fill" 
-                className={stats?.balance > 0 ? "text-emerald-500" : "text-red-400"} 
-              />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Cashflow Projection Widget - Full Width */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, delay: 0.4 }}
-      >
-        <Card className="bento-card bg-white border border-slate-200 border-l-4 border-l-[#0D9E82] shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg flex items-center gap-2 text-slate-900">
-              <TrendUp size={20} className="text-[#0D9E82]" weight="duotone" />
-              Flujo Proyectado (30 días)
-            </CardTitle>
-            <CardDescription>Proyección de ingresos y gastos</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {cashflowProjection ? (
-              <div className="space-y-4">
-                {/* Summary */}
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
-                    <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                      <ArrowUp size={12} className="text-emerald-500" />
-                      Ingresos
-                    </p>
-                    <p className="text-lg font-bold text-emerald-600">
-                      {formatCurrency(cashflowProjection.total_expected_income || 0)}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
-                    <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                      <ArrowDown size={12} className="text-red-500" />
-                      Gastos
-                    </p>
-                    <p className="text-lg font-bold text-red-600">
-                      {formatCurrency(cashflowProjection.total_scheduled_payments || 0)}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-lg bg-white/60 dark:bg-black/20 text-center">
-                    <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                      <Wallet size={12} className="text-[#0D9E82]" />
-                      Neto
-                    </p>
-                    <p className={`text-lg font-bold ${
-                      (cashflowProjection.net_projection || 0) >= 0 
-                        ? "text-emerald-600" 
-                        : "text-red-600"
-                    }`}>
-                      {formatCurrency(cashflowProjection.net_projection || 0)}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Upcoming Items */}
-                {cashflowProjection.upcoming_items?.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">Próximos movimientos:</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {cashflowProjection.upcoming_items.slice(0, 6).map((item, idx) => (
-                        <div 
-                          key={`upcoming-${item.description}-${item.amount}`} 
-                          className="flex items-center justify-between p-2 rounded-lg bg-white/40 dark:bg-black/10"
-                        >
-                          <div className="flex items-center gap-2">
-                            {item.type === "income" ? (
-                              <ArrowUp size={14} className="text-emerald-500" />
-                            ) : (
-                              <ArrowDown size={14} className="text-red-500" />
-                            )}
-                            <span className="text-sm truncate max-w-[120px]">{item.description}</span>
-                          </div>
-                          <div className="text-right">
-                            <span className={`text-sm font-semibold ${
-                              item.type === "income" ? "text-emerald-600" : "text-red-600"
-                            }`}>
-                              {item.type === "income" ? "+" : "-"}{formatCurrency(item.amount)}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                <Link to="/mi-dinero?tab=flujo">
-                  <Button variant="outline" size="sm" className="w-full mt-2">
-                    Ver Planificación Completa
-                  </Button>
-                </Link>
-              </div>
-            ) : (
-              <div className="text-center py-6 text-muted-foreground">
-                <Clock size={32} className="mx-auto mb-2 opacity-50" />
-                <p className="text-sm">No hay proyección disponible</p>
-                <Link to="/mi-dinero?tab=flujo">
-                  <Button variant="outline" size="sm" className="mt-3">
-                    Configurar Flujo
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Gastos por Categoría - Burbujas de Progreso */}
-      {categoryData.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.5 }}
-        >
-          <Card className="bento-card">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Receipt size={20} className="text-[#0D9E82]" weight="duotone" />
-                Gastos por Categoría
-              </CardTitle>
-              <CardDescription>Progreso vs presupuesto mensual</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                {/* Burbuja especial de Viajes - conectada al fondo */}
-                {travelFund && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="p-4 rounded-md bg-white border border-slate-200 border-l-4 border-l-[#0D9E82] shadow-sm"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="font-medium text-sm flex items-center gap-2 text-slate-900">
-                        <Airplane size={16} className="text-[#0D9E82]" />
-                        Viajes
-                      </span>
-                      <Badge variant="outline" className="text-xs border-slate-200 text-slate-600">
-                        Meta
-                      </Badge>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Progress 
-                        value={travelFund.savings_progress || 0} 
-                        className="h-3 [&>div]:bg-[#0D9E82]"
-                      />
-                      
-                      <div className="flex justify-between items-center">
-                        <span className="text-lg font-bold text-slate-900">
-                          {formatCurrency(travelFund.monthly_suggested_saving || 0)}
-                        </span>
-                        <span className="text-xs text-slate-500">
-                          /mes
-                        </span>
-                      </div>
-                      
-                      <p className="text-xs text-slate-500">
-                        {(travelFund.savings_progress || 0).toFixed(0)}% ahorrado de {formatCurrency(travelFund.annual_budget)}
-                      </p>
-                      
-                      <Link to="/viajes">
-                        <Button variant="ghost" size="sm" className="w-full h-7 text-xs text-[#0D9E82] hover:text-[#0D6B63] hover:bg-slate-50">
-                          Ver fondo
-                        </Button>
-                      </Link>
-                    </div>
-                  </motion.div>
-                )}
-
-                {sortedCategoryData
-                  .map((cat, index) => {
-                    const percentage = cat.budget > 0 ? (cat.value / cat.budget) * 100 : 0;
-                    const isOverBudget = percentage > 100;
-                    const isNearLimit = percentage >= 80 && percentage <= 100;
-                    
-                    return (
-                      <motion.div
-                        key={cat.key}
-                        initial={{ opacity: 0, scale: 0.9 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: index * 0.05 }}
-                        className={`p-4 rounded-xl border-2 transition-all ${
-                          isOverBudget 
-                            ? "border-red-300 bg-red-50/50 dark:bg-red-950/20" 
-                            : isNearLimit
-                              ? "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20"
-                              : "border-transparent bg-muted/30"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="font-medium text-sm truncate flex-1">{cat.name}</span>
-                          {isOverBudget && (
-                            <Badge variant="destructive" className="text-xs ml-2">
-                              +{(percentage - 100).toFixed(0)}%
-                            </Badge>
-                          )}
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Progress 
-                            value={Math.min(percentage, 100)} 
-                            className={`h-3 ${isOverBudget ? "[&>div]:bg-red-500" : isNearLimit ? "[&>div]:bg-amber-500" : ""}`}
-                          />
-                          
-                          <div className="flex justify-between items-center">
-                            <span className={`text-lg font-bold ${
-                              isOverBudget ? "text-red-600" : "text-foreground"
-                            }`}>
-                              {formatCurrency(cat.value)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              / {formatCurrency(cat.budget)}
-                            </span>
-                          </div>
-                          
-                          {cat.budget > 0 && (
-                            <p className={`text-xs ${
-                              isOverBudget 
-                                ? "text-red-600" 
-                                : isNearLimit 
-                                  ? "text-amber-600" 
-                                  : "text-muted-foreground"
-                            }`}>
-                              {isOverBudget 
-                                ? `Excedido por ${formatCurrency(cat.value - cat.budget)}`
-                                : `Disponible: ${formatCurrency(cat.budget - cat.value)}`
-                              }
-                            </p>
-                          )}
-                        </div>
-                      </motion.div>
-                    );
-                  })}
-              </div>
-              
-              <Link to="/mi-dinero?tab=presupuesto" className="block mt-4">
-                <Button variant="outline" size="sm" className="w-full">
-                  Ver Presupuesto Completo
-                </Button>
-              </Link>
-            </CardContent>
-          </Card>
-        </motion.div>
       )}
 
       <AutoRuleModal

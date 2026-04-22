@@ -41,8 +41,7 @@ const BANKS = [
   { value: "diners", label: "Diners Club", country: "Ecuador" },
   { value: "pichincha", label: "Banco Pichincha", country: "Ecuador" },
   { value: "pacifico", label: "Banco del Pacífico / Pacificard", country: "Ecuador" },
-  { value: "guayaquil", label: "Banco de Guayaquil", country: "Ecuador" },
-  { value: "apple", label: "Apple Card", country: "USA" }
+  { value: "guayaquil", label: "Banco de Guayaquil", country: "Ecuador" }
 ];
 
 export default function Deudas() {

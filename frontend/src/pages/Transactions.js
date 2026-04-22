@@ -281,7 +281,7 @@ export default function Transactions() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Eliminar esta transacción?")) return;
+    if (!window.confirm("¿Eliminar esta transacción? Esta acción no se puede deshacer.")) return;
     try {
       await axios.delete(`${API}/transactions/${id}`, { headers: getAuthHeaders() });
       toast.success("Transacción eliminada");
@@ -941,6 +941,19 @@ export default function Transactions() {
                     <span className={`text-sm font-semibold shrink-0 ${transaction.transaction_type === "income" ? "text-emerald-600" : "text-red-600"}`}>
                       {transaction.transaction_type === "income" ? "+" : "-"}{formatCurrency(transaction.amount)}
                     </span>
+                    {canEdit && transaction.status === "approved" && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 shrink-0 text-slate-400 hover:text-red-600"
+                        onClick={() => handleDelete(transaction.id)}
+                        title="Eliminar transacción"
+                        aria-label="Eliminar transacción"
+                        data-testid={`delete-approved-${transaction.id}`}
+                      >
+                        <Trash size={16} />
+                      </Button>
+                    )}
                     {canEdit && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
