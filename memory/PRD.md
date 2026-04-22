@@ -11,6 +11,40 @@ La app Vesta se usa desde laptop, iPad y celular. Todo diseño debe ser responsi
 - H1: `text-2xl sm:text-3xl md:text-4xl`
 
 
+## [2026-04-22] REFACTOR MASIVO — Taxonomía única + 6 páginas
+### PARTE A — Taxonomía (fuente única de verdad)
+- `PERSONAL_CATEGORIES` canónica en `/src/constants/categories.js` (12 keys: servicios_basicos, suscripciones, empleados, colegio_actividades, seguros, comida, restaurantes, carros, usa, viajes_entretenimiento, gastos_libres, otros). `impuestos` eliminado.
+- `models.py BUDGET_CATEGORIES` sincronizado 1:1 con PERSONAL_CATEGORIES. Tildes preservadas (Alícuota B/GT, Angélica, Fútbol, Mamá).
+- `DEMO_BUDGET_CATEGORIES` eliminado — `get_budget_categories()` retorna único dict.
+- `CargarValidar.js`: eliminada copia local (triple fuente de verdad resuelta).
+- `SRI_CATEGORIES` con `limit_fraction` decimal (0.325, 1.3) en front+back. Agregado transporte, viajes_internacionales, Odontología, Maestría. Eliminado no_deducible genérico.
+- Migración MongoDB completada: 41 docs normalizados, 2 docs backfilled con category=otros.
+- `DEFAULT_CATEGORIZATION_RULES` actualizadas para producir solo PERSONAL_CATEGORIES válidas.
+- `TransactionBase.category` ahora `Optional[str] = "otros"` (defensivo contra data legacy).
+
+### PARTE B — Sistema de diseño Forest homogéneo
+- `semanticColors` agregado a `/src/styles/design-system.js` (income/expense/success/warning/danger/btnPrimary).
+- Corregidos botones/texto emerald→#0D9E82 en MetasViaje, TabPorRevisar, PresupuestoEditable, AccountantView.
+- Eliminados círculos coloridos en KPIs de Deudas.js y AccountantView.
+- Transactions.js: mapa CATEGORY_COLORS colapsado a pill slate uniforme (Proxy).
+- Ingresos.js: fuente Personal → bg-slate-100.
+- Flujo.js: filas sin fondos bg-red/amber-50/40.
+
+### PARTE C — Arquitectura 6 páginas
+- Nuevos wrappers con tabs (reusan componentes existentes):
+  - `/movimientos` — Por revisar + Todos (CargarValidar + Transactions)
+  - `/mi-dinero` — Presupuesto + Ingresos + Flujo
+  - `/fiscal` — Facturas + Deducciones + Resumen
+- Menú lateral: 6 items con Lucide icons (LayoutDashboard, ArrowLeftRight, Wallet, Target, CreditCard, Scale).
+- 11 redirects legacy activos: /cargar, /transactions, /budget, /ingresos, /flujo, /sri-match, /sri-limits, /accountant, /metas-viaje, /predictions, /international.
+- Eliminados 2401 LOC muertos: Budget.js (617), Reconciliation.js (884), Upload.js (647), InternationalExpenses.js (253).
+- Dashboard: links internos actualizados a nuevas rutas.
+
+### Resultados (iteration_28.json)
+- Backend: 9/9 pytest PASS. GET /api/transactions ahora devuelve 106 tx OK tras backfill.
+- Frontend: 6/6 páginas + 11/11 redirects + sidebar con 6 items verificados.
+
+
 ## Architecture
 ```
 /app/backend/

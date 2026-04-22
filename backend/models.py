@@ -437,7 +437,7 @@ class Token(BaseModel):
 class TransactionBase(BaseModel):
     amount: float
     description: str
-    category: str
+    category: Optional[str] = "otros"
     subcategory: Optional[str] = None
     date: str
     transaction_type: str = "expense"
