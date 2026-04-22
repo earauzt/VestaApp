@@ -252,6 +252,10 @@ async def _save_deferred_purchases(user_id: str, deferred_purchases: list, card_
             "description": {"$regex": f"^{re.escape(description)}$", "$options": "i"},
             "card_name": card_name_val,
             "remaining_installments": {"$gt": 0},
+            "total_amount": {
+                "$gte": dp.get("total_amount", 0) * 0.95,
+                "$lte": dp.get("total_amount", 0) * 1.05
+            }
         })
         if existing:
             remaining = existing.get("remaining_installments", 0)

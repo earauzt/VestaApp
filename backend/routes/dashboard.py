@@ -27,6 +27,10 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
     ).to_list(1000)
 
     total_income = sum(t["amount"] for t in transactions if t.get("transaction_type") == "income")
+    income_records = await db.incomes.find(
+        {"user_id": user["id"], "date": {"$gte": start_of_month.strftime("%Y-%m-%d")}}, {"_id": 0}
+    ).to_list(500)
+    total_income += sum(r.get("amount", 0) for r in income_records if r.get("status") != "cancelled")
     total_expenses = sum(t["amount"] for t in transactions if t.get("transaction_type") == "expense")
 
     weekly_transactions = [t for t in transactions if t["date"] >= start_of_week.strftime("%Y-%m-%d")]
@@ -41,8 +45,10 @@ async def get_dashboard_stats(user: dict = Depends(get_current_user)):
             cat = t.get("category", "otros")
             by_category[cat] = by_category.get(cat, 0) + t["amount"]
 
-    sri_deductible_cats = ["alimentacion", "salud", "educacion", "vivienda", "vestimenta"]
-    sri_deductible = sum(by_category.get(cat, 0) for cat in sri_deductible_cats)
+    sri_deductible = sum(
+        t["amount"] for t in transactions
+        if t.get("transaction_type") == "expense" and t.get("sri_category")
+    )
 
     return DashboardStats(total_income=total_income, total_expenses=total_expenses, balance=total_income - total_expenses, daily_average=round(daily_average, 2), weekly_total=weekly_total, monthly_total=total_expenses, by_category=by_category, sri_deductible=sri_deductible)
 

@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 29 — validated 4 surgical backend fixes on Vesta: (1) seed CREDIT_CARDS now lists only 3 admin cards (no Apple Card), (2) _save_deferred_purchases dedup uses total_amount ±5% so diferidos with different totals are independent, (3) /dashboard/stats total_income sums incomes collection (non-cancelled) + income transactions, (4) /dashboard/stats sri_deductible filters by transaction_type='expense' AND sri_category present. 7/7 pytest tests PASS.",
+  "backend_results": {
+    "test_file": "/app/backend/tests/test_iteration29_fixes.py",
+    "tests_run": 7,
+    "passed": 7,
+    "failed": 0,
+    "verified": [
+      "GET /api/credit-cards admin → exactly 3 cards {Pacificard Black, Pichincha Platinum, Diners Club}; Apple Card absent",
+      "GET /api/dashboard/stats total_income increases by ~$1000 after inserting an income (status=received) in current month",
+      "GET /api/dashboard/stats total_income unchanged when inserting an income with status=cancelled (exclusion confirmed)",
+      "GET /api/dashboard/stats sri_deductible increases by $50 after inserting expense tx with sri_category='alimentacion'",
+      "GET /api/dashboard/stats sri_deductible unchanged when inserting expense tx WITHOUT sri_category",
+      "_save_deferred_purchases(desc='TEST DIFERIDO', card='Pacificard Black'): $5000 then $10000 → 2 independent docs created (dedup not triggered by total_amount ±5% mismatch)",
+      "_save_deferred_purchases: identical payload ($3000 twice) → 1 doc with remaining_installments decremented from 10 to 9 (dedup working for same total_amount)"
+    ]
+  },
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iteration29_fixes.py",
+    "/app/test_reports/pytest/iter29_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "dashboard.py line 30-33: total_income query on db.incomes uses date >= start_of_month; ensure all incomes docs have a 'date' field formatted as 'YYYY-MM-DD' — if some legacy docs use ISO with time they still compare correctly by string prefix, but docs without 'date' would silently drop from the sum. Consider adding a fallback {'date':{'$gte':...}, '$or':[{'received_at':...}]} or backfill.",
+    "documents.py _save_deferred_purchases line 250-259: the ±5% range uses literal multiplication on dp.get('total_amount', 0); if total_amount is 0 or missing, the range becomes [0,0] which still matches any 0-total doc. Low risk, but consider guarding: skip match when total_amount is 0.",
+    "dashboard.py: total_income and sri_deductible recomputations loop through transactions twice (once for by_category, once for sri_deductible filter). Fine for current volume (<1000 tx/mo) but consider a single pass for scalability.",
+    "seed_data.py: when seeding credit_cards, removed Apple Card is NOT cleaned up from DB — if a prior run inserted 'card-applecard' or similar, it will persist. Main agent should verify admin Mongo doesn't still have leftover Apple Card doc (test confirms GET endpoint returns 3, so either it was never persisted for this env or already removed). A defensive delete_many on unknown admin cards could be added."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration29_fixes.py",
+    "/app/test_reports/pytest/iter29_results.xml"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "N/A (backend-only request)"},
+  "test_credentials": "earauzt@gmail.com / Realmadrid2011 (from /app/memory/test_credentials.md)",
+  "seed_data_creation": "Per-test TEST_ prefixed docs inserted and deleted in teardown: incomes (received + cancelled), transactions (with/without sri_category), deferred_payments (2 distinct + 1 duplicate). All cleaned up — verified via delete_many/delete_one in finally blocks.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 surgical fixes for iteration 29 are validated and green. Pytest file /app/backend/tests/test_iteration29_fixes.py is safe to reuse as regression. It uses pymongo sync client for cleanup and wraps _save_deferred_purchases calls in asyncio.run() with a fresh AsyncIOMotorClient patched into routes.documents.db to avoid cross-loop issues. Recall from iteration 28: GET /api/transactions may still return 500 if some admin transactions lack 'category' — not re-tested here since it's out of scope for this request, but may still need attention.",
+  "rca of the issue": "N/A — this iteration validated 4 fixes that were already implemented correctly by main agent. Initial test failures were purely in the pytest harness: (a) BASE_URL was empty because REACT_APP_BACKEND_URL isn't exported to pytest — resolved by reading /app/frontend/.env manually; (b) motor AsyncIOMotorClient in routes.documents.db binds to the first event loop it sees at import time, so calling it from a new pytest loop caused 'Future attached to a different loop' — resolved by monkey-patching routes.documents.db inside each asyncio.run() call with a fresh motor client bound to the current loop. These harness adjustments don't affect the app under test."
+}
