@@ -11,6 +11,26 @@ La app Vesta se usa desde laptop, iPad y celular. Todo diseño debe ser responsi
 - H1: `text-2xl sm:text-3xl md:text-4xl`
 
 
+## [2026-04-22] SESIÓN 9 — 4 bugfixes quirúrgicos P0
+- **seed_data.py**: eliminado `card-apple-card` del array `CREDIT_CARDS`. Admin queda con 3 tarjetas (Pacificard Black, Pichincha Platinum, Diners Club). Doc huérfano `card-apple-card` eliminado de MongoDB.
+- **documents.py `_save_deferred_purchases`**: dedup ahora incluye `total_amount` ±5% → dos diferidos con misma description+card pero distinto total_amount se tratan como independientes.
+- **dashboard.py `/dashboard/stats`**: `total_income` ahora SUMA `transactions(type=income)` + colección `incomes` (excluyendo `status=cancelled`) del mes actual.
+- **dashboard.py `/dashboard/stats`**: `sri_deductible` ahora filtra por `transaction.sri_category` (no por 5 keys legacy que ya no existen post-refactor de taxonomía).
+
+### Testing (iteration_29.json)
+- 7/7 pytest PASS (test_iteration29_fixes.py creado)
+- Apple Card confirmada ausente en API y DB
+- Ingresos: +$1000 al insertar income received; 0 al insertar cancelled
+- SRI: +$50 al insertar tx con sri_category='alimentacion'; 0 sin sri_category
+- Dedup diferidos: $5000 vs $10000 = 2 docs independientes; $3000 x2 = decrement correcto
+
+### Code review backlog (no-blocker)
+- P2 `dashboard.py`: guardar contra `incomes` sin campo `date` (backfill o `$or` con `received_at`)
+- P2 `documents.py`: guardar contra `total_amount=0` en el rango ±5% (actualmente matchea cualquier 0)
+- P2 `dashboard.py`: una sola pasada por transactions (actualmente 2 loops)
+- P2 `seed_data.py`: `delete_many` defensivo de tarjetas "desconocidas" del admin
+
+
 ## [2026-04-22] REFACTOR MASIVO — Taxonomía única + 6 páginas
 ### PARTE A — Taxonomía (fuente única de verdad)
 - `PERSONAL_CATEGORIES` canónica en `/src/constants/categories.js` (12 keys: servicios_basicos, suscripciones, empleados, colegio_actividades, seguros, comida, restaurantes, carros, usa, viajes_entretenimiento, gastos_libres, otros). `impuestos` eliminado.
