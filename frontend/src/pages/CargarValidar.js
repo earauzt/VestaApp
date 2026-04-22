@@ -16,7 +16,7 @@ import { es } from "date-fns/locale";
 import ReconciliacionEstados from "../components/ReconciliacionEstados";
 import TabImportar from "../components/bandeja/TabImportar";
 import TabPorRevisar from "../components/bandeja/TabPorRevisar";
-import TabHistorial from "../components/bandeja/TabHistorial";
+// TabHistorial removido: reemplazado por link "Ver todas las transacciones →"
 import BandejaStats from "../components/bandeja/BandejaStats";
 import { GmailConsentDialog } from "../components/bandeja/BandejaDialogs";
 import Transactions from "./Transactions";
@@ -1040,7 +1040,7 @@ export default function CargarValidar() {
       <Card className="bento-card">
         <CardContent className="p-4 sm:p-6">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="grid w-full grid-cols-3 mb-6">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
               <TabsTrigger value="importar" className="gap-2" data-testid="tab-importar">
                 <CloudArrowUp size={18} />
                 <span className="hidden sm:inline">Importar</span>
@@ -1053,10 +1053,6 @@ export default function CargarValidar() {
                     {gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length}
                   </Badge>
                 )}
-              </TabsTrigger>
-              <TabsTrigger value="historial" className="gap-2" data-testid="tab-historial">
-                <Receipt size={18} />
-                <span className="hidden sm:inline">Historial</span>
               </TabsTrigger>
             </TabsList>
 
@@ -1106,13 +1102,19 @@ export default function CargarValidar() {
               />
             </TabsContent>
 
-            {/* Historial Tab - reutiliza componente Transactions */}
-            <TabsContent value="historial">
-              <TabHistorial />
-            </TabsContent>
-
+            {/* Historial Tab - reemplazado por link a /transactions */}
 
           </Tabs>
+
+          <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
+            <a
+              href="/transactions"
+              className="text-sm text-[#0D9E82] hover:underline inline-flex items-center gap-1"
+              data-testid="ver-todas-transacciones"
+            >
+              Ver todas las transacciones →
+            </a>
+          </div>
         </CardContent>
       </Card>
 

@@ -387,26 +387,17 @@ export default function Flujo() {
           {Object.entries(weeks).map(([key, week]) => {
             const semaphore = getWeekSemaphore(week.payments);
             return (
-            <div key={key} style={{ borderLeft: `4px solid ${semaphore.color}` }} className="rounded-lg pl-4">
-              {/* Week Header */}
-              <div className="flex items-center justify-between mb-3 sticky top-0 bg-background/95 backdrop-blur py-2 z-10">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                    <CalendarBlank size={20} className="text-primary" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold">{week.label}</h3>
-                    <p className="text-sm text-muted-foreground">{week.payments.length} pagos</p>
-                  </div>
-                </div>
+            <div key={key} className="space-y-2">
+              {/* Week Header — Parker-style */}
+              <div className="flex items-center justify-between mb-2 py-2">
                 <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs" style={{ borderColor: semaphore.color, color: semaphore.color }}>
-                    {semaphore.label}
-                  </Badge>
-                  <Badge variant="outline" className="text-base font-mono">
-                    {formatCurrency(week.payments.reduce((s, p) => s + p.amount, 0))}
-                  </Badge>
+                  <span className={`inline-block w-2 h-2 rounded-full ${semaphore.color === "#ef4444" ? "bg-red-500" : semaphore.color === "#f59e0b" ? "bg-amber-500" : "bg-emerald-500"}`} />
+                  <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{week.label}</h3>
+                  <span className="text-xs text-slate-400 ml-1">({week.payments.length} pagos)</span>
                 </div>
+                <span className="text-sm font-semibold text-slate-700 font-mono">
+                  {formatCurrency(week.payments.reduce((s, p) => s + p.amount, 0))}
+                </span>
               </div>
 
               {/* Payments List */}
@@ -418,71 +409,53 @@ export default function Flujo() {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="space-y-2">
+                <div className="bg-white rounded-lg border border-slate-100">
                   {week.payments.map((payment, index) => {
                     const MethodIcon = getMethodIcon(payment.payment_method);
                     const isPastDue = payment.days_until_due < 0;
                     const isDueSoon = payment.is_due_soon;
                     const CategoryLabel = getCategoryLabel(payment.category);
                     const isCard = payment.payment_method?.includes("tarjeta") || payment.payment_method === "apple_card";
-                    
+
                     return (
                       <motion.div
                         key={payment.id}
-                        initial={{ opacity: 0, y: 10 }}
+                        initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.03 }}
-                        className={`p-4 rounded-xl border transition-all hover:shadow-md ${
-                          isPastDue 
-                            ? "bg-red-50 dark:bg-red-900/20 border-red-200" 
-                            : isDueSoon 
-                              ? "bg-amber-50 dark:bg-amber-900/20 border-amber-200"
-                              : "bg-card border-border hover:border-primary/30"
-                        }`}
+                        transition={{ delay: index * 0.02 }}
+                        className={`flex items-center gap-3 px-3 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors ${isPastDue ? "bg-red-50/40" : isDueSoon ? "bg-amber-50/40" : "bg-white"}`}
+                        data-testid={`payment-row-${payment.id}`}
                       >
-                        <div className="flex items-center gap-4">
-                          {/* Day indicator */}
-                          <div className={`w-12 h-12 rounded-xl flex flex-col items-center justify-center shrink-0 ${
-                            isPastDue ? "bg-red-100 text-red-600" : isDueSoon ? "bg-amber-100 text-amber-600" : "bg-muted"
-                          }`}>
-                            <span className="text-lg font-bold">{payment.due_day}</span>
-                            <span className="text-[10px] uppercase">día</span>
-                          </div>
-
-                          {/* Payment Info */}
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="font-semibold">{payment.name}</span>
-                              {payment.card_name && (
-                                <Badge variant="outline" className="text-xs gap-1 bg-primary/5">
-                                  <CreditCard size={10} />
-                                  {payment.card_name}
-                                </Badge>
-                              )}
-                              {payment.is_recurring && (
-                                <Badge variant="secondary" className="text-xs">Recurrente</Badge>
-                              )}
-                              {isDueSoon && (
-                                <Badge variant="outline" className="text-xs text-amber-600 border-amber-300">
-                                  <Clock size={12} className="mr-1" />
-                                  {payment.days_until_due} días
-                                </Badge>
-                              )}
-                              {isPastDue && (
-                                <Badge variant="destructive" className="text-xs">
-                                  <Warning size={12} className="mr-1" />
-                                  Vencido
-                                </Badge>
-                              )}
-                            </div>
-                            <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
-                              <span className="flex items-center gap-1">
-                                <MethodIcon size={14} />
-                                {PAYMENT_METHODS.find(m => m.value === payment.payment_method)?.label || payment.payment_method}
+                        <span className={`font-bold w-8 text-center text-sm ${isPastDue ? "text-red-600" : isDueSoon ? "text-amber-600" : "text-slate-700"}`}>
+                          {payment.due_day}
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-medium text-sm text-slate-700 truncate">{payment.name}</span>
+                            {payment.is_recurring && (
+                              <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
+                                Recurrente
                               </span>
-                              <span>•</span>
-                              <span>{CategoryLabel}</span>
-                              {payment.subcategory && (
+                            )}
+                            {isPastDue && (
+                              <span className="text-xs bg-red-50 text-red-700 px-2 py-0.5 rounded-full border border-red-200">
+                                Vencido
+                              </span>
+                            )}
+                            {isDueSoon && !isPastDue && (
+                              <span className="text-xs bg-amber-50 text-amber-700 px-2 py-0.5 rounded-full border border-amber-200">
+                                {payment.days_until_due}d
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5 text-xs text-slate-400">
+                            <span className="flex items-center gap-1">
+                              <MethodIcon size={12} />
+                              {PAYMENT_METHODS.find(m => m.value === payment.payment_method)?.label || payment.payment_method}
+                            </span>
+                            <span>·</span>
+                            <span>{CategoryLabel}</span>
+                            {payment.subcategory && (
                                 <>
                                   <span>•</span>
                                   <span className="text-primary">{payment.subcategory}</span>
@@ -491,38 +464,28 @@ export default function Flujo() {
                             </div>
                             {/* Credit card info */}
                             {isCard && (payment.minimum_amount || payment.total_balance) && (
-                              <div className="flex items-center gap-4 mt-2 text-xs">
+                              <div className="flex items-center gap-3 mt-0.5 text-xs text-slate-400">
                                 {payment.minimum_amount && (
-                                  <span className="px-2 py-1 rounded bg-amber-100 text-amber-700">
-                                    Mín: {formatCurrency(payment.minimum_amount)}
-                                  </span>
+                                  <span>Mín: {formatCurrency(payment.minimum_amount)}</span>
                                 )}
                                 {payment.total_balance && (
-                                  <span className="px-2 py-1 rounded bg-slate-50 text-[#0D9E82]">
-                                    Saldo: {formatCurrency(payment.total_balance)}
-                                  </span>
+                                  <span>Saldo: {formatCurrency(payment.total_balance)}</span>
                                 )}
                               </div>
                             )}
                           </div>
 
-                          {/* Amount & Actions */}
-                          <div className="flex items-center gap-3">
-                            <div className="text-right">
-                              <p className="text-xl font-bold font-mono">{formatCurrency(payment.amount)}</p>
+                          <span className="text-sm font-semibold text-slate-700 shrink-0 font-mono">{formatCurrency(payment.amount)}</span>
+                          {canEdit && (
+                            <div className="flex gap-0.5 shrink-0">
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(payment)} className="h-7 w-7 text-slate-400 hover:text-slate-600">
+                                <Pencil size={14} />
+                              </Button>
+                              <Button variant="ghost" size="icon" onClick={() => handleDelete(payment.id)} className="h-7 w-7 text-slate-400 hover:text-red-500">
+                                <Trash size={14} />
+                              </Button>
                             </div>
-                            {canEdit && (
-                              <div className="flex gap-1">
-                                <Button variant="ghost" size="icon" onClick={() => handleEdit(payment)} className="h-8 w-8">
-                                  <Pencil size={14} />
-                                </Button>
-                                <Button variant="ghost" size="icon" onClick={() => handleDelete(payment.id)} className="h-8 w-8 text-red-500">
-                                  <Trash size={14} />
-                                </Button>
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                          )}
                       </motion.div>
                     );
                   })}

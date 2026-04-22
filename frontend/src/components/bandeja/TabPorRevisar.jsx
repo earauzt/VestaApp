@@ -199,7 +199,7 @@ export default function TabPorRevisar({
                       {originLabel}
                     </span>
                     {zero && (
-                      <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200" data-testid={`review-zero-${item.id}`}>
+                      <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200" data-testid={`review-zero-${item.id}`}>
                         Sin valor
                       </Badge>
                     )}

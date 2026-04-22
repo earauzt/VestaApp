@@ -455,98 +455,54 @@ export default function Ingresos() {
         </div>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bento-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                <ArrowUp size={20} className="text-emerald-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Total Recibido</p>
-                <p className="text-lg font-bold text-emerald-600">{formatCurrency(summary?.total || 0)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Hero: total del mes + KPIs minimalistas */}
+      <Card className="bento-card" data-testid="ingresos-hero-card">
+        <CardContent className="p-6 sm:p-8 space-y-3">
+          <p className="text-xs text-slate-400 uppercase tracking-wide">Total recibido este año</p>
+          <p className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-800" data-testid="ingresos-total-hero">
+            {formatCurrency(summary?.total || 0)}
+          </p>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1">
+            <p className="text-sm text-slate-600" data-testid="ingresos-esperado">
+              <span className="font-medium">{formatCurrency(totalExpectedPending)}</span>
+              <span className="text-xs text-slate-400 ml-1">esperado</span>
+            </p>
+            <p className="text-sm text-slate-600" data-testid="ingresos-por-cobrar">
+              <span className="font-medium">{formatCurrency(totalReceivablePending)}</span>
+              <span className="text-xs text-slate-400 ml-1">por cobrar</span>
+            </p>
+            <p className="text-sm text-slate-600" data-testid="ingresos-proyectado">
+              <span className="font-medium">{formatCurrency((summary?.total || 0) + totalExpectedPending + totalReceivablePending)}</span>
+              <span className="text-xs text-slate-400 ml-1">flujo proyectado</span>
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
-        <Card className="bento-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                <Clock size={20} className="text-amber-600" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Esperado (Pendiente)</p>
-                <p className="text-lg font-bold text-amber-600">{formatCurrency(totalExpectedPending)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bento-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800">
-                <Receipt size={20} className="text-[#0D9E82]" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Por Cobrar</p>
-                <p className="text-lg font-bold text-[#0D9E82]">{formatCurrency(totalReceivablePending)}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="bento-card">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
-                <CalendarCheck size={20} className="text-[#0D9E82]" />
-              </div>
-              <div>
-                <p className="text-xs text-muted-foreground">Flujo Proyectado</p>
-                <p className="text-lg font-bold text-[#0D9E82]">
-                  {formatCurrency((summary?.total || 0) + totalExpectedPending + totalReceivablePending)}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Tabs */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="ingresos" className="gap-2" data-testid="tab-ingresos">
-            <Bank size={16} />
-            <span className="hidden sm:inline">Ingresos</span>
-            <Badge variant="secondary" className="ml-1">{incomes.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="previstos" className="gap-2" data-testid="tab-previstos">
-            <Clock size={16} />
-            <span className="hidden sm:inline">Previstos</span>
-            <Badge variant="secondary" className="ml-1">{expectedIncomes.length}</Badge>
-          </TabsTrigger>
-          <TabsTrigger value="cuentas" className="gap-2" data-testid="tab-cuentas">
-            <Receipt size={16} />
-            <span className="hidden sm:inline">Por Cobrar</span>
-            <Badge variant="secondary" className="ml-1">{accountsReceivable.length}</Badge>
-          </TabsTrigger>
+      {/* 3 secciones verticales en scroll (tabs eliminados) */}
+      <Tabs value="ingresos" className="space-y-8">
+        <TabsList className="hidden">
+          <TabsTrigger value="ingresos" />
+          <TabsTrigger value="previstos" />
+          <TabsTrigger value="cuentas" />
         </TabsList>
 
-        {/* Tab: Ingresos */}
-        <TabsContent value="ingresos" className="space-y-4">
-          <div className="flex justify-end">
+        {/* Sección: Ingresos */}
+        <section className="space-y-3" data-testid="section-ingresos">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+              Ingresos <span className="text-slate-400 font-normal ml-1">({incomes.length})</span>
+            </h2>
             {canEdit && (
-              <Button onClick={() => openDialog("income")} className="gap-2" data-testid="add-income-btn">
-                <Plus size={18} weight="bold" />
-                Nuevo Ingreso
+              <Button size="sm" onClick={() => openDialog("income")} className="gap-2" data-testid="add-income-btn">
+                <Plus size={16} weight="bold" />
+                Nuevo
               </Button>
             )}
           </div>
+        </section>
 
+        <TabsContent value="ingresos" className="space-y-4" forceMount>
           <Card className="bento-card">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -641,9 +597,23 @@ export default function Ingresos() {
           </Card>
         </TabsContent>
 
-        {/* Tab: Ingresos Previstos */}
-        <TabsContent value="previstos" className="space-y-4">
-          <div className="flex justify-end">
+        {/* Sección: Ingresos Previstos */}
+        <section className="space-y-3" data-testid="section-previstos">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+              Previstos <span className="text-slate-400 font-normal ml-1">({expectedIncomes.length})</span>
+            </h2>
+            {canEdit && (
+              <Button size="sm" onClick={() => openDialog("expected")} className="gap-2" data-testid="add-expected-btn">
+                <Plus size={16} weight="bold" />
+                Nuevo
+              </Button>
+            )}
+          </div>
+        </section>
+
+        <TabsContent value="previstos" className="space-y-4" forceMount>
+          <div className="flex justify-end hidden">
             {canEdit && (
               <Button onClick={() => openDialog("expected")} className="gap-2" data-testid="add-expected-btn">
                 <Plus size={18} weight="bold" />
@@ -743,9 +713,23 @@ export default function Ingresos() {
           </Card>
         </TabsContent>
 
-        {/* Tab: Cuentas por Cobrar */}
-        <TabsContent value="cuentas" className="space-y-4">
-          <div className="flex justify-end">
+        {/* Sección: Cuentas por Cobrar */}
+        <section className="space-y-3" data-testid="section-cuentas">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">
+              Por Cobrar <span className="text-slate-400 font-normal ml-1">({accountsReceivable.length})</span>
+            </h2>
+            {canEdit && (
+              <Button size="sm" onClick={() => openDialog("receivable")} className="gap-2" data-testid="add-receivable-btn">
+                <Plus size={16} weight="bold" />
+                Nueva
+              </Button>
+            )}
+          </div>
+        </section>
+
+        <TabsContent value="cuentas" className="space-y-4" forceMount>
+          <div className="flex justify-end hidden">
             {canEdit && (
               <Button onClick={() => openDialog("receivable")} className="gap-2" data-testid="add-receivable-btn">
                 <Plus size={18} weight="bold" />
