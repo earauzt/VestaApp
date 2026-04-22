@@ -216,10 +216,40 @@ export default function PresupuestoEditable() {
         </div>
       </div>
 
-      {/* Resumen Financiero - Visualización tipo Resta */}
-      <Card className="bento-card">
+      {/* Resumen Mensual - Números protagonistas */}
+      <Card className="bento-card" data-testid="resumen-mensual-card">
+        <CardContent className="pt-6 pb-5 space-y-1">
+          <p className="text-4xl font-bold tracking-tight text-slate-800" data-testid="resumen-total-gastos">
+            {formatCurrency(totalExpenses)}
+          </p>
+          <p className="text-xs text-slate-400 mb-3">Gastos proyectados del mes</p>
+          <p className="text-lg font-medium text-emerald-600" data-testid="resumen-ingresos">
+            +{formatCurrency(totalIncome)} <span className="text-xs text-slate-400 font-normal ml-1">ingresos</span>
+          </p>
+          <p className="text-lg font-medium text-slate-700" data-testid="resumen-gastos">
+            {formatCurrency(totalExpenses)} <span className="text-xs text-slate-400 font-normal ml-1">gastos</span>
+          </p>
+          <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100">
+            <div>
+              <p className="text-xs text-slate-400">Ahorro mensual ({savingsGoal.percentage}%)</p>
+              <p className="text-sm font-semibold text-teal-600">{formatCurrency(savingsGoal.monthly)}</p>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-8 text-xs text-slate-500 hover:text-teal-600"
+              onClick={() => setActiveTab("metas")}
+            >
+              <Pencil size={13} className="mr-1" /> Editar
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Hidden sections (replaced by the simplified summary above) */}
+      <Card className="bento-card hidden">
         <CardHeader className="pb-2">
-          <CardTitle className="text-lg">Resumen Mensual</CardTitle>
+          <CardTitle className="text-lg">Resumen Mensual (legacy)</CardTitle>
           <CardDescription>Proyección de flujo de caja</CardDescription>
         </CardHeader>
         <CardContent className="space-y-0">
@@ -266,8 +296,8 @@ export default function PresupuestoEditable() {
             </div>
             <div className="flex items-center gap-2">
               <p className="text-xl font-bold text-teal-600 font-mono">{formatCurrency(savingsGoal.monthly)}</p>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 size="icon"
                 className="h-7 w-7 text-muted-foreground hover:text-teal-600"
                 onClick={() => setActiveTab("metas")}

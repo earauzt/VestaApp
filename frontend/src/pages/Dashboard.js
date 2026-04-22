@@ -410,8 +410,36 @@ export default function Dashboard() {
         </motion.div>
       )}
 
-      {/* Stats Grid - Responsive */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6">
+      {/* Balance Mensual - Parker-style big number */}
+      <Card className="bento-card" data-testid="balance-hero-card">
+        <CardContent className="p-6 sm:p-8">
+          <div className="flex flex-col gap-1">
+            <p className="text-xs text-slate-400 uppercase tracking-wide">Balance del mes</p>
+            <p
+              className={`text-4xl sm:text-5xl font-bold tracking-tight ${stats?.balance >= 0 ? "text-slate-800" : "text-red-600"}`}
+              data-testid="dashboard-balance-hero"
+            >
+              {formatCurrency(stats?.balance)}
+            </p>
+            <div className="flex flex-wrap gap-x-6 gap-y-1 mt-3">
+              <p className="text-lg font-medium text-emerald-600" data-testid="dashboard-income-line">
+                +{formatCurrency(stats?.total_income)}
+                <span className="text-xs text-slate-400 font-normal ml-1">ingresos</span>
+              </p>
+              <p className="text-lg font-medium text-slate-700" data-testid="dashboard-expenses-line">
+                {formatCurrency(stats?.monthly_total)}
+                <span className="text-xs text-slate-400 font-normal ml-1">gastos</span>
+              </p>
+            </div>
+            <p className="text-xs text-slate-400 mt-2" data-testid="dashboard-meta">
+              Promedio diario {formatCurrency(stats?.daily_average)} · {new Date().toLocaleDateString("es-EC", { month: "long", year: "numeric" })}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Legacy Stats Grid - Kept hidden for any consumers referencing statCards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 lg:gap-6 hidden">
         {statCards.map((stat, index) => (
           <motion.div
             key={stat.title}

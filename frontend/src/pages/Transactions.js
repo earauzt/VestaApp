@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { components, typography } from "../styles/design-system";
 import { SRI_CATEGORIES, INCOME_SOURCES } from "../constants/categories";
+import { displayName } from "../utils/displayName";
 import TransactionEditModal from "../components/shared/TransactionEditModal";
 
 // Import new QuickBooks-style components
@@ -894,138 +895,82 @@ export default function Transactions() {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2, delay: index * 0.02 }}
-                    className="flex items-center justify-between p-4 rounded-xl bg-muted/50 hover:bg-muted transition-colors"
+                    className="flex items-center gap-3 px-3 py-2.5 bg-white border-b border-slate-100 hover:bg-slate-50 transition-colors"
                     data-testid={`transaction-${transaction.id}`}
                   >
-                    <div className="flex items-center gap-4">
-                      <input
-                        type="checkbox"
-                        className="h-4 w-4 accent-[#0D9E82] cursor-pointer"
-                        checked={bulkSelectedIds.includes(transaction.id)}
-                        onChange={() => toggleBulkSelect(transaction.id)}
-                        onClick={(e) => e.stopPropagation()}
-                        data-testid={`bulk-checkbox-${transaction.id}`}
-                        aria-label="Seleccionar transacción"
-                      />
-                      <div className={`p-2 rounded-full ${
-                        transaction.transaction_type === "income" 
-                          ? "bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30" 
-                          : "bg-red-100 text-red-600 dark:bg-red-900/30"
-                      }`}>
-                        {transaction.transaction_type === "income" 
-                          ? <ArrowUp size={20} weight="bold" />
-                          : <ArrowDown size={20} weight="bold" />
-                        }
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="font-medium">
-                            {transaction.comercio || transaction.descripcion_corta ||
-                              (transaction.description?.replace(/^(Factura|FacturaFactura|Ha recibido su documento electrónico:?\s*)/i, '').trim().substring(0, 40) || transaction.establishment || "Sin descripción")}
-                          </p>
-                          {transaction.is_split && (
-                            <Badge variant="outline" className="text-xs gap-1">
-                              <Scissors size={12} />
-                              Split
-                            </Badge>
-                          )}
-                          {transaction.linked_goal_name && (
-                            <Badge variant="outline" className="text-xs gap-1 bg-slate-100 text-[#0D9E82] border-slate-200 dark:bg-slate-800 dark:text-[#0D9E82] dark:border-slate-700" data-testid="linked-goal-badge">
-                              <Target size={12} />
-                              {transaction.linked_goal_name}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 mt-1 flex-wrap">
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(transaction.date), "d MMM yyyy", { locale: es })}
-                          </span>
-                          {transaction.establishment && (
-                            <span className="text-sm text-muted-foreground">
-                              • {transaction.establishment}
-                            </span>
-                          )}
-                          {transaction.ai_classified && (
-                            <Badge variant="secondary" className="text-xs">AI</Badge>
-                          )}
-                          {transaction.auto_categorized && (
-                            <Badge variant="secondary" className="text-xs gap-1">
-                              <Gear size={10} />
-                              Auto
-                            </Badge>
-                          )}
-                          {/* Attachments indicator */}
-                          {transaction.attachments?.length > 0 && (
-                            <AttachmentViewer 
-                              attachments={transaction.attachments} 
-                              transactionId={transaction.id} 
-                            />
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="text-right space-y-1">
-                        <Badge className={CATEGORY_COLORS[transaction.category] || CATEGORY_COLORS.otros}>
-                          {categories[transaction.category]?.name || transaction.category}
-                        </Badge>
-                        {transaction.sri_category && SRI_CATEGORIES[transaction.sri_category] && (() => {
-                          const CIcon = SRI_CATEGORIES[transaction.sri_category].Icon;
-                          return (
-                          <Badge variant="outline" className="ml-1 text-xs text-emerald-600 border-emerald-200 inline-flex items-center gap-1">
-                            <CIcon size={11} /> {SRI_CATEGORIES[transaction.sri_category].name}
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 accent-[#0D9E82] cursor-pointer shrink-0"
+                      checked={bulkSelectedIds.includes(transaction.id)}
+                      onChange={() => toggleBulkSelect(transaction.id)}
+                      onClick={(e) => e.stopPropagation()}
+                      data-testid={`bulk-checkbox-${transaction.id}`}
+                      aria-label="Seleccionar transacción"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium text-slate-800 truncate" data-testid={`txname-${transaction.id}`}>
+                          {displayName(transaction)}
+                        </p>
+                        {transaction.is_split && (
+                          <Badge variant="outline" className="text-xs gap-1 shrink-0"><Scissors size={12} />Split</Badge>
+                        )}
+                        {transaction.linked_goal_name && (
+                          <Badge variant="outline" className="text-xs gap-1 bg-slate-100 text-[#0D9E82] border-slate-200 shrink-0" data-testid="linked-goal-badge">
+                            <Target size={12} />{transaction.linked_goal_name}
                           </Badge>
-                          );
-                        })()}
+                        )}
                       </div>
-                      <span className={`font-mono font-semibold min-w-[100px] text-right ${
-                        transaction.transaction_type === "income" 
-                          ? "text-emerald-600" 
-                          : "text-red-600"
-                      }`}>
-                        {transaction.transaction_type === "income" ? "+" : "-"}
-                        {formatCurrency(transaction.amount)}
-                      </span>
-                      
-                      {/* Actions Menu */}
-                      {canEdit && (
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" data-testid={`actions-${transaction.id}`}>
-                              <DotsThreeVertical size={20} />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => handleEdit(transaction)} className="gap-2">
-                              <Pencil size={16} />
-                              Editar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setRecatTx(transaction)} className="gap-2" data-testid={`recat-${transaction.id}`}>
-                              <Target size={16} />
-                              Recategorizar
-                            </DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => handleAttachment(transaction)} className="gap-2">
-                              <Paperclip size={16} />
-                              Adjuntar documento
-                            </DropdownMenuItem>
-                            {transaction.transaction_type === "expense" && !transaction.is_split && (
-                              <DropdownMenuItem onClick={() => handleSplit(transaction)} className="gap-2">
-                                <Scissors size={16} />
-                                Dividir transacción
-                              </DropdownMenuItem>
-                            )}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem 
-                              onClick={() => handleDelete(transaction.id)} 
-                              className="gap-2 text-destructive focus:text-destructive"
-                            >
-                              <Trash size={16} />
-                              Eliminar
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      )}
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className="text-xs text-slate-400">
+                          {format(new Date(transaction.date), "d MMM yyyy", { locale: es })}
+                        </span>
+                        <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
+                          {transaction.source === "gmail" || transaction.source === "factura_sri" ? "Gmail" : transaction.source === "statement" ? "Estado cuenta" : "Manual"}
+                        </span>
+                        {transaction.auto_categorized && (
+                          <Badge variant="secondary" className="text-xs gap-1"><Gear size={10} />Auto</Badge>
+                        )}
+                        {transaction.attachments?.length > 0 && (
+                          <AttachmentViewer attachments={transaction.attachments} transactionId={transaction.id} />
+                        )}
+                      </div>
                     </div>
+                    <span className={`text-sm font-semibold shrink-0 ${transaction.transaction_type === "income" ? "text-emerald-600" : "text-red-600"}`}>
+                      {transaction.transaction_type === "income" ? "+" : "-"}{formatCurrency(transaction.amount)}
+                    </span>
+                    {canEdit && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" data-testid={`actions-${transaction.id}`}>
+                            <DotsThreeVertical size={18} />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => handleEdit(transaction)} className="gap-2">
+                            <Pencil size={16} />Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => setRecatTx(transaction)} className="gap-2" data-testid={`recat-${transaction.id}`}>
+                            <Target size={16} />Recategorizar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => handleAttachment(transaction)} className="gap-2">
+                            <Paperclip size={16} />Adjuntar documento
+                          </DropdownMenuItem>
+                          {transaction.transaction_type === "expense" && !transaction.is_split && (
+                            <DropdownMenuItem onClick={() => handleSplit(transaction)} className="gap-2">
+                              <Scissors size={16} />Dividir transacción
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
+                            onClick={() => handleDelete(transaction.id)}
+                            className="gap-2 text-destructive focus:text-destructive"
+                          >
+                            <Trash size={16} />Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </motion.div>
                 ))}
               </AnimatePresence>

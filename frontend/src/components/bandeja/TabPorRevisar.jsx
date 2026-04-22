@@ -7,6 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { CheckCircle } from "@phosphor-icons/react";
 import { Pencil, X } from "lucide-react";
 import TransactionEditModal from "../shared/TransactionEditModal";
+import { displayName } from "../../utils/displayName";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
 
@@ -166,64 +167,53 @@ export default function TabPorRevisar({
           <p className="text-xs mt-1">Las nuevas transacciones aparecerán aquí</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <div className="bg-white rounded-lg border border-slate-100">
           {sortedReview.map((item) => {
             const zero = isZeroValue(item);
-            const sourceBadgeColor = item.source === "gmail"
-              ? "bg-red-50 text-red-700 border-red-200"
-              : item.source === "manual"
-              ? "bg-slate-50 text-[#0D9E82] border-slate-200"
-              : "bg-slate-100 text-[#0D9E82] border-slate-200";
             const stats = vendorStats[(item.comercio || "").toLowerCase()];
             const catName = budgetCategories[item.suggested_category]?.name || item.suggested_category || "—";
+            const originLabel = item.source === "gmail" ? "Gmail"
+              : item.source === "statement" ? "Estado cuenta"
+              : item.source === "manual" ? "Manual"
+              : (item.source_label || item.source || "—");
             return (
               <div
                 key={item.id}
-                className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                className="flex items-center gap-3 px-3 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors"
                 data-testid={`review-item-${item.id}`}
               >
                 <input
                   type="checkbox"
-                  className="h-4 w-4 accent-primary shrink-0"
+                  className="h-4 w-4 accent-[#0D9E82] shrink-0"
                   checked={reviewSelectedIds.includes(item.id)}
                   onChange={() => toggleReviewSelect(item.id)}
                   data-testid={`review-check-${item.id}`}
                 />
-                <div className="flex-1 min-w-0 flex items-center gap-3">
-                  <span className="text-xs text-muted-foreground shrink-0 w-20">{item.date}</span>
-                  <div className="flex-1 min-w-0 flex items-center gap-2">
-                    <p className="font-medium text-sm truncate" data-testid={`review-comercio-${item.id}`}>{item.comercio}</p>
-                    {stats && stats.found && stats.times_used > 0 ? (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] shrink-0 bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400"
-                        data-testid={`review-badge-recurrente-${item.id}`}
-                      >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-slate-800 truncate" data-testid={`review-comercio-${item.id}`}>
+                    {displayName(item)}
+                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-slate-400">{item.date}</span>
+                    <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200" data-testid={`review-source-${item.id}`}>
+                      {originLabel}
+                    </span>
+                    {zero && (
+                      <Badge variant="outline" className="text-[10px] bg-red-50 text-red-700 border-red-200" data-testid={`review-zero-${item.id}`}>
+                        Sin valor
+                      </Badge>
+                    )}
+                    {stats && stats.found && stats.times_used > 0 && (
+                      <Badge variant="outline" className="text-[10px] bg-emerald-50 text-emerald-700 border-emerald-200" data-testid={`review-badge-recurrente-${item.id}`}>
                         Recurrente ({stats.times_used})
                       </Badge>
-                    ) : stats ? (
-                      <Badge
-                        variant="outline"
-                        className="text-[10px] shrink-0 bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-800 dark:text-slate-300"
-                        data-testid={`review-badge-nuevo-${item.id}`}
-                      >
-                        Nuevo
-                      </Badge>
-                    ) : null}
+                    )}
+                    <span className="text-xs text-slate-400">· {catName}</span>
                   </div>
-                  <span className="font-mono font-semibold text-sm shrink-0">${(item.amount || 0).toFixed(2)}</span>
-                  {zero && (
-                    <Badge variant="outline" className="text-[10px] shrink-0 bg-red-50 text-red-700 border-red-200" data-testid={`review-zero-${item.id}`}>
-                      Sin valor
-                    </Badge>
-                  )}
-                  <Badge variant="outline" className={`text-[10px] shrink-0 ${sourceBadgeColor}`} data-testid={`review-source-${item.id}`}>
-                    {item.source_label}
-                  </Badge>
-                  <Badge variant="outline" className="text-[10px] shrink-0">
-                    {catName}
-                  </Badge>
                 </div>
+                <span className="text-sm font-semibold text-red-600 shrink-0">
+                  ${(item.amount || 0).toFixed(2)}
+                </span>
                 <Button
                   size="sm"
                   variant="outline"
