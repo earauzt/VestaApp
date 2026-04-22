@@ -37,7 +37,9 @@ export default function TabPorRevisar({
       toast.success("Descartado");
       if (onAfterUpdate) onAfterUpdate();
     } catch (e) {
-      toast.error(e.response?.data?.detail || "No se pudo descartar");
+      if (e.response?.status !== 404) {
+        toast.error(e.response?.data?.detail || "No se pudo descartar");
+      }
     }
   };
 
