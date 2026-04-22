@@ -11,6 +11,22 @@ La app Vesta se usa desde laptop, iPad y celular. Todo diseño debe ser responsi
 - H1: `text-2xl sm:text-3xl md:text-4xl`
 
 
+## [2026-04-22] SESIÓN 12 — Cleanup Dashboard + PresupuestoEditable
+- **Dashboard.js: 1047 → 232 líneas** (78% reducción)
+- Eliminados: 9 endpoints `axios.get` huérfanos (solo quedan `/dashboard/stats` y `/transactions`) → **12 → 2 requests** verificado vía Playwright
+- Eliminados: imports huérfanos (motion, Link, recharts, phosphor extras, lucide extras, design-system components/typography)
+- Eliminados: 14 estados sin uso + 7 helpers muertos (`dismissReminder`, `handleReminderAction`, `dismissNotif`, `handleNotifAction`, `getReminderIcon`, `getReminderColor`, `statCards`, etc.)
+- `DEFAULT_FLUJO_CATEGORIES` y `DEMO_FLUJO_CATEGORIES` retenidas pero sin campo `color` (obsoleto tras Progress uniforme `#0D9E82`)
+- **PresupuestoEditable.js: 519 → 514 líneas** — Card placeholder vacío oculto eliminado completamente
+- Cosmético: `mx-2` → `px-2` en separador `·` para mejor espaciado
+- Sección 2 del Dashboard ahora filtra `d.value > 0` (oculta categorías con gasto 0, previamente 3 de 8 filas desperdiciadas)
+
+### Testing (iteration_32.json)
+- 10/10 tests PASS, 9/9 criterios
+- Network panel verificado: solo `/auth/me` (layout) + `/dashboard/stats` + `/transactions` en `/dashboard`
+- Regresión OK en /movimientos, /deudas, /fiscal, /viajes, /mi-dinero
+
+
 ## [2026-04-22] SESIÓN 11 — 3 grupos: dead code + delete button + Dashboard Parker rewrite
 ### GRUPO 1 — Dead code removal
 - `PresupuestoEditable.js` líneas 250-394 — Card "Resumen Mensual (legacy)" oculto reemplazado por Card vacío con display:none (145 LOC inactivas → 3).

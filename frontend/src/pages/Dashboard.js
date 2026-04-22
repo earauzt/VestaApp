@@ -79,7 +79,7 @@ export default function Dashboard() {
         name: config.name,
         value: byCategory[key] || 0,
         budget: config.budget,
-      })).filter(d => d.value > 0 || d.budget > 0);
+      })).filter(d => d.value > 0);
       setCategoryData(transformed);
     } catch {
       toast.error("Error al cargar datos del dashboard");
@@ -144,7 +144,7 @@ export default function Dashboard() {
           </p>
           <p className="text-sm text-slate-500 mt-3" data-testid="dashboard-income-expenses-line">
             <span className="text-emerald-600 font-medium">+{formatCurrency(stats?.total_income)}</span>
-            <span className="mx-2 text-slate-300">·</span>
+            <span className="px-2 text-slate-300">·</span>
             <span className="text-slate-700 font-medium">{formatCurrency(stats?.monthly_total || stats?.total_expenses)}</span>
             <span className="ml-1.5 text-slate-400">gastos</span>
           </p>
