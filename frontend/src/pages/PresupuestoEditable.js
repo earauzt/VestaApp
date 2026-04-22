@@ -232,12 +232,12 @@ export default function PresupuestoEditable() {
           <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100">
             <div>
               <p className="text-xs text-slate-400">Ahorro mensual ({savingsGoal.percentage}%)</p>
-              <p className="text-sm font-semibold text-teal-600">{formatCurrency(savingsGoal.monthly)}</p>
+              <p className="text-sm font-semibold text-[#0D9E82]">{formatCurrency(savingsGoal.monthly)}</p>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 text-xs text-slate-500 hover:text-teal-600"
+              className="h-8 text-xs text-slate-500 hover:text-[#0D9E82]"
               onClick={() => setActiveTab("metas")}
             >
               <Pencil size={13} className="mr-1" /> Editar

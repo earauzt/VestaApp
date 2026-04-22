@@ -70,78 +70,72 @@ CARGAS_FAMILIARES_CBF = {
 }
 PORCENTAJE_REBAJA_IR = 0.18
 
+# SRI deduction categories. limit_fraction uses DECIMAL (0.325 = 32.5%, 1.3 = 130%).
+# Keep in sync with /app/frontend/src/constants/categories.js SRI_CATEGORIES.
 SRI_CATEGORIES = {
     "alimentacion": {
-        "name": "Alimentacion",
-        "subcategories": ["Comida", "Restaurantes", "Supermercado", "Mercado"],
+        "name": "Alimentación",
+        "subcategories": ["Comida", "Restaurantes", "Supermercado", "Mercado", "Delivery"],
         "deductible": True,
-        "limit_percentage": 0.325,
+        "limit_fraction": 0.325,
         "limit_usd": 3868.15,
         "description": "Compras de alimentos, restaurantes, supermercados"
     },
     "salud": {
         "name": "Salud",
-        "subcategories": ["Seguros", "Medicina", "Consultas", "Hospitalizacion", "Laboratorio"],
+        "subcategories": ["Seguros médicos", "Medicina", "Consultas", "Hospitalización", "Laboratorio", "Odontología"],
         "deductible": True,
-        "limit_percentage": 1.3,
+        "limit_fraction": 1.3,
         "limit_usd": 15472.60,
-        "description": "Consultas medicas, medicinas, seguros de salud, hospitalizacion"
+        "description": "Consultas médicas, medicinas, seguros de salud, hospitalización, odontología"
     },
     "educacion": {
-        "name": "Educacion",
-        "subcategories": ["Colegio y actividades", "Cursos", "Materiales", "Universidad", "Maestria"],
+        "name": "Educación",
+        "subcategories": ["Colegio", "Universidad", "Maestría", "Cursos", "Materiales", "Uniformes", "Transporte escolar"],
         "deductible": True,
-        "limit_percentage": 0.325,
+        "limit_fraction": 0.325,
         "limit_usd": 3868.15,
-        "description": "Matriculas, pensiones, utiles escolares, cursos, seminarios"
+        "description": "Matrículas, pensiones, útiles escolares, cursos, maestría"
     },
     "vivienda": {
         "name": "Vivienda",
-        "subcategories": ["Servicios basicos", "Arriendo", "Intereses hipoteca", "Mantenimiento"],
+        "subcategories": ["Arriendo", "Intereses hipoteca", "Servicios básicos", "Mantenimiento"],
         "deductible": True,
-        "limit_percentage": 0.325,
+        "limit_fraction": 0.325,
         "limit_usd": 3868.15,
-        "description": "Arriendo, servicios basicos (agua, luz, telefono), intereses hipotecarios"
+        "description": "Arriendo, servicios básicos, intereses hipotecarios"
     },
     "vestimenta": {
         "name": "Vestimenta",
         "subcategories": ["Ropa", "Calzado", "Accesorios"],
         "deductible": True,
-        "limit_percentage": 0.325,
+        "limit_fraction": 0.325,
         "limit_usd": 3868.15,
         "description": "Ropa y calzado adquiridos en Ecuador"
     },
     "turismo": {
         "name": "Turismo Nacional",
-        "subcategories": ["Hoteles Ecuador", "Tours locales", "Transporte turistico"],
+        "subcategories": ["Hoteles Ecuador", "Tours locales", "Transporte turístico"],
         "deductible": True,
-        "limit_percentage": 0.325,
+        "limit_fraction": 0.325,
         "limit_usd": 3868.15,
-        "description": "Turismo dentro de Ecuador (hoteles, tours)"
+        "description": "Turismo dentro de Ecuador"
     },
     "transporte": {
-        "name": "Transporte",
+        "name": "Transporte (no deducible)",
         "subcategories": ["Carros", "Combustible", "Mantenimiento vehicular", "Taxi", "Bus"],
         "deductible": False,
-        "limit_percentage": 0,
+        "limit_fraction": 0,
         "limit_usd": 0,
         "description": "NO DEDUCIBLE - Transporte personal"
     },
     "viajes_internacionales": {
-        "name": "Viajes Internacionales",
-        "subcategories": ["USA", "Europa", "Otros paises"],
+        "name": "Viajes Internacionales (no deducible)",
+        "subcategories": ["USA", "Europa", "Otros países"],
         "deductible": False,
-        "limit_percentage": 0,
+        "limit_fraction": 0,
         "limit_usd": 0,
         "description": "NO DEDUCIBLE - Gastos en el exterior"
-    },
-    "otros": {
-        "name": "Otros",
-        "subcategories": ["Empleados", "Entretenimiento", "Varios"],
-        "deductible": False,
-        "limit_percentage": 0,
-        "limit_usd": 0,
-        "description": "NO DEDUCIBLE - Gastos varios"
     }
 }
 
@@ -171,10 +165,11 @@ SUBSCRIPTION_SERVICES = [
 ]
 
 # ================= BUDGET CATEGORIES =================
+# SINGLE SOURCE OF TRUTH. Mirrors /app/frontend/src/constants/categories.js PERSONAL_CATEGORIES.
 BUDGET_CATEGORIES = {
     "servicios_basicos": {
-        "name": "Servicios Basicos",
-        "subcategories": {"Alicuota B": 500, "Alicuota GT": 100, "Luz": 200, "Gas": 15, "Celular": 80, "Agua": 60, "Clubes": 275, "Internet": 50, "Suscripciones": 0},
+        "name": "Servicios Básicos",
+        "subcategories": {"Alícuota B": 500, "Alícuota GT": 100, "Luz": 200, "Gas": 15, "Celular": 80, "Agua": 60, "Clubes": 275, "Internet": 50},
         "monthly_budget": 1280, "annual_budget": 15360, "type": "fixed",
         "payment_methods": ["transferencia", "tarjeta"], "is_recurring": True
     },
@@ -186,13 +181,13 @@ BUDGET_CATEGORIES = {
     },
     "empleados": {
         "name": "Empleados",
-        "subcategories": {"Ramona": 600, "Angelica": 550, "IESS": 150},
+        "subcategories": {"Ramona": 600, "Angélica": 550, "IESS": 150},
         "monthly_budget": 1300, "annual_budget": 15600, "type": "fixed",
         "payment_methods": ["transferencia", "efectivo"], "is_recurring": True
     },
     "colegio_actividades": {
         "name": "Colegio y Actividades",
-        "subcategories": {"Menor": 2000, "Futbol": 150, "Telas Aros": 210},
+        "subcategories": {"Menor": 2000, "Fútbol": 150, "Telas Aros": 210},
         "monthly_budget": 2360, "annual_budget": 28320, "type": "fixed",
         "payment_methods": ["transferencia", "tarjeta", "efectivo"], "is_recurring": True
     },
@@ -222,7 +217,7 @@ BUDGET_CATEGORIES = {
     },
     "usa": {
         "name": "USA",
-        "subcategories": {"Mama (Venmo)": 600, "TMobile": 150, "Universidad": 400},
+        "subcategories": {"Mamá (Venmo)": 600, "TMobile": 150, "Universidad": 400},
         "monthly_budget": 1150, "annual_budget": 13800, "type": "fixed",
         "payment_methods": ["venmo", "apple_card", "transferencia"], "is_recurring": True, "is_international": True
     },
@@ -234,10 +229,16 @@ BUDGET_CATEGORIES = {
         "notes": "Pasajes en Enero $500, Diciembre $3000. Navidad $7000 en Diciembre"
     },
     "gastos_libres": {
-        "name": "Gastos Libres (Otros)",
-        "subcategories": {"KP (Esposa)": 800, "EA (Emilio)": 500},
+        "name": "Gastos Libres",
+        "subcategories": {"EA (Emilio)": 500, "KP (Esposa)": 800, "Otros": 0},
         "monthly_budget": 1300, "annual_budget": 15600, "type": "discretionary",
         "payment_methods": ["tarjeta", "efectivo"], "is_recurring": True
+    },
+    "otros": {
+        "name": "Otros",
+        "subcategories": {"General": 0},
+        "monthly_budget": 0, "annual_budget": 0, "type": "discretionary",
+        "payment_methods": ["tarjeta", "efectivo"], "is_recurring": False
     }
 }
 
@@ -282,14 +283,6 @@ CONTRIBUYENTE_INFO = {
 }
 
 # ================= DEMO USER DATA =================
-DEMO_BUDGET_CATEGORIES = {
-    "servicios_basicos": {"name": "Servicios Basicos", "subcategories": {"Luz": 60, "Agua": 25, "Internet": 45, "Gas": 15}, "monthly_budget": 145, "annual_budget": 1740, "type": "fixed"},
-    "comida": {"name": "Alimentacion", "subcategories": {"Supermercado": 300, "Mercado": 50}, "monthly_budget": 350, "annual_budget": 4200, "type": "variable"},
-    "restaurantes": {"name": "Restaurantes", "subcategories": {"Restaurantes": 150, "Delivery": 50}, "monthly_budget": 200, "annual_budget": 2400, "type": "discretionary"},
-    "transporte": {"name": "Transporte", "subcategories": {"Gasolina": 80, "Mantenimiento": 40}, "monthly_budget": 120, "annual_budget": 1440, "type": "variable"},
-    "entretenimiento": {"name": "Entretenimiento", "subcategories": {"Streaming": 30, "Salidas": 70}, "monthly_budget": 100, "annual_budget": 1200, "type": "discretionary"},
-    "otros": {"name": "Otros Gastos", "subcategories": {"Varios": 100}, "monthly_budget": 100, "annual_budget": 1200, "type": "discretionary"}
-}
 DEMO_INCOME_STRUCTURE = {"personal": {"monthly": 3500, "annual": 42000, "source": "Salario", "note": "Ingreso principal"}}
 DEMO_BUDGET_SUMMARY = {"total_gastos_fijos_monthly": 1015, "total_gastos_fijos_annual": 12180, "flujo_neto_mensual": 2485, "ahorro_esperado": {"monthly": 350, "annual": 4200, "percentage": 10}, "inversion_esperada": {"monthly": 175, "annual": 2100, "percentage": 5}}
 DEMO_BUDGET_GOALS = {"gastos_fijos_target": {"min": 0.25, "max": 0.35, "name": "Gastos Fijos"}, "ahorro_target": {"min": 0.10, "max": 0.10, "name": "Ahorro"}, "inversion_target": {"min": 0.05, "max": 0.05, "name": "Inversion"}, "gastos_libres_max_annual": 5000}
@@ -300,7 +293,8 @@ def is_demo_user(user: dict) -> bool:
     return user.get("role") == "demo" or user.get("email") == "demo@fintrack.ec"
 
 def get_budget_categories(user: dict):
-    return DEMO_BUDGET_CATEGORIES if is_demo_user(user) else BUDGET_CATEGORIES
+    # Single source of truth; demo and real users share the canonical taxonomy.
+    return BUDGET_CATEGORIES
 
 def get_income_structure(user: dict):
     return DEMO_INCOME_STRUCTURE if is_demo_user(user) else INCOME_STRUCTURE
@@ -316,32 +310,37 @@ def get_contribuyente_info(user: dict):
 
 
 # ================= AUTO-CATEGORIZATION RULES =================
+# Rules output PERSONAL_CATEGORIES (keys + subcategory names) ONLY.
+# SRI tagging happens separately via sri_category field.
 DEFAULT_CATEGORIZATION_RULES = [
-    {"keywords": ["supermaxi", "mi comisariato", "megamaxi", "tia", "aki", "gran aki", "coral"], "category": "alimentacion", "subcategory": "Supermercado"},
-    {"keywords": ["mcdonalds", "mcdonald's", "burger king", "kfc", "pollo", "pizza hut", "dominos", "subway", "juan valdez", "sweet & coffee"], "category": "alimentacion", "subcategory": "Restaurantes"},
-    {"keywords": ["mercado", "feria", "verduras", "frutas", "carniceria", "panaderia"], "category": "alimentacion", "subcategory": "Comida"},
-    {"keywords": ["farmacia", "fybeca", "pharmacy", "medicity", "cruz azul", "sana sana", "economicas"], "category": "salud", "subcategory": "Medicina"},
-    {"keywords": ["hospital", "clinica", "consultorio", "medico", "doctor", "laboratorio", "examen"], "category": "salud", "subcategory": "Consultas"},
-    {"keywords": ["seguro medico", "seguros", "salud sa", "bmi", "humana", "saludsa", "ecuasanitas"], "category": "salud", "subcategory": "Seguros"},
-    {"keywords": ["colegio", "escuela", "liceo", "unidad educativa", "academia"], "category": "educacion", "subcategory": "Colegio y actividades"},
-    {"keywords": ["universidad", "uees", "espol", "ucsg", "usfq", "udla", "maestria", "postgrado"], "category": "educacion", "subcategory": "Universidad"},
-    {"keywords": ["curso", "capacitacion", "udemy", "coursera", "platzi", "taller"], "category": "educacion", "subcategory": "Cursos"},
-    {"keywords": ["libreria", "libro", "papeleria", "utiles"], "category": "educacion", "subcategory": "Materiales"},
-    {"keywords": ["luz", "electrica", "cnel", "energia"], "category": "vivienda", "subcategory": "Servicios basicos"},
-    {"keywords": ["agua potable", "interagua", "emapag"], "category": "vivienda", "subcategory": "Servicios basicos"},
-    {"keywords": ["telefono", "cnt", "claro", "movistar", "internet", "netlife", "tv cable"], "category": "vivienda", "subcategory": "Servicios basicos"},
-    {"keywords": ["arriendo", "alquiler", "renta mensual"], "category": "vivienda", "subcategory": "Arriendo"},
-    {"keywords": ["hipoteca", "credito hipotecario", "banco vivienda"], "category": "vivienda", "subcategory": "Intereses hipoteca"},
-    {"keywords": ["zara", "h&m", "forever 21", "mango", "tennis", "etafashion", "de prati", "ri", "payless"], "category": "vestimenta", "subcategory": "Ropa"},
-    {"keywords": ["marathon", "nike", "adidas", "puma", "calzado", "zapatos"], "category": "vestimenta", "subcategory": "Calzado"},
-    {"keywords": ["gasolina", "diesel", "primax", "mobil", "petroecuador", "terpel", "combustible"], "category": "transporte", "subcategory": "Combustible"},
-    {"keywords": ["mecanica", "taller", "llantas", "aceite motor", "repuestos"], "category": "transporte", "subcategory": "Mantenimiento vehicular"},
-    {"keywords": ["uber", "cabify", "taxi", "indriver"], "category": "transporte", "subcategory": "Taxi"},
-    {"keywords": ["hotel ecuador", "hostal", "airbnb ecuador", "decameron", "hilton colon"], "category": "turismo", "subcategory": "Hoteles Ecuador"},
-    {"keywords": ["amazon.com", "ebay", "aliexpress", "wish", "shein"], "category": "viajes_internacionales", "subcategory": "USA"},
-    {"keywords": ["booking.com internacional", "expedia", "hotel usa", "hotel miami"], "category": "viajes_internacionales", "subcategory": "USA"},
-    {"keywords": ["netflix", "spotify", "disney", "hbo", "prime video", "youtube premium"], "category": "otros", "subcategory": "Entretenimiento"},
-    {"keywords": ["empleada", "domestico", "jardinero", "limpieza casa"], "category": "otros", "subcategory": "Empleados"},
+    {"keywords": ["supermaxi", "megamaxi"], "category": "comida", "subcategory": "Supermaxi"},
+    {"keywords": ["mi comisariato", "tia", "aki", "gran aki", "coral"], "category": "comida", "subcategory": "Mercado"},
+    {"keywords": ["mercado", "feria", "verduras", "frutas", "carniceria", "panaderia"], "category": "comida", "subcategory": "Mercado"},
+    {"keywords": ["mcdonalds", "mcdonald's", "burger king", "kfc", "pollo", "pizza hut", "dominos", "subway", "juan valdez", "sweet & coffee"], "category": "restaurantes", "subcategory": "Comida afuera"},
+    {"keywords": ["uber eats", "rappi", "glovo", "pedidos ya"], "category": "restaurantes", "subcategory": "Delivery"},
+    {"keywords": ["seguro medico", "salud sa", "bmi", "humana", "saludsa", "ecuasanitas"], "category": "seguros", "subcategory": "Salud"},
+    {"keywords": ["seguro carros", "seguro vehicular", "chubb", "aig"], "category": "seguros", "subcategory": "Carros"},
+    {"keywords": ["colegio", "escuela", "liceo", "unidad educativa", "academia"], "category": "colegio_actividades", "subcategory": "Menor"},
+    {"keywords": ["futbol", "fútbol", "football"], "category": "colegio_actividades", "subcategory": "Fútbol"},
+    {"keywords": ["luz", "electrica", "cnel", "energia"], "category": "servicios_basicos", "subcategory": "Luz"},
+    {"keywords": ["agua potable", "interagua", "emapag"], "category": "servicios_basicos", "subcategory": "Agua"},
+    {"keywords": ["gas domestico", "gas industrial"], "category": "servicios_basicos", "subcategory": "Gas"},
+    {"keywords": ["telefono", "cnt", "claro", "movistar"], "category": "servicios_basicos", "subcategory": "Celular"},
+    {"keywords": ["internet", "netlife", "tv cable"], "category": "servicios_basicos", "subcategory": "Internet"},
+    {"keywords": ["ramona"], "category": "empleados", "subcategory": "Ramona"},
+    {"keywords": ["angelica", "angélica"], "category": "empleados", "subcategory": "Angélica"},
+    {"keywords": ["iess"], "category": "empleados", "subcategory": "IESS"},
+    {"keywords": ["gasolina", "diesel", "primax", "mobil", "petroecuador", "terpel", "combustible"], "category": "carros", "subcategory": "Gasolina 1"},
+    {"keywords": ["mecanica", "taller", "llantas", "aceite motor", "repuestos"], "category": "carros", "subcategory": "Mantenimiento"},
+    {"keywords": ["venmo", "mama venmo", "mamá"], "category": "usa", "subcategory": "Mamá (Venmo)"},
+    {"keywords": ["tmobile", "t-mobile"], "category": "usa", "subcategory": "TMobile"},
+    {"keywords": ["university", "tuition"], "category": "usa", "subcategory": "Universidad"},
+    {"keywords": ["hotel", "hostal", "airbnb", "decameron", "hilton", "marriott", "booking"], "category": "viajes_entretenimiento", "subcategory": "Hoteles"},
+    {"keywords": ["latam", "avianca", "kayak", "expedia", "aerolineas", "vuelo"], "category": "viajes_entretenimiento", "subcategory": "Pasajes"},
+    {"keywords": ["amazon.com", "ebay", "aliexpress", "wish", "shein"], "category": "viajes_entretenimiento", "subcategory": "Tech"},
+    {"keywords": ["zara", "h&m", "forever 21", "mango", "tennis", "etafashion", "de prati", "payless", "marathon", "nike", "adidas", "puma"], "category": "viajes_entretenimiento", "subcategory": "Ropa"},
+    {"keywords": ["uber", "cabify", "indriver"], "category": "viajes_entretenimiento", "subcategory": "Transporte"},
+    {"keywords": ["netflix", "spotify", "disney", "hbo", "prime video", "youtube premium", "icloud"], "category": "suscripciones", "subcategory": "Otras"},
 ]
 
 

@@ -20,7 +20,7 @@ import TabPorRevisar from "../components/bandeja/TabPorRevisar";
 import BandejaStats from "../components/bandeja/BandejaStats";
 import { GmailConsentDialog } from "../components/bandeja/BandejaDialogs";
 import Transactions from "./Transactions";
-import { SRI_CATEGORIES } from "../constants/categories";
+import { SRI_CATEGORIES, PERSONAL_CATEGORIES } from "../constants/categories";
 import { 
   CloudArrowUp,
   SpinnerGap,
@@ -36,60 +36,8 @@ import {
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// ============ CATEGORÍAS PERSONALES (del Excel del usuario) ============
-const PERSONAL_CATEGORIES = {
-  servicios_basicos: { 
-    name: "Servicios Básicos", 
-    subcategories: ["Alícuota B", "Alícuota GT", "Luz", "Gas", "Celular", "Agua", "Clubes", "Internet", "Suscripciones"]
-  },
-  suscripciones: { 
-    name: "Suscripciones", 
-    subcategories: ["Netflix", "Spotify", "Amazon Prime", "Disney+", "YouTube Premium", "iCloud", "Otras"]
-  },
-  empleados: { 
-    name: "Empleados", 
-    subcategories: ["Ramona", "Angélica", "IESS"]
-  },
-  colegio_actividades: { 
-    name: "Colegio y Actividades", 
-    subcategories: ["Menor", "Fútbol", "Telas Aros"]
-  },
-  seguros: { 
-    name: "Seguros", 
-    subcategories: ["Salud", "Carros"]
-  },
-  comida: { 
-    name: "Comida", 
-    subcategories: ["Supermaxi", "Mercado"]
-  },
-  restaurantes: { 
-    name: "Restaurantes", 
-    subcategories: ["Comida afuera", "Delivery"]
-  },
-  carros: { 
-    name: "Carros", 
-    subcategories: ["Gasolina 1", "Gasolina 2", "Mantenimiento"]
-  },
-  usa: { 
-    name: "USA", 
-    subcategories: ["Mamá (Venmo)", "TMobile", "Universidad"]
-  },
-  viajes_entretenimiento: { 
-    name: "Viajes y Entretenimiento", 
-    subcategories: ["Hoteles", "Pasajes", "Comida", "Entretenimiento", "Ropa", "Tech", "Transporte", "Tours", "Otros"]
-  },
-  gastos_libres: { 
-    name: "Gastos Libres (Otros)", 
-    subcategories: ["KP (Esposa)", "EA (Emilio)", "Varios"]
-  },
-  impuestos: {
-    name: "Impuestos",
-    subcategories: ["SRI", "Municipio", "Otros impuestos"]
-  }
-};
-
-// SRI_CATEGORIES centralizado en /constants/categories.js (SRI_SUBCATEGORIES
-// queda vacío aquí; si se necesita, importar SRI_CATEGORIES[key].subcategories)
+// SRI_CATEGORIES and PERSONAL_CATEGORIES are imported from /constants/categories.js
+// Single source of truth. DO NOT redeclare locally.
 
 const STATUS_COLORS = {
   pending_review: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",

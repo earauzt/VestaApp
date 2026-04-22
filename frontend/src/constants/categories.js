@@ -1,13 +1,12 @@
-// Shared category → subcategory mapping.
-// Mirrors the runtime `categories` state loaded from GET /api/budget/categories
-// in Transactions.js (transformedCats), used as fallback when backend data
-// is unavailable and as the canonical list of subcategories for each category.
-import { Utensils, HeartPulse, GraduationCap, Home, Shirt, Palmtree, XCircle } from "lucide-react";
+// Shared category → subcategory mapping. SINGLE SOURCE OF TRUTH.
+// Mirrors models.py BUDGET_CATEGORIES. Any change here must be reflected in
+// /app/backend/models.py BUDGET_CATEGORIES.
+import { Utensils, HeartPulse, GraduationCap, Home, Shirt, Palmtree, Plane, Car } from "lucide-react";
 
 export const PERSONAL_CATEGORIES = {
   servicios_basicos: {
     name: "Servicios Básicos",
-    subcategories: ["Alícuota B", "Alícuota GT", "Luz", "Gas", "Celular", "Agua", "Clubes", "Internet", "Suscripciones"],
+    subcategories: ["Alícuota B", "Alícuota GT", "Luz", "Gas", "Celular", "Agua", "Clubes", "Internet"],
   },
   suscripciones: {
     name: "Suscripciones",
@@ -24,7 +23,7 @@ export const PERSONAL_CATEGORIES = {
     name: "Viajes y Entretenimiento",
     subcategories: ["Hoteles", "Pasajes", "Comida", "Entretenimiento", "Ropa", "Tech", "Transporte", "Tours", "Otros"],
   },
-  gastos_libres: { name: "Gastos Libres", subcategories: ["Entretenimiento", "Compras personales", "Suscripciones", "Hobbies", "Otros gastos"] },
+  gastos_libres: { name: "Gastos Libres", subcategories: ["EA (Emilio)", "KP (Esposa)", "Otros"] },
   otros: { name: "Otros", subcategories: ["General"] },
 };
 
@@ -32,56 +31,64 @@ export function getSubcategories(categoryKey) {
   return PERSONAL_CATEGORIES[categoryKey]?.subcategories || [];
 }
 
-// Categorías del SRI para deducciones fiscales en Ecuador (fuente única)
+// SRI categories for Ecuador tax deductions. Limits stored as DECIMAL FRACTIONS
+// (e.g. 0.325 = 32.5%, 1.3 = 130%). Mirrors models.py SRI_CATEGORIES.
 export const SRI_CATEGORIES = {
   alimentacion: {
     name: "Alimentación",
     deductible: true,
-    limit_percent: 32.5,
+    limit_fraction: 0.325,
     subcategories: ["Comida", "Restaurantes", "Supermercado", "Mercado", "Delivery"],
     Icon: Utensils,
   },
   salud: {
     name: "Salud",
     deductible: true,
-    limit_percent: 200,
+    limit_fraction: 1.3,
     subcategories: ["Seguros médicos", "Medicina", "Consultas", "Hospitalización", "Laboratorio", "Odontología"],
     Icon: HeartPulse,
   },
   educacion: {
     name: "Educación",
     deductible: true,
-    limit_percent: 32.5,
-    subcategories: ["Colegio", "Universidad", "Cursos", "Materiales", "Uniformes", "Transporte escolar"],
+    limit_fraction: 0.325,
+    subcategories: ["Colegio", "Universidad", "Maestría", "Cursos", "Materiales", "Uniformes", "Transporte escolar"],
     Icon: GraduationCap,
   },
   vivienda: {
     name: "Vivienda",
     deductible: true,
-    limit_percent: 32.5,
+    limit_fraction: 0.325,
     subcategories: ["Arriendo", "Intereses hipoteca", "Servicios básicos", "Mantenimiento"],
     Icon: Home,
   },
   vestimenta: {
     name: "Vestimenta",
     deductible: true,
-    limit_percent: 32.5,
+    limit_fraction: 0.325,
     subcategories: ["Ropa", "Calzado", "Accesorios"],
     Icon: Shirt,
   },
   turismo: {
     name: "Turismo Nacional",
     deductible: true,
-    limit_percent: 32.5,
+    limit_fraction: 0.325,
     subcategories: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"],
     Icon: Palmtree,
   },
-  no_deducible: {
-    name: "No Deducible",
+  transporte: {
+    name: "Transporte (no deducible)",
     deductible: false,
-    limit_percent: 0,
-    subcategories: ["Viajes internacionales", "Entretenimiento", "Otros"],
-    Icon: XCircle,
+    limit_fraction: 0,
+    subcategories: ["Carros", "Combustible", "Mantenimiento vehicular", "Taxi", "Bus"],
+    Icon: Car,
+  },
+  viajes_internacionales: {
+    name: "Viajes Internacionales (no deducible)",
+    deductible: false,
+    limit_fraction: 0,
+    subcategories: ["USA", "Europa", "Otros países"],
+    Icon: Plane,
   },
 };
 

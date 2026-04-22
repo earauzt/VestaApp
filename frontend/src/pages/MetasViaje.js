@@ -348,7 +348,7 @@ export default function MetasViaje() {
           <div className="flex gap-2">
             <Button 
               onClick={() => setFundDepositDialogOpen(true)}
-              className="gap-2 bg-emerald-600 hover:bg-emerald-700"
+              className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
             >
               <PiggyBank size={18} />
               Registrar Ahorro
@@ -865,7 +865,7 @@ export default function MetasViaje() {
               <Button variant="outline" onClick={() => setFundDepositDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleFundDeposit} className="gap-2 bg-emerald-600 hover:bg-emerald-700" data-testid="confirm-fund-deposit-btn">
+              <Button onClick={handleFundDeposit} className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white" data-testid="confirm-fund-deposit-btn">
                 <CurrencyDollar size={16} />
                 Registrar
               </Button>

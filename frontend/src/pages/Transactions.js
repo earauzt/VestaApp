@@ -49,32 +49,9 @@ import { CategoryRulesManager } from "../components/CategoryRulesManager";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Default category colors
-const CATEGORY_COLORS = {
-  servicios_basicos: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
-  empleados: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
-  colegio_actividades: "bg-slate-50 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
-  seguros: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
-  comida: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  restaurantes: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  carros: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  usa: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
-  viajes_entretenimiento: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
-  gastos_libres: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  // Demo categories
-  transporte: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  entretenimiento: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
-  // Legacy categories for compatibility
-  alimentacion: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400",
-  salud: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
-  educacion: "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
-  vivienda: "bg-slate-50 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]",
-  vestimenta: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400",
-  turismo: "bg-teal-100 text-teal-800 dark:bg-teal-900/30 dark:text-teal-400",
-  viajes_internacionales: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
-  ingreso: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-  otros: "bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400"
-};
+// Unified category pill style. The name itself is the differentiator, not the color.
+const CATEGORY_PILL = "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]";
+const CATEGORY_COLORS = new Proxy({}, { get: () => CATEGORY_PILL });
 
 // Fallback categories (will be replaced by backend data)
 const FALLBACK_CATEGORIES = {

@@ -423,7 +423,7 @@ export default function Flujo() {
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.02 }}
-                        className={`flex items-center gap-3 px-3 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors ${isPastDue ? "bg-red-50/40" : isDueSoon ? "bg-amber-50/40" : "bg-white"}`}
+                        className="flex items-center gap-3 px-3 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors"
                         data-testid={`payment-row-${payment.id}`}
                       >
                         <span className={`font-bold w-8 text-center text-sm ${isPastDue ? "text-red-600" : isDueSoon ? "text-amber-600" : "text-slate-700"}`}>

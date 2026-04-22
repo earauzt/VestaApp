@@ -340,9 +340,7 @@ export default function Deudas() {
           <Card className="bento-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-red-100 dark:bg-red-900/30">
-                  <TrendDown size={20} className="text-red-600" />
-                </div>
+                <TrendDown size={20} className="text-red-600 shrink-0" />
                 <div>
                   <p className="text-xs text-muted-foreground">Deuda Total</p>
                   <p className="text-lg font-bold text-red-600">{formatCurrency(summary.total_debt)}</p>
@@ -354,9 +352,7 @@ export default function Deudas() {
           <Card className="bento-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-emerald-100 dark:bg-emerald-900/30">
-                  <CurrencyDollar size={20} className="text-emerald-600" />
-                </div>
+                <CurrencyDollar size={20} className="text-emerald-600 shrink-0" />
                 <div>
                   <p className="text-xs text-muted-foreground">Crédito Disponible</p>
                   <p className="text-lg font-bold text-emerald-600">{formatCurrency(summary.total_available_credit)}</p>
@@ -368,9 +364,7 @@ export default function Deudas() {
           <Card className="bento-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
-                  <Percent size={20} className="text-amber-600" />
-                </div>
+                <Percent size={20} className="text-amber-600 shrink-0" />
                 <div>
                   <p className="text-xs text-muted-foreground">Utilización</p>
                   <p className={`text-lg font-bold ${getUtilizationColor(summary.utilization_rate)}`}>
@@ -384,9 +378,7 @@ export default function Deudas() {
           <Card className="bento-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800">
-                  <Calculator size={20} className="text-[#0D9E82]" />
-                </div>
+                <Calculator size={20} className="text-[#0D9E82] shrink-0" />
                 <div>
                   <p className="text-xs text-muted-foreground">Pago Mínimo Total</p>
                   <p className="text-lg font-bold text-[#0D9E82]">{formatCurrency(summary.total_minimum_payment)}</p>

@@ -41,7 +41,7 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Income sources with icons
 const DISTRIBUTION_CONFIG = {
-  Personal: { icon: CurrencyDollar, color: "text-emerald-600", bgColor: "bg-emerald-100 dark:bg-emerald-900/30" },
+  Personal: { icon: CurrencyDollar, color: "text-[#0D9E82]", bgColor: "bg-slate-100 dark:bg-slate-800" },
   APX: { icon: Briefcase, color: "text-[#0D9E82]", bgColor: "bg-slate-50 dark:bg-slate-800" },
   USA: { icon: Globe, color: "text-[#0D9E82]", bgColor: "bg-slate-100 dark:bg-slate-800" }
 };

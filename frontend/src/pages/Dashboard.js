@@ -103,11 +103,12 @@ export default function Dashboard() {
 
   const handleReminderAction = (reminder) => {
     const t = reminder.type;
-    if (t === "subscription_review") navigate("/transactions");
+    if (t === "subscription_review") navigate("/movimientos?tab=todos");
+    else if (t === "gmail_pending_review") navigate("/movimientos?tab=por-revisar");
+    else if (t === "payment_due") navigate("/mi-dinero?tab=flujo");
+    else if (t === "insurance_reminder") navigate("/movimientos?tab=por-revisar");
     else if (t === "card_payment") navigate("/deudas");
-    else if (t === "payment_due") navigate("/flujo");
-    else if (t === "insurance_reminder") navigate("/cargar-validar");
-    else navigate("/presupuesto");
+    else navigate("/mi-dinero?tab=presupuesto");
   };
 
   const [travelFund, setTravelFund] = useState(null);
@@ -568,7 +569,7 @@ export default function Dashboard() {
               variant="ghost"
               size="sm"
               className="text-xs"
-              onClick={() => navigate("/sri-match")}
+              onClick={() => navigate("/fiscal?tab=facturas")}
               data-testid="sri-match-details-btn"
             >
               Ver detalles
@@ -576,7 +577,7 @@ export default function Dashboard() {
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <button
-              onClick={() => navigate("/sri-match?tab=con_respaldo")}
+              onClick={() => navigate("/fiscal?tab=con_respaldo")}
               className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
               data-testid="counter-con-respaldo"
             >
@@ -585,7 +586,7 @@ export default function Dashboard() {
               <span className="text-[11px] text-slate-500 text-center">Con respaldo</span>
             </button>
             <button
-              onClick={() => navigate("/sri-match?tab=match_aproximado")}
+              onClick={() => navigate("/fiscal?tab=match_aproximado")}
               className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
               data-testid="counter-aproximado"
             >
@@ -594,7 +595,7 @@ export default function Dashboard() {
               <span className="text-[11px] text-slate-500 text-center">Match aproximado</span>
             </button>
             <button
-              onClick={() => navigate("/sri-match?tab=pendiente")}
+              onClick={() => navigate("/fiscal?tab=pendiente")}
               className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
               data-testid="counter-pendiente"
             >
@@ -603,7 +604,7 @@ export default function Dashboard() {
               <span className="text-[11px] text-slate-500 text-center">Esperando match</span>
             </button>
             <button
-              onClick={() => navigate("/sri-match?tab=sin_vincular")}
+              onClick={() => navigate("/fiscal?tab=sin_vincular")}
               className="flex flex-col items-center p-3 rounded-md border border-slate-200 bg-white hover:bg-slate-50 transition-colors"
               data-testid="counter-sin-vincular"
             >
@@ -876,7 +877,7 @@ export default function Dashboard() {
                   </div>
                 )}
 
-                <Link to="/flujo">
+                <Link to="/mi-dinero?tab=flujo">
                   <Button variant="outline" size="sm" className="w-full mt-2">
                     Ver Planificación Completa
                   </Button>
@@ -886,7 +887,7 @@ export default function Dashboard() {
               <div className="text-center py-6 text-muted-foreground">
                 <Clock size={32} className="mx-auto mb-2 opacity-50" />
                 <p className="text-sm">No hay proyección disponible</p>
-                <Link to="/flujo">
+                <Link to="/mi-dinero?tab=flujo">
                   <Button variant="outline" size="sm" className="mt-3">
                     Configurar Flujo
                   </Button>
@@ -1025,7 +1026,7 @@ export default function Dashboard() {
                   })}
               </div>
               
-              <Link to="/budget" className="block mt-4">
+              <Link to="/mi-dinero?tab=presupuesto" className="block mt-4">
                 <Button variant="outline" size="sm" className="w-full">
                   Ver Presupuesto Completo
                 </Button>

@@ -47,3 +47,23 @@ export const components = {
 };
 
 export default { colors, typography, components };
+
+// Semantic colors for consistent UI across all pages.
+// Use these instead of inline Tailwind for amounts/states/buttons/badges.
+export const semanticColors = {
+  // Montos
+  income: 'text-emerald-600',
+  expense: 'text-red-600',
+  neutral: 'text-slate-800',
+  // Estados
+  success: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  warning: 'bg-amber-50 text-amber-700 border border-amber-200',
+  danger: 'bg-red-50 text-red-600 border border-red-200',
+  info: 'bg-slate-100 text-slate-600 border border-slate-200',
+  // Botones
+  btnPrimary: 'bg-[#0D9E82] hover:bg-[#0B8A70] text-white rounded-md px-4 py-2 text-sm font-medium',
+  btnSecondary: 'border border-slate-200 text-slate-700 hover:bg-slate-50 rounded-md px-4 py-2 text-sm',
+  btnDanger: 'text-red-600 hover:text-red-700 text-sm',
+  // Badges
+  badgeDefault: 'text-xs px-2 py-0.5 rounded-full border',
+};

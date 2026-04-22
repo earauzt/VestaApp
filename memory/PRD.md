@@ -3,6 +3,14 @@
 ## Problem Statement
 Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasificacion de gastos, conciliacion bancaria, integracion Gmail, chatbot financiero y herramientas de presupuesto.
 
+## Responsive Rule (IMPORTANT)
+La app Vesta se usa desde laptop, iPad y celular. Todo diseño debe ser responsive:
+- Usa `sm:`, `md:`, `lg:` en clases Tailwind donde corresponda
+- KPIs superiores: `grid-cols-2` en mobile, `grid-cols-4` en desktop
+- Modales: `max-h-[90vh] overflow-y-auto`
+- H1: `text-2xl sm:text-3xl md:text-4xl`
+
+
 ## Architecture
 ```
 /app/backend/

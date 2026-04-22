@@ -13,39 +13,28 @@ import {
 } from "./ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
 import {
-  Home,
+  LayoutDashboard,
+  ArrowLeftRight,
+  Wallet,
+  Target,
   CreditCard,
-  Upload,
-  LineChart,
-  Brain,
-  Calculator,
+  Scale,
   Menu,
   LogOut,
   User,
   ChevronLeft,
   ChevronRight,
-  Plane,
-  Scale,
-  DollarSign,
   X,
-  Wallet,
-  CalendarCheck,
   Info,
 } from "lucide-react";
 
 const navItems = [
-  { path: "/dashboard", label: "Dashboard", icon: Home, roles: ["admin", "spouse", "accountant", "demo"] },
-  { path: "/transactions", label: "Transacciones", icon: CreditCard, roles: ["admin", "spouse", "accountant", "demo"] },
-  { path: "/ingresos", label: "Ingresos", icon: DollarSign, roles: ["admin", "spouse", "demo"] },
-  { path: "/viajes", label: "Metas y Ahorro", icon: Plane, roles: ["admin", "spouse", "demo"] },
-  { path: "/cargar", label: "Bandeja Financiera", icon: Upload, roles: ["admin", "spouse", "accountant"] },
-  { path: "/deudas", label: "Deudas y Tarjetas", icon: Wallet, roles: ["admin", "demo"] },
-  { path: "/flujo", label: "Planificación Flujo", icon: CalendarCheck, roles: ["admin"] },
-  { path: "/budget", label: "Mi Presupuesto", icon: LineChart, roles: ["admin", "demo"] },
-  { path: "/predictions", label: "Predicciones AI", icon: Brain, roles: ["admin"] },
-  { path: "/sri-limits", label: "Deducciones", icon: Scale, roles: ["admin", "accountant"] },
-  { path: "/sri-match", label: "Mis Facturas", icon: Scale, roles: ["admin", "spouse", "accountant", "demo"] },
-  { path: "/accountant", label: "Vista Fiscal", icon: Calculator, roles: ["admin", "accountant"] },
+  { path: "/dashboard", label: "Dashboard", icon: LayoutDashboard, roles: ["admin", "spouse", "accountant", "demo"] },
+  { path: "/movimientos", label: "Movimientos", icon: ArrowLeftRight, roles: ["admin", "spouse", "accountant", "demo"] },
+  { path: "/mi-dinero", label: "Mi Dinero", icon: Wallet, roles: ["admin", "spouse", "demo"] },
+  { path: "/viajes", label: "Metas", icon: Target, roles: ["admin", "spouse", "demo"] },
+  { path: "/deudas", label: "Deudas", icon: CreditCard, roles: ["admin", "spouse", "demo"] },
+  { path: "/fiscal", label: "Fiscal", icon: Scale, roles: ["admin", "spouse", "accountant", "demo"] },
 ];
 
 export default function Layout({ children }) {

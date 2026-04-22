@@ -152,7 +152,7 @@ export default function TabPorRevisar({
             onClick={handleReviewBulkApprove}
             disabled={reviewSelectedIds.length === 0 || reviewBulkApproving}
             data-testid="review-bulk-approve-btn"
-            className="bg-emerald-600 hover:bg-emerald-700"
+            className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
           >
             {reviewBulkApproving ? "Aprobando..." : `Aprobar seleccionados (${reviewSelectedIds.length})`}
           </Button>

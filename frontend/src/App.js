@@ -5,24 +5,17 @@ import ChatBot from "./components/ChatBot";
 import FAB from "./components/FAB";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
-import Transactions from "./pages/Transactions";
-import CargarValidar from "./pages/CargarValidar";
-import PresupuestoEditable from "./pages/PresupuestoEditable";
-import Predictions from "./pages/Predictions";
-import AccountantView from "./pages/AccountantView";
-import InternationalExpenses from "./pages/InternationalExpenses";
-import SRILimits from "./pages/SRILimits";
-import Ingresos from "./pages/Ingresos";
+import Movimientos from "./pages/Movimientos";
+import MiDinero from "./pages/MiDinero";
+import Fiscal from "./pages/Fiscal";
 import Deudas from "./pages/Deudas";
-import Flujo from "./pages/Flujo";
 import MetasViaje from "./pages/MetasViaje";
-import SriMatch from "./pages/SriMatch";
 import Perfil from "./pages/Perfil";
 import Layout from "./components/Layout";
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
-  
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -30,145 +23,105 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
       </div>
     );
   }
-  
+
   if (!user) {
     return <Navigate to="/login" replace />;
   }
-  
+
   if (allowedRoles && !allowedRoles.includes(user.role)) {
     return <Navigate to="/dashboard" replace />;
   }
-  
+
   return <Layout>{children}</Layout>;
 };
 
 function AppRoutes() {
   const { user } = useAuth();
-  
+
   return (
     <Routes>
-      <Route 
-        path="/login" 
-        element={user ? <Navigate to="/dashboard" replace /> : <Login />} 
-      />
-      <Route 
-        path="/accept-invite/:token" 
-        element={<Login />} 
-      />
-      <Route 
-        path="/dashboard" 
+      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/accept-invite/:token" element={<Login />} />
+
+      <Route
+        path="/dashboard"
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
             <Dashboard />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/transactions" 
+
+      {/* Movimientos = Bandeja Financiera + Transacciones */}
+      <Route
+        path="/movimientos"
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
-            <Transactions />
+            <Movimientos />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/cargar" 
-        element={
-          <ProtectedRoute allowedRoles={["admin", "spouse", "accountant"]}>
-            <CargarValidar />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/budget" 
+
+      {/* Mi Dinero = Presupuesto + Ingresos + Flujo */}
+      <Route
+        path="/mi-dinero"
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse", "demo"]}>
-            <PresupuestoEditable />
+            <MiDinero />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/predictions" 
-        element={
-          <ProtectedRoute allowedRoles={["admin", "spouse"]}>
-            <Predictions />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/accountant" 
-        element={
-          <ProtectedRoute allowedRoles={["admin", "accountant"]}>
-            <AccountantView />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/international" 
+
+      {/* Fiscal = Facturas + Deducciones + Resumen */}
+      <Route
+        path="/fiscal"
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
-            <InternationalExpenses />
+            <Fiscal />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/sri-limits" 
-        element={
-          <ProtectedRoute allowedRoles={["admin", "accountant"]}>
-            <SRILimits />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/ingresos" 
-        element={
-          <ProtectedRoute allowedRoles={["admin", "spouse", "demo"]}>
-            <Ingresos />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/deudas" 
+
+      <Route
+        path="/deudas"
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse", "demo"]}>
             <Deudas />
           </ProtectedRoute>
-        } 
+        }
       />
-      <Route 
-        path="/flujo" 
-        element={
-          <ProtectedRoute allowedRoles={["admin", "spouse"]}>
-            <Flujo />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/viajes" 
+
+      <Route
+        path="/viajes"
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse", "demo"]}>
             <MetasViaje />
           </ProtectedRoute>
-        } 
+        }
       />
-      {/* Redirect old route */}
-      <Route path="/metas-viaje" element={<Navigate to="/viajes" replace />} />
-      <Route 
-        path="/sri-match" 
-        element={
-          <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
-            <SriMatch />
-          </ProtectedRoute>
-        } 
-      />
-      <Route 
-        path="/perfil" 
+
+      <Route
+        path="/perfil"
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
             <Perfil />
           </ProtectedRoute>
-        } 
+        }
       />
+
+      {/* Legacy redirects — keep to avoid breaking bookmarks */}
+      <Route path="/cargar" element={<Navigate to="/movimientos?tab=por-revisar" replace />} />
+      <Route path="/transactions" element={<Navigate to="/movimientos?tab=todos" replace />} />
+      <Route path="/budget" element={<Navigate to="/mi-dinero?tab=presupuesto" replace />} />
+      <Route path="/ingresos" element={<Navigate to="/mi-dinero?tab=ingresos" replace />} />
+      <Route path="/flujo" element={<Navigate to="/mi-dinero?tab=flujo" replace />} />
+      <Route path="/sri-match" element={<Navigate to="/fiscal?tab=facturas" replace />} />
+      <Route path="/sri-limits" element={<Navigate to="/fiscal?tab=deducciones" replace />} />
+      <Route path="/accountant" element={<Navigate to="/fiscal?tab=resumen" replace />} />
+      <Route path="/metas-viaje" element={<Navigate to="/viajes" replace />} />
+      <Route path="/predictions" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/international" element={<Navigate to="/movimientos?tab=todos" replace />} />
+
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
       <Route path="*" element={<Navigate to="/dashboard" replace />} />
     </Routes>
@@ -188,14 +141,12 @@ function App() {
   );
 }
 
-// ChatBot solo se muestra cuando el usuario está logueado
 function ChatBotWrapper() {
   const { user } = useAuth();
   if (!user) return null;
   return <ChatBot />;
 }
 
-// FAB solo se muestra cuando el usuario está logueado
 function FABWrapper() {
   const { user } = useAuth();
   if (!user) return null;

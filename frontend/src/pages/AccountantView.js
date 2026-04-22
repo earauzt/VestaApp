@@ -101,7 +101,7 @@ export default function AccountantView() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight flex items-center gap-3">
             <Calculator size={32} className="text-primary" weight="duotone" />
             Vista Contadora
           </h1>
@@ -183,7 +183,7 @@ export default function AccountantView() {
                       : 0}%
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30">
+                <div className="text-[#0D9E82]">
                   <ArrowUp size={24} weight="duotone" />
                 </div>
               </div>
