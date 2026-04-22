@@ -11,6 +11,25 @@ La app Vesta se usa desde laptop, iPad y celular. Todo diseño debe ser responsi
 - H1: `text-2xl sm:text-3xl md:text-4xl`
 
 
+## [2026-04-22] SESIÓN 10 — 4 fixes UX quirúrgicos frontend
+- **TabPorRevisar.jsx línea 208**: badge `Recurrente (N)` → `Conocido (N)`.
+- **Transactions.js fetchTransactions**: `toast.error` silenciado cuando `error.response?.status === 404` (evita toast fantasma al cargar Movimientos sin data).
+- **Deudas.js línea 444**: className `p-4 rounded-xl  text-white` → `p-4 rounded-xl bg-slate-800 text-white` (tarjetas ahora legibles con fondo oscuro).
+- **Deudas.js línea 451**: `bg-slate-1000` (inexistente en Tailwind) → `bg-slate-900`.
+- **PresupuestoEditable.js**: eliminado tab interno "Proyección Ingresos" (TabsTrigger + TabsContent). TabsList pasó de `grid-cols-3` a `grid-cols-2`. State `incomeProjection` + load/save preservados. Este tab era redundante con `/mi-dinero?tab=ingresos`.
+
+### Testing (iteration_30.json)
+- 5/5 tests Playwright PASS en DOM vivo con admin
+- /deudas: 3 tarjetas visibles con `bg-slate-800` (sin Apple Card)
+- /movimientos?tab=todos: sin toast fantasma
+- /mi-dinero?tab=presupuesto: 2 sub-tabs (sin "Proyección Ingresos")
+- Regresión ok en `/mi-dinero?tab=ingresos` + handleSaveBudget
+
+### Code review backlog (no-blocker)
+- P2 `PresupuestoEditable.js`: bloque legacy 250-394 es dead code (~145 líneas) — candidato a limpieza.
+- P2 `Deudas.js`: array `BANKS` aún incluye 'apple' (Apple Card USA) — revisar si se mantiene para otros usuarios.
+
+
 ## [2026-04-22] SESIÓN 9 — 4 bugfixes quirúrgicos P0
 - **seed_data.py**: eliminado `card-apple-card` del array `CREDIT_CARDS`. Admin queda con 3 tarjetas (Pacificard Black, Pichincha Platinum, Diners Club). Doc huérfano `card-apple-card` eliminado de MongoDB.
 - **documents.py `_save_deferred_purchases`**: dedup ahora incluye `total_amount` ±5% → dos diferidos con misma description+card pero distinto total_amount se tratan como independientes.
