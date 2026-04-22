@@ -394,3 +394,116 @@ async def normalize_sources(user: dict = Depends(get_current_user)):
         {"$set": {"source": "factura_sri"}},
     )
     return {"normalized": result.modified_count}
+
+
+def _parse_date_any(s: str):
+    """Parse dates en formatos variados (ISO, DD/MM/YYYY, DD-MM-YYYY)."""
+    if not s:
+        return None
+    s = s[:10] if len(s) >= 10 and s[4] in "-/" else s
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%Y/%m/%d"):
+        try:
+            return datetime.strptime(s, fmt)
+        except Exception:
+            pass
+    return None
+
+
+@router.post("/sri/facturas/{doc_id}/categorize")
+async def categorize_factura(doc_id: str, payload: dict, user: dict = Depends(get_current_user)):
+    """Crea una transacción factura_sri a partir de un gmail_document.
+    Body: {category, subcategory?, sri_category?, sri_subcategory?}.
+    Intenta auto-vincular con un consumo cuyo monto esté ±5% y fecha ±7 días.
+    """
+    doc = await db.gmail_documents.find_one({"id": doc_id, "user_id": user["id"]}, {"_id": 0})
+    if not doc:
+        raise HTTPException(404, "Factura no encontrada")
+    category = (payload.get("category") or "").strip()
+    if not category:
+        raise HTTPException(400, "category es requerido")
+    subcategory = (payload.get("subcategory") or "").strip() or None
+    sri_category = (payload.get("sri_category") or "deducible").strip() or "deducible"
+    sri_subcategory = (payload.get("sri_subcategory") or "").strip() or None
+
+    emisor = doc.get("nombre_emisor") or doc.get("emisor")
+    monto = doc.get("monto")
+    fecha = doc.get("fecha")
+    fecha_dt = _parse_date_any(fecha) if fecha else None
+    fecha_iso = fecha_dt.strftime("%Y-%m-%d") if fecha_dt else None
+
+    # Auto-link: buscar consumo ±5% monto y ±7 días
+    linked_tx = None
+    linked_bank = None
+    if monto and fecha_dt:
+        tol = float(monto) * 0.05
+        lo, hi = float(monto) - tol, float(monto) + tol
+        win_start = (fecha_dt - timedelta(days=7)).strftime("%Y-%m-%d")
+        win_end = (fecha_dt + timedelta(days=7)).strftime("%Y-%m-%d")
+        candidate = await db.transactions.find_one({
+            "user_id": user["id"],
+            "transaction_type": "expense",
+            "amount": {"$gte": lo, "$lte": hi},
+            "date": {"$gte": win_start, "$lte": win_end},
+            "factura_vinculada_id": {"$in": [None, ""]},
+            "source": {"$nin": ["factura_sri"]},
+        }, {"_id": 0})
+        if candidate:
+            linked_tx = candidate
+            linked_bank = candidate.get("banco") or candidate.get("bank") or candidate.get("payment_method")
+
+    new_tx = {
+        "id": str(uuid.uuid4()),
+        "user_id": user["id"],
+        "transaction_type": "expense",
+        "amount": monto or 0,
+        "description": emisor or doc.get("numero_factura") or "Factura SRI",
+        "comercio": emisor,
+        "establishment": emisor,
+        "category": category,
+        "subcategory": subcategory,
+        "sri_category": sri_category,
+        "sri_subcategory": sri_subcategory,
+        "is_deductible": True,
+        "source": "factura_sri",
+        "status": TransactionStatus.APPROVED,
+        "date": fecha_iso,
+        "fecha": fecha_iso,
+        "numero_factura": doc.get("numero_factura"),
+        "ruc_emisor": doc.get("ruc_emisor"),
+        "gmail_document_id": doc_id,
+        "estado_sri": "con_respaldo" if linked_tx else "pendiente_match",
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    if linked_tx:
+        new_tx["factura_consumo_vinculado_id"] = linked_tx["id"]
+    await db.transactions.insert_one(new_tx)
+
+    # Si auto-link, cruzar referencias en el consumo
+    if linked_tx:
+        await db.transactions.update_one(
+            {"id": linked_tx["id"]},
+            {"$set": {
+                "factura_vinculada_id": new_tx["id"],
+                "estado_sri": "con_respaldo",
+            }},
+        )
+
+    # Marcar gmail_document como categorizado
+    await db.gmail_documents.update_one(
+        {"id": doc_id},
+        {"$set": {
+            "tx_id": new_tx["id"],
+            "budget_category": category,
+            "linked_tx_id": linked_tx["id"] if linked_tx else None,
+            "linked_bank": linked_bank,
+            "categorized_at": datetime.now(timezone.utc).isoformat(),
+        }},
+    )
+
+    return {
+        "tx_id": new_tx["id"],
+        "linked": bool(linked_tx),
+        "linked_bank": linked_bank,
+        "linked_tx_id": linked_tx["id"] if linked_tx else None,
+    }
+

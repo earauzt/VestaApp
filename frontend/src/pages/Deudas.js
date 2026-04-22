@@ -505,6 +505,32 @@ export default function Deudas() {
                                 Pago: día {card.payment_due_day}
                               </span>
                             </div>
+
+                            {(card.updated_at || card.statement_date) && (() => {
+                              const isStale = card.updated_at
+                                ? (Date.now() - new Date(card.updated_at).getTime()) / (1000 * 60 * 60 * 24) > 30
+                                : false;
+                              const fmt = (s) => { try { return new Date(s).toLocaleDateString("es-EC", { day: "2-digit", month: "short", year: "numeric" }); } catch { return s; } };
+                              return (
+                                <div className="flex flex-wrap items-center gap-2 mt-2 text-[11px] text-slate-500" data-testid={`card-updates-${card.id}`}>
+                                  {card.updated_at && (
+                                    <span data-testid={`card-updated-at-${card.id}`}>Actualizado: {fmt(card.updated_at)}</span>
+                                  )}
+                                  {card.statement_date && (
+                                    <span data-testid={`card-statement-date-${card.id}`}>· Período: {fmt(card.statement_date)}</span>
+                                  )}
+                                  {isStale && (
+                                    <Badge
+                                      variant="outline"
+                                      className="text-[10px] bg-amber-50 text-amber-700 border-amber-200"
+                                      data-testid={`card-stale-${card.id}`}
+                                    >
+                                      Datos desactualizados
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           {canEdit && (

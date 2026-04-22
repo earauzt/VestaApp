@@ -986,7 +986,7 @@ async def process_factura_pdfs(user: dict = Depends(get_current_user)):
 
 @router.get("/gmail/facturas-summary")
 async def gmail_facturas_summary(user: dict = Depends(get_current_user)):
-    """Resumen de facturas SRI en gmail_documents, con estado de procesamiento."""
+    """Resumen de facturas SRI en gmail_documents, con estado de procesamiento y categorización."""
     pipeline = [
         {"$match": {"user_id": user["id"], "tipo": "factura_sri"}},
         {"$sort": {"created_at": -1}},

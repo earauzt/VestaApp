@@ -4,114 +4,60 @@ import { useAuth } from "../context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { CheckCircle, XCircle, Coins, LinkSimple, Trash, ArrowsClockwise, Receipt } from "@phosphor-icons/react";
-import {
-  CheckCircle as LICheckCircle,
-  RefreshCw as LIRefreshCw,
-  Clock as LIClock,
-  AlertTriangle as LIAlert,
-  FileText as LIFile,
-  CreditCard as LICredit,
-} from "lucide-react";
-import { components, typography } from "../styles/design-system";
+import { FileText, CheckCircle, LinkSimple, Receipt, Eye } from "@phosphor-icons/react";
+import { RefreshCw } from "lucide-react";
+import TransactionEditModal from "../components/shared/TransactionEditModal";
+import { PERSONAL_CATEGORIES } from "../constants/categories";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const fmtCurrency = (v) =>
   new Intl.NumberFormat("es-EC", { style: "currency", currency: "USD" }).format(v || 0);
 
+const fmtDate = (s) => {
+  if (!s) return "—";
+  try {
+    const d = s.length >= 10 && s[4] === "-" ? new Date(s) : null;
+    if (d && !isNaN(d)) return format(d, "dd MMM yyyy");
+    return s.slice(0, 10);
+  } catch {
+    return s;
+  }
+};
+
 export default function SriMatch() {
   const { getAuthHeaders } = useAuth();
   const getAuthHeadersRef = useRef(getAuthHeaders);
   useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
 
-  const [counters, setCounters] = useState({ con_respaldo: 0, match_aproximado: 0, pendiente_match: 0, sin_vincular: 0 });
-  const [aprox, setAprox] = useState([]);
-  const [expired, setExpired] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("match_aproximado");
   const [facturas, setFacturas] = useState([]);
-  const [facturasUnprocessed, setFacturasUnprocessed] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [processingPdfs, setProcessingPdfs] = useState(false);
+  const [activeFactura, setActiveFactura] = useState(null);
+  const [saving, setSaving] = useState(false);
 
-  const fetchAll = useCallback(async () => {
+  const fetchFacturas = useCallback(async () => {
     try {
       const headers = getAuthHeadersRef.current();
-      const [c, p, f] = await Promise.all([
-        axios.get(`${API}/sri/counters`, { headers }),
-        axios.get(`${API}/sri/pending`, { headers }),
-        axios.get(`${API}/gmail/facturas-summary`, { headers }).catch(() => ({ data: { total: 0, unprocessed: 0, documents: [] } })),
-      ]);
-      setCounters(c.data);
-      setAprox(p.data.match_aproximado || []);
-      setExpired(p.data.sin_respaldo_72h || []);
-      setFacturas(f.data.documents || []);
-      setFacturasUnprocessed(f.data.unprocessed || 0);
+      const r = await axios.get(`${API}/gmail/facturas-summary`, { headers });
+      setFacturas(r.data.documents || []);
     } catch {
-      toast.error("Error al cargar SRI match");
+      toast.error("Error al cargar facturas");
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchAll();
-    const params = new URLSearchParams(window.location.search);
-    const tab = params.get("tab");
-    if (tab) setActiveTab(tab);
-  }, [fetchAll]);
-
-  const handleConfirm = async (id) => {
-    try {
-      await axios.post(`${API}/sri/confirm-match/${id}`, {}, { headers: getAuthHeadersRef.current() });
-      toast.success("Match confirmado");
-      fetchAll();
-    } catch (e) {
-      toast.error(e.response?.data?.detail || "Error al confirmar");
-    }
-  };
-
-  const handleReject = async (id) => {
-    try {
-      await axios.post(`${API}/sri/reject-match/${id}`, {}, { headers: getAuthHeadersRef.current() });
-      toast.success("Match rechazado, volverá a intentarse");
-      fetchAll();
-    } catch {
-      toast.error("Error al rechazar");
-    }
-  };
-
-  const handleMarkCash = async (id) => {
-    try {
-      await axios.post(`${API}/sri/mark-cash/${id}`, {}, { headers: getAuthHeadersRef.current() });
-      toast.success("Marcado como pago en efectivo");
-      fetchAll();
-    } catch {
-      toast.error("Error al marcar efectivo");
-    }
-  };
-
-  const handleDiscard = async (id) => {
-    if (!window.confirm("¿Descartar esta transacción del SRI?")) return;
-    try {
-      await axios.post(`${API}/sri/discard/${id}`, {}, { headers: getAuthHeadersRef.current() });
-      toast.success("Descartada");
-      fetchAll();
-    } catch {
-      toast.error("Error al descartar");
-    }
-  };
+  useEffect(() => { fetchFacturas(); }, [fetchFacturas]);
 
   const handleProcessPdfs = async () => {
     setProcessingPdfs(true);
     try {
       const r = await axios.post(`${API}/gmail/process-factura-pdfs`, {}, { headers: getAuthHeadersRef.current() });
-      toast.success(`${r.data.processed} PDFs procesados (${r.data.errors} errores)`);
-      fetchAll();
+      toast.success(`${r.data.processed} PDFs procesados`);
+      fetchFacturas();
     } catch {
       toast.error("Error al procesar PDFs");
     } finally {
@@ -123,213 +69,196 @@ export default function SriMatch() {
     window.open(`${API}/gmail/documents/${docId}/view`, "_blank");
   };
 
-  const handleRescan = async () => {
+  const handleCategorize = async (data) => {
+    if (!activeFactura) return;
+    setSaving(true);
     try {
-      const r = await axios.post(`${API}/sri/scan`, {}, { headers: getAuthHeadersRef.current() });
-      toast.success(`Reescaneadas ${r.data.retried}, ${r.data.matched} vinculadas`);
-      fetchAll();
-    } catch {
-      toast.error("Error al reescanear");
+      const r = await axios.post(
+        `${API}/sri/facturas/${activeFactura.id}/categorize`,
+        {
+          category: data.category,
+          subcategory: data.subcategory || "",
+          sri_category: data.sri_category || "",
+          sri_subcategory: data.sri_subcategory || "",
+        },
+        { headers: getAuthHeadersRef.current() }
+      );
+      if (r.data.linked) {
+        toast.success(`Categorizada y vinculada con ${r.data.linked_bank || "consumo"}`);
+      } else {
+        toast.success("Factura categorizada (sin consumo vinculado)");
+      }
+      setActiveFactura(null);
+      fetchFacturas();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "Error al categorizar");
+    } finally {
+      setSaving(false);
     }
   };
 
+  // Dividir: sin budget_category → "Por categorizar"; con → "Vinculadas"
+  const porCategorizar = facturas.filter((f) => !f.budget_category);
+  const vinculadas = facturas.filter((f) => f.budget_category);
+
   if (loading) {
-    return <div className="flex items-center justify-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>;
+    return (
+      <div className="p-6">
+        <div className="flex items-center justify-center py-24 text-muted-foreground">
+          <RefreshCw className="animate-spin" size={20} />
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-6" data-testid="sri-match-page">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div className="p-4 sm:p-6 space-y-6 max-w-5xl mx-auto" data-testid="sri-match-page">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Receipt size={32} weight="duotone" className="text-[#0D9E82]" />
-            Match Factura y Consumo
-          </h1>
-          <p className="text-muted-foreground">Vincula facturas SRI con sus consumos de tarjeta/débito</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Mis Facturas</h1>
+          <p className="text-sm text-muted-foreground">Categoriza facturas SRI deducibles y revisa vínculos con consumos.</p>
         </div>
-        <div className="flex gap-2">
-          {facturasUnprocessed > 0 && (
-            <Button
-              onClick={handleProcessPdfs}
-              disabled={processingPdfs}
-              className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
-              data-testid="process-pdfs-btn"
-            >
-              <LIFile size={16} />
-              {processingPdfs ? "Procesando..." : `Procesar PDFs (${facturasUnprocessed})`}
-            </Button>
-          )}
-          <Button variant="outline" onClick={handleRescan} className="gap-2" data-testid="rescan-btn">
-            <ArrowsClockwise size={16} />
-            Reescanear
-          </Button>
-        </div>
+        <Button
+          onClick={handleProcessPdfs}
+          disabled={processingPdfs}
+          variant="outline"
+          className="gap-2"
+          data-testid="process-pdfs-btn"
+        >
+          <RefreshCw size={16} className={processingPdfs ? "animate-spin" : ""} />
+          Procesar PDFs
+        </Button>
       </div>
 
-      {/* Counters */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          { key: "con_respaldo", Icon: LICheckCircle, label: "Con respaldo", value: counters.con_respaldo, iconColor: "text-[#16A34A]" },
-          { key: "match_aproximado", Icon: LIRefreshCw, label: "Match aproximado", value: counters.match_aproximado, iconColor: "text-amber-600" },
-          { key: "pendiente", Icon: LIClock, label: "Esperando", value: counters.pendiente_match, iconColor: "text-slate-500" },
-          { key: "sin_vincular", Icon: LIAlert, label: "Sin vincular", value: counters.sin_vincular, iconColor: "text-[#DC2626]" },
-        ].map((c) => {
-          const CIcon = c.Icon;
-          return (
-            <Card key={c.key} className="bg-white border border-slate-200 rounded-lg shadow-sm">
-              <CardContent className="p-4 flex flex-col items-center">
-                <CIcon size={22} className={`mb-1 ${c.iconColor}`} />
-                <span className="text-2xl font-bold text-slate-900">{c.value}</span>
-                <span className="text-xs text-slate-500 text-center">{c.label}</span>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-
-      {/* Facturas SRI descargadas */}
-      {facturas.length > 0 && (
-        <Card className="bg-white border border-[#E2EAE8] rounded-lg shadow-sm" data-testid="facturas-section">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-medium text-[#0F1D1A] flex items-center gap-2">
-              <LIFile size={18} className="text-[#0D9E82]" />
-              Mis Facturas electrónicas ({facturas.length})
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            <div className="divide-y divide-[#E2EAE8]">
-              {facturas.map((f) => (
-                <div key={f.id} className="flex items-center gap-3 py-2" data-testid={`factura-row-${f.id}`}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="font-medium text-sm text-[#0F1D1A]">
-                        {f.numero_factura || "sin número"}
-                      </span>
-                      {f.filepath && (
-                        <Badge variant="outline" className="text-[10px] border-[#E2EAE8] text-[#5C7A74] inline-flex items-center gap-1" data-testid={`factura-pdf-badge-${f.id}`}>
-                          <LIFile size={10} /> PDF
-                        </Badge>
-                      )}
-                      {!f.procesado && (
-                        <Badge variant="outline" className="text-[10px] bg-amber-50 border-amber-200 text-amber-700">
-                          sin procesar
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-xs text-[#5C7A74] truncate">
-                      {f.emisor || (f.remitente || "").split("<").pop().replace(">", "") || "Emisor desconocido"}
-                      {f.ruc_emisor ? ` · RUC ${f.ruc_emisor}` : ""}
-                    </p>
-                  </div>
-                  <div className="text-right shrink-0">
-                    <div className="text-sm font-medium text-[#0F1D1A]" data-testid={`factura-monto-${f.id}`}>
-                      {f.monto != null ? fmtCurrency(f.monto) : "—"}
-                    </div>
-                    <div className="text-xs text-[#5C7A74]">{f.fecha || f.fecha_email || ""}</div>
-                  </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="border-[#E2EAE8] text-[#0F1D1A] hover:bg-[#F8FAF9] shrink-0"
-                    onClick={() => handleViewPdf(f.id)}
-                    data-testid={`factura-view-${f.id}`}
-                  >
-                    Ver
-                  </Button>
-                </div>
-              ))}
+      {/* Sección: Por categorizar */}
+      <Card data-testid="por-categorizar-section">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Receipt size={20} className="text-amber-600" />
+            Por categorizar
+            <Badge variant="outline" className="ml-2 bg-amber-50 text-amber-700 border-amber-200">
+              {porCategorizar.length}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {porCategorizar.length === 0 ? (
+            <div className="text-center py-8 text-sm text-muted-foreground">
+              <CheckCircle size={32} className="mx-auto mb-2 text-emerald-500" />
+              Todas las facturas están categorizadas.
             </div>
-          </CardContent>
-        </Card>
-      )}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="match_aproximado" data-testid="tab-aprox">Match aproximado ({aprox.length})</TabsTrigger>
-          <TabsTrigger value="sin_vincular" data-testid="tab-sin">Sin vincular ({expired.length})</TabsTrigger>
-        </TabsList>
-
-        {/* Match aproximado */}
-        <TabsContent value="match_aproximado" className="space-y-3 mt-4">
-          {aprox.length === 0 ? (
-            <Card className="bento-card"><CardContent className="text-center py-12 text-muted-foreground">No hay matches aproximados pendientes</CardContent></Card>
           ) : (
-            aprox.map((t) => (
-              <Card key={t.id} className="bento-card" data-testid={`aprox-${t.id}`}>
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline" className="text-xs inline-flex items-center gap-1">
-                          {t.source_type === "invoice" || t.has_invoice
-                            ? (<><LIFile size={11} /> Factura</>)
-                            : (<><LICredit size={11} /> Consumo</>)}
-                        </Badge>
-                        {t.match_aproximado_confianza && (
-                          <Badge variant="secondary" className="text-xs">{Math.round(t.match_aproximado_confianza * 100)}% confianza</Badge>
-                        )}
-                      </div>
-                      <p className="font-medium truncate mt-1">{t.description || t.establishment}</p>
-                      <p className="text-sm text-muted-foreground">{format(new Date(t.date), "d MMM yyyy", { locale: es })} · <strong>{fmtCurrency(t.amount)}</strong></p>
-                      {t.candidato && (
-                        <div className="mt-2 p-2 rounded bg-muted/30 text-sm">
-                          <span className="text-muted-foreground">Candidato:</span> {t.candidato.description || t.candidato.establishment}
-                          <span className="ml-2 font-mono">{fmtCurrency(t.candidato.amount)}</span>
-                          <span className="ml-2 text-xs text-muted-foreground">{t.candidato.date}</span>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex gap-2 shrink-0">
-                      <Button size="sm" onClick={() => handleConfirm(t.id)} className="gap-1 bg-[#0D9E82] hover:bg-[#0D6B63]" data-testid={`confirm-${t.id}`}>
-                        <CheckCircle size={14} /> Sí
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleReject(t.id)} className="gap-1" data-testid={`reject-${t.id}`}>
-                        <XCircle size={14} /> No
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            porCategorizar.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setActiveFactura(f)}
+                className="w-full flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/40 transition-colors text-left"
+                data-testid={`factura-categorizar-${f.id}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">
+                    {f.nombre_emisor || f.emisor || f.ruc_emisor || "Emisor desconocido"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {fmtDate(f.fecha)} · {f.numero_factura || "Sin número"}
+                  </p>
+                </div>
+                <span className="font-mono font-semibold text-sm shrink-0">
+                  {f.monto != null ? fmtCurrency(f.monto) : "—"}
+                </span>
+                {f.filename && (
+                  <Badge variant="outline" className="text-[10px] gap-1 shrink-0 bg-red-50 text-red-700 border-red-200">
+                    <FileText size={11} /> PDF
+                  </Badge>
+                )}
+              </button>
             ))
           )}
-        </TabsContent>
+        </CardContent>
+      </Card>
 
-        {/* Sin vincular (72h expired) */}
-        <TabsContent value="sin_vincular" className="space-y-3 mt-4">
-          {expired.length === 0 ? (
-            <Card className="bento-card"><CardContent className="text-center py-12 text-muted-foreground">No hay transacciones sin vincular</CardContent></Card>
+      {/* Sección: Vinculadas */}
+      <Card data-testid="vinculadas-section">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <LinkSimple size={20} className="text-emerald-600" />
+            Vinculadas
+            <Badge variant="outline" className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200">
+              {vinculadas.length}
+            </Badge>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {vinculadas.length === 0 ? (
+            <div className="text-center py-8 text-sm text-muted-foreground">
+              Aún no hay facturas vinculadas.
+            </div>
           ) : (
-            expired.map((t) => (
-              <Card key={t.id} className="bento-card" data-testid={`expired-${t.id}`}>
-                <CardContent className="p-4">
-                  <div className="flex flex-col sm:flex-row gap-4 sm:items-center justify-between">
-                    <div className="flex-1 min-w-0">
-                      <Badge variant="outline" className="text-xs mb-1 inline-flex items-center gap-1">
-                        {t.source_type === "invoice" || t.has_invoice
-                          ? (<><LIFile size={11} /> Factura</>)
-                          : (<><LICredit size={11} /> Consumo</>)}
-                      </Badge>
-                      <p className="font-medium truncate">{t.description || t.establishment}</p>
-                      <p className="text-sm text-muted-foreground">{format(new Date(t.date), "d MMM yyyy", { locale: es })} · <strong>{fmtCurrency(t.amount)}</strong></p>
-                      <p className="text-xs text-amber-600 mt-1">Pasaron 72h sin encontrar contraparte</p>
-                    </div>
-                    <div className="flex gap-2 shrink-0 flex-wrap">
-                      <Button size="sm" onClick={() => handleMarkCash(t.id)} className="gap-1" variant="secondary" data-testid={`cash-${t.id}`}>
-                        <Coins size={14} /> Efectivo
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => toast.info("Usa la búsqueda de transacciones para vincular manualmente")} className="gap-1">
-                        <LinkSimple size={14} /> Manual
-                      </Button>
-                      <Button size="sm" variant="outline" onClick={() => handleDiscard(t.id)} className="gap-1 text-red-600" data-testid={`discard-${t.id}`}>
-                        <Trash size={14} /> Descartar
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+            vinculadas.map((f) => (
+              <div
+                key={f.id}
+                className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-card"
+                data-testid={`factura-vinculada-${f.id}`}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-medium text-sm truncate">
+                    {f.nombre_emisor || f.emisor || "Emisor desconocido"}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {fmtDate(f.fecha)} · {f.numero_factura || "—"}
+                    {f.linked_bank && (
+                      <>
+                        {" · "}
+                        <span className="text-emerald-700">vinc. {f.linked_bank}</span>
+                      </>
+                    )}
+                  </p>
+                </div>
+                <span className="font-mono font-semibold text-sm shrink-0">
+                  {f.monto != null ? fmtCurrency(f.monto) : "—"}
+                </span>
+                <Badge variant="outline" className="text-[10px] shrink-0">
+                  {PERSONAL_CATEGORIES[f.budget_category]?.name || f.budget_category}
+                </Badge>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 h-8 shrink-0"
+                  onClick={() => handleViewPdf(f.id)}
+                  data-testid={`ver-pdf-${f.id}`}
+                >
+                  <Eye size={14} /> Ver PDF
+                </Button>
+              </div>
             ))
           )}
-        </TabsContent>
-      </Tabs>
+        </CardContent>
+      </Card>
+
+      {/* Modal unificado para categorizar */}
+      <TransactionEditModal
+        open={!!activeFactura}
+        transaction={
+          activeFactura
+            ? {
+                amount: activeFactura.monto,
+                date: activeFactura.fecha,
+                description: activeFactura.nombre_emisor || activeFactura.emisor,
+                establishment: activeFactura.nombre_emisor || activeFactura.emisor,
+                category: "",
+                subcategory: "",
+                sri_category: "",
+                sri_subcategory: "",
+                is_business_use: false,
+                applies_iva: true,
+                beneficiario: "",
+              }
+            : null
+        }
+        onSave={handleCategorize}
+        onClose={() => !saving && setActiveFactura(null)}
+      />
     </div>
   );
 }
