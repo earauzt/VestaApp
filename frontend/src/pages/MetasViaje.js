@@ -502,6 +502,8 @@ export default function MetasViaje() {
                           {canEdit && (
                             <div className="flex gap-1 shrink-0">
                               <Button variant="ghost" size="icon" className="h-8 w-8" title="Vincular gasto"
+                                aria-label="Vincular gasto"
+                                data-testid={`link-tx-${goal.id}`}
                                 onClick={() => { setLinkGoalId(goal.id); setLinkDialogOpen(true); }}>
                                 <LinkSimple size={16} />
                               </Button>

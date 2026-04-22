@@ -58,6 +58,21 @@ Aplicacion de finanzas personales adaptada a Ecuador con integracion SRI, clasif
   - Gmail sender filter expanded with new senders
   - 25/25 parser tests passing (tests/test_parsers.py)
   - Pre-OAuth consent modal with clear data access explanation
+
+## [2026-04-22] SESIÓN 7 — Badges Transactions + Verificación SESIÓN 6
+- Bugfix Transactions.js: badge de categoría/subcategoría estilo slate uniforme (`Categoría · Subcategoría`) debajo de la fecha
+- Bugfix Transactions.js: badge "Validada" (emerald-50/700/200) para `status=approved` o `estado=aprobado`
+- Bugfix Transactions.js: badge "Auto" (slate) para `matched_rule` o `auto_categorized`
+- Nuevos data-testid: `tx-category-{id}`, `tx-validated-{id}`, `tx-auto-{id}`
+- MetasViaje.js: aria-label + data-testid `link-tx-{goal_id}` en botón "Vincular gasto"
+- Verificación SESIÓN 6 completa: 10/10 backend tests PASS, 105 rows con badges correctos (99 Validada, 33 Auto)
+- Test file creado: /app/backend/tests/test_session6_travel_goals.py
+
+## Code Review Issues (backlog, no blockers)
+- P2: cashflow.py `/link-transaction` permite vincular la misma tx a múltiples metas (double-count)
+- P2: cashflow.py `PUT /travel-goals/{id}` acepta dict sin whitelist (riesgo overwrite user_id/id)
+- P2: cashflow.py `monthly_needed` con days_remaining<30 devuelve valor enorme; considerar clamp
+
   - Gmail API query changed from 'is:unread' to sender-specific filter
     (Diners, PacifiCard, Pichincha, Bolivariano, Pacifico + service domains)
   - state now uses secrets.token_urlsafe(32) with 10min expiry in DB
