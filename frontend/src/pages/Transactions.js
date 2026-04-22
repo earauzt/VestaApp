@@ -925,11 +925,33 @@ export default function Transactions() {
                         <span className="text-xs text-slate-400">
                           {format(new Date(transaction.date), "d MMM yyyy", { locale: es })}
                         </span>
+                        {transaction.category && (
+                          <span
+                            className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200"
+                            data-testid={`tx-category-${transaction.id}`}
+                          >
+                            {(categories[transaction.category]?.name || transaction.category)}
+                            {transaction.subcategory ? ` · ${transaction.subcategory}` : ""}
+                          </span>
+                        )}
                         <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
                           {transaction.source === "gmail" || transaction.source === "factura_sri" ? "Gmail" : transaction.source === "statement" ? "Estado cuenta" : "Manual"}
                         </span>
-                        {transaction.auto_categorized && (
-                          <Badge variant="secondary" className="text-xs gap-1"><Gear size={10} />Auto</Badge>
+                        {(transaction.status === "approved" || transaction.estado === "aprobado") && (
+                          <span
+                            className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full"
+                            data-testid={`tx-validated-${transaction.id}`}
+                          >
+                            Validada
+                          </span>
+                        )}
+                        {(transaction.matched_rule || transaction.auto_categorized) && (
+                          <span
+                            className="text-xs bg-slate-100 text-slate-600 border border-slate-200 px-2 py-0.5 rounded-full inline-flex items-center gap-1"
+                            data-testid={`tx-auto-${transaction.id}`}
+                          >
+                            <Gear size={10} />Auto
+                          </span>
                         )}
                         {transaction.attachments?.length > 0 && (
                           <AttachmentViewer attachments={transaction.attachments} transactionId={transaction.id} />
