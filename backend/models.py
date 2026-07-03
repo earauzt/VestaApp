@@ -38,7 +38,6 @@ class BankName(str, Enum):
     DINERS = "diners"
     PICHINCHA = "pichincha"
     PACIFICARD = "pacificard"
-    APPLE_CARD = "apple_card"
     BANCO_PACIFICO = "banco_pacifico"
     BOLIVARIANO = "bolivariano"
 
@@ -143,8 +142,7 @@ PAYMENT_METHODS = {
     "transferencia": {"name": "Transferencia", "keywords": ["transfer", "wire", "venmo", "zelle", "deposito", "banco"]},
     "tarjeta": {"name": "Tarjeta", "keywords": ["visa", "mastercard", "card", "tarjeta", "pacificard", "diners"]},
     "efectivo": {"name": "Efectivo", "keywords": ["cash", "efectivo", "contado"]},
-    "venmo": {"name": "Venmo", "keywords": ["venmo"]},
-    "apple_card": {"name": "Apple Card", "keywords": ["apple card", "apple pay", "apple cash"]}
+    "venmo": {"name": "Venmo", "keywords": ["venmo"]}
 }
 
 PAYMENT_SOURCES = ["local", "internacional"]
@@ -219,13 +217,13 @@ BUDGET_CATEGORIES = {
         "name": "USA",
         "subcategories": {"Mamá (Venmo)": 600, "TMobile": 150, "Universidad": 400},
         "monthly_budget": 1150, "annual_budget": 13800, "type": "fixed",
-        "payment_methods": ["venmo", "apple_card", "transferencia"], "is_recurring": True, "is_international": True
+        "payment_methods": ["venmo", "transferencia"], "is_recurring": True, "is_international": True
     },
     "viajes_entretenimiento": {
         "name": "Viajes y Entretenimiento",
         "subcategories": {"Hoteles": 3000, "Pasajes": 3000, "Comida": 2000, "Entretenimiento": 2000, "Ropa": 2000, "Tech": 1500, "Transporte": 1000, "Tours": 1000, "Otros": 1000},
         "monthly_budget": 0, "annual_budget": 16500, "type": "variable",
-        "payment_methods": ["tarjeta", "apple_card", "efectivo"], "is_recurring": False,
+        "payment_methods": ["tarjeta", "efectivo"], "is_recurring": False,
         "notes": "Pasajes en Enero $500, Diciembre $3000. Navidad $7000 en Diciembre"
     },
     "gastos_libres": {

@@ -316,15 +316,15 @@ class TestReminders:
 
 
 class TestExistingCreditCards:
-    """Test existing credit cards data (Diners, Pichincha, Pacificard, Apple Card)"""
-    
+    """Test existing credit cards data (Diners, Pichincha, Pacificard)"""
+
     def test_verify_existing_cards(self, auth_headers):
-        """Verify the 4 test credit cards exist"""
+        """Verify the test credit cards exist"""
         response = requests.get(f"{BASE_URL}/api/credit-cards", headers=auth_headers)
         assert response.status_code == 200
         cards = response.json()
-        
-        expected_cards = ["Diners", "Pichincha", "Pacificard", "Apple Card"]
+
+        expected_cards = ["Diners", "Pichincha", "Pacificard"]
         found_cards = [c["name"] for c in cards]
         
         print(f"✓ Found {len(cards)} credit cards:")

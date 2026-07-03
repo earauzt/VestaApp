@@ -40,9 +40,9 @@ export default function MiDinero() {
           <TabsTrigger value="flujo" data-testid="tab-flujo">Flujo</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="presupuesto" className="mt-0"><PresupuestoEditable /></TabsContent>
-        <TabsContent value="ingresos" className="mt-0"><Ingresos /></TabsContent>
-        <TabsContent value="flujo" className="mt-0"><Flujo /></TabsContent>
+        <TabsContent value="presupuesto" className="mt-0"><PresupuestoEditable embedded /></TabsContent>
+        <TabsContent value="ingresos" className="mt-0"><Ingresos embedded /></TabsContent>
+        <TabsContent value="flujo" className="mt-0"><Flujo embedded /></TabsContent>
       </Tabs>
     </div>
   );

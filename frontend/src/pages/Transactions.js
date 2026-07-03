@@ -31,7 +31,8 @@ import {
   Paperclip,
   Gear,
   CheckCircle,
-  Eye
+  Eye,
+  Sparkle
 } from "@phosphor-icons/react";
 import {
   Check as LICheck,
@@ -46,6 +47,11 @@ import { SplitTransactionModal } from "../components/SplitTransactionModal";
 import { AttachmentUploader, AttachmentViewer } from "../components/AttachmentUploader";
 import { ExportButtons } from "../components/ExportButtons";
 import { CategoryRulesManager } from "../components/CategoryRulesManager";
+import AutoRuleModal from "../components/AutoRuleModal";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -98,6 +104,13 @@ export default function Transactions() {
 
   // Recategorize modal (uses shared TransactionEditModal)
   const [recatTx, setRecatTx] = useState(null);
+
+  // Auto-rule creation modal
+  const [ruleModalOpen, setRuleModalOpen] = useState(false);
+  const [ruleEstablishment, setRuleEstablishment] = useState("");
+
+  // Delete confirmation (replaces window.confirm)
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -280,8 +293,14 @@ export default function Transactions() {
     setPendingFormData(null);
   };
 
-  const handleDelete = async (id) => {
-    if (!window.confirm("¿Eliminar esta transacción? Esta acción no se puede deshacer.")) return;
+  const handleDelete = (id) => {
+    setDeleteTargetId(id);
+  };
+
+  const confirmDelete = async () => {
+    const id = deleteTargetId;
+    if (!id) return;
+    setDeleteTargetId(null);
     try {
       await axios.delete(`${API}/transactions/${id}`, { headers: getAuthHeaders() });
       toast.success("Transacción eliminada");
@@ -289,6 +308,12 @@ export default function Transactions() {
     } catch (error) {
       toast.error("Error al eliminar");
     }
+  };
+
+  const openRuleModal = (transaction) => {
+    const establishment = transaction.establishment || transaction.description || "";
+    setRuleEstablishment(establishment);
+    setRuleModalOpen(true);
   };
 
   const handleEdit = (transaction) => {
@@ -462,8 +487,8 @@ export default function Transactions() {
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Transacciones</h1>
-          <p className="text-muted-foreground">Gestiona tus ingresos y gastos con funciones estilo QuickBooks</p>
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Transacciones</h1>
+          <p className="text-muted-foreground">Gestiona tus ingresos y gastos: edita, divide, adjunta facturas y crea reglas automáticas.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {/* Export Button */}
@@ -774,7 +799,7 @@ export default function Transactions() {
               />
             </div>
             <Select value={filterPeriod} onValueChange={setFilterPeriod}>
-              <SelectTrigger className="w-[150px]" data-testid="filter-period">
+              <SelectTrigger className="w-full md:w-[150px]" data-testid="filter-period">
                 <CalendarBlank size={18} className="mr-2" />
                 <SelectValue placeholder="Período" />
               </SelectTrigger>
@@ -786,7 +811,7 @@ export default function Transactions() {
               </SelectContent>
             </Select>
             <Select value={filterCategory} onValueChange={setFilterCategory}>
-              <SelectTrigger className="w-[180px]" data-testid="filter-category">
+              <SelectTrigger className="w-full md:w-[180px]" data-testid="filter-category">
                 <Funnel size={18} className="mr-2" />
                 <SelectValue placeholder="Categoría" />
               </SelectTrigger>
@@ -798,7 +823,7 @@ export default function Transactions() {
               </SelectContent>
             </Select>
             <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="w-[150px]" data-testid="filter-type">
+              <SelectTrigger className="w-full md:w-[150px]" data-testid="filter-type">
                 <SelectValue placeholder="Tipo" />
               </SelectTrigger>
               <SelectContent>
@@ -976,6 +1001,11 @@ export default function Transactions() {
                               <Scissors size={16} />Dividir transacción
                             </DropdownMenuItem>
                           )}
+                          {transaction.transaction_type === "expense" && (
+                            <DropdownMenuItem onClick={() => openRuleModal(transaction)} className="gap-2" data-testid={`create-rule-${transaction.id}`}>
+                              <Sparkle size={16} />Crear regla automática
+                            </DropdownMenuItem>
+                          )}
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={() => handleDelete(transaction.id)}
@@ -1000,6 +1030,34 @@ export default function Transactions() {
         onSave={handleRecategorize}
         onClose={() => setRecatTx(null)}
       />
+
+      <AutoRuleModal
+        open={ruleModalOpen}
+        onOpenChange={setRuleModalOpen}
+        establishment={ruleEstablishment}
+        onCreated={() => fetchTransactions()}
+      />
+
+      <AlertDialog open={deleteTargetId !== null} onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta transacción?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="confirm-delete-btn"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

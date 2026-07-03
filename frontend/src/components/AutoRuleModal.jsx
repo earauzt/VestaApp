@@ -8,6 +8,7 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { toast } from "sonner";
 import { Sparkle } from "@phosphor-icons/react";
+import { SRI_CATEGORIES } from "../constants/categories";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -112,7 +113,7 @@ export default function AutoRuleModal({ open, onOpenChange, establishment, onCre
       <DialogContent className="sm:max-w-[460px]" data-testid="auto-rule-modal">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkle size={20} weight="duotone" className="text-violet-600" />
+            <Sparkle size={20} weight="duotone" className="text-[#0D9E82]" />
             Crear regla automática
           </DialogTitle>
           <DialogDescription>
@@ -165,6 +166,24 @@ export default function AutoRuleModal({ open, onOpenChange, establishment, onCre
               data-testid="rule-deductible-toggle"
             />
           </div>
+
+          {isDeductible && (
+            <div className="space-y-2">
+              <Label>Categoría SRI</Label>
+              <Select value={sriCategory} onValueChange={setSriCategory}>
+                <SelectTrigger data-testid="rule-sri-category-select">
+                  <SelectValue placeholder="Seleccionar categoría SRI" />
+                </SelectTrigger>
+                <SelectContent className="z-[250]">
+                  {Object.entries(SRI_CATEGORIES).map(([key, cat]) => (
+                    <SelectItem key={key} value={key}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
         </div>
 
         <DialogFooter>

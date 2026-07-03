@@ -1,6 +1,6 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Image, PencilSimple, X, Plus, Receipt } from "@phosphor-icons/react";
+import { Camera, Image, Pencil, X, Plus, Receipt, ShoppingCart, Utensils, Car, HeartPulse, Zap, Shirt } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -9,21 +9,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import axios from "axios";
+import { PERSONAL_CATEGORIES } from "../constants/categories";
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
-const QUICK_CATEGORIES = [
-  { value: "comida", label: "🛒 Supermercado/Comida" },
-  { value: "restaurantes", label: "🍽️ Restaurantes" },
-  { value: "transporte", label: "🚗 Transporte/Uber" },
-  { value: "salud", label: "💊 Salud/Farmacia" },
-  { value: "servicios_basicos", label: "💡 Servicios Básicos" },
-  { value: "suscripciones", label: "📱 Suscripciones" },
-  { value: "vestimenta", label: "👕 Ropa" },
-  { value: "entretenimiento", label: "🎬 Entretenimiento" },
-  { value: "usa", label: "🇺🇸 Gastos USA" },
-  { value: "otros", label: "📦 Otros" },
-];
+// Compact subset of the canonical PERSONAL_CATEGORIES for the quick-add grid.
+const QUICK_CATEGORY_KEYS = ["comida", "restaurantes", "carros", "servicios_basicos", "suscripciones", "otros"];
+const QUICK_CATEGORY_ICONS = {
+  comida: ShoppingCart,
+  restaurantes: Utensils,
+  carros: Car,
+  servicios_basicos: Zap,
+  suscripciones: Shirt,
+  salud: HeartPulse,
+  otros: Receipt,
+};
+const QUICK_CATEGORIES = QUICK_CATEGORY_KEYS.map((key) => ({
+  value: key,
+  label: PERSONAL_CATEGORIES[key]?.name || key,
+  Icon: QUICK_CATEGORY_ICONS[key] || Receipt,
+}));
 
 export default function FAB() {
   const { getAuthHeaders, user } = useAuth();
@@ -136,19 +141,25 @@ export default function FAB() {
   return (
     <>
       {/* Hidden file inputs */}
+      <label htmlFor="fab-camera-input" className="sr-only">Tomar foto de recibo</label>
       <input
+        id="fab-camera-input"
         ref={cameraInputRef}
         type="file"
         accept="image/*"
         capture="environment"
         className="hidden"
+        aria-label="Tomar foto de recibo"
         onChange={(e) => handleFileSelected(e, "camera")}
       />
+      <label htmlFor="fab-gallery-input" className="sr-only">Subir imagen de recibo</label>
       <input
+        id="fab-gallery-input"
         ref={fileInputRef}
         type="file"
         accept="image/*,.pdf"
         className="hidden"
+        aria-label="Subir imagen de recibo"
         onChange={(e) => handleFileSelected(e, "gallery")}
       />
 
@@ -168,11 +179,12 @@ export default function FAB() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.1 }}
                 onClick={handleCameraCapture}
-                className="flex items-center gap-3 bg-white dark:bg-zinc-800 shadow-lg rounded-full pl-4 pr-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                aria-label="Tomar foto de recibo"
+                className="flex items-center gap-3 bg-white shadow-lg rounded-full pl-4 pr-3 py-2 hover:bg-zinc-50 transition-colors"
               >
                 <span className="text-sm font-medium whitespace-nowrap">Tomar Foto</span>
                 <div className="w-10 h-10 rounded-full bg-[#0D9E82] flex items-center justify-center text-white">
-                  <Camera size={20} weight="fill" />
+                  <Camera size={20} />
                 </div>
               </motion.button>
 
@@ -182,11 +194,12 @@ export default function FAB() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.15 }}
                 onClick={handleGalleryUpload}
-                className="flex items-center gap-3 bg-white dark:bg-zinc-800 shadow-lg rounded-full pl-4 pr-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                aria-label="Subir imagen de recibo"
+                className="flex items-center gap-3 bg-white shadow-lg rounded-full pl-4 pr-3 py-2 hover:bg-zinc-50 transition-colors"
               >
                 <span className="text-sm font-medium whitespace-nowrap">Subir Imagen</span>
                 <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white">
-                  <Image size={20} weight="fill" />
+                  <Image size={20} />
                 </div>
               </motion.button>
 
@@ -196,11 +209,12 @@ export default function FAB() {
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
                 onClick={handleQuickExpense}
-                className="flex items-center gap-3 bg-white dark:bg-zinc-800 shadow-lg rounded-full pl-4 pr-3 py-2 hover:bg-zinc-50 dark:hover:bg-zinc-700 transition-colors"
+                aria-label="Agregar gasto manualmente"
+                className="flex items-center gap-3 bg-white shadow-lg rounded-full pl-4 pr-3 py-2 hover:bg-zinc-50 transition-colors"
               >
                 <span className="text-sm font-medium whitespace-nowrap">Gasto Rápido</span>
                 <div className="w-10 h-10 rounded-full bg-slate-700 flex items-center justify-center text-white">
-                  <PencilSimple size={20} weight="fill" />
+                  <Pencil size={20} />
                 </div>
               </motion.button>
             </motion.div>
@@ -212,18 +226,20 @@ export default function FAB() {
           whileTap={{ scale: 0.95 }}
           onClick={() => setIsOpen(!isOpen)}
           disabled={isUploading}
+          aria-label="Agregar gasto"
+          aria-expanded={isOpen}
           className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
-            isOpen 
-              ? "bg-zinc-700 dark:bg-zinc-600" 
+            isOpen
+              ? "bg-zinc-700"
               : "bg-[#0D9E82] hover:bg-[#0B8A70]"
           } ${isUploading ? "animate-pulse" : ""}`}
         >
           {isUploading ? (
             <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
           ) : isOpen ? (
-            <X size={24} className="text-white" weight="bold" />
+            <X size={24} className="text-white" />
           ) : (
-            <Plus size={24} className="text-white" weight="bold" />
+            <Plus size={24} className="text-white" />
           )}
         </motion.button>
       </div>
@@ -268,7 +284,10 @@ export default function FAB() {
                 <SelectContent>
                   {QUICK_CATEGORIES.map((cat) => (
                     <SelectItem key={cat.value} value={cat.value}>
-                      {cat.label}
+                      <span className="flex items-center gap-2">
+                        <cat.Icon size={15} className="text-[#0D9E82]" />
+                        {cat.label}
+                      </span>
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -151,8 +151,7 @@ class TestBudgetCategoriesEndpoints:
         # Check payment methods
         assert "payment_methods" in data
         assert "venmo" in data["payment_methods"]
-        assert "apple_card" in data["payment_methods"]
-        
+
         # Check goals
         assert "goals" in data
         assert data["goals"]["gastos_libres_max_annual"] == 30000

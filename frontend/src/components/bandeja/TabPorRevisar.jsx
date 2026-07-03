@@ -1,15 +1,30 @@
 import { useState } from "react";
 import axios from "axios";
 import { toast } from "sonner";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { CheckCircle } from "@phosphor-icons/react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "../ui/alert-dialog";
+import { CheckCircle, WarningCircle } from "@phosphor-icons/react";
 import { Pencil, X } from "lucide-react";
 import TransactionEditModal from "../shared/TransactionEditModal";
 import { displayName } from "../../utils/displayName";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
+
+const formatDate = (date) => {
+  if (!date) return "—";
+  try {
+    return format(new Date(date), "d MMM yyyy", { locale: es });
+  } catch {
+    return date;
+  }
+};
 
 export default function TabPorRevisar({
   budgetCategories,
@@ -18,12 +33,17 @@ export default function TabPorRevisar({
   reviewSelectedIds, toggleReviewSelect,
   reviewAllSelected, toggleReviewSelectAll,
   handleReviewBulkApprove, reviewBulkApproving,
+  bulkProgress,
   vendorStats,
   getAuthHeaders,
   onAfterUpdate,
+  formatCurrency,
+  fetchError,
+  onRetry,
 }) {
   const [modalMode, setModalMode] = useState(null); // 'single' | 'bulk' | null
   const [activeItem, setActiveItem] = useState(null);
+  const [discardTarget, setDiscardTarget] = useState(null); // item pending confirmation
 
   const openSingleEdit = (item) => { setActiveItem(item); setModalMode("single"); };
   const openBulkEdit = () => { setActiveItem(null); setModalMode("bulk"); };
@@ -31,9 +51,28 @@ export default function TabPorRevisar({
 
   const isZeroValue = (it) => it.amount == null || Number(it.amount) === 0;
 
-  const handleDiscard = async (item) => {
+  const fmtAmount = (v) => (formatCurrency ? formatCurrency(v) : `$${(v || 0).toFixed(2)}`);
+
+  // Discard a single item, routing to the correct endpoint based on its origin.
+  const discardItem = async (item) => {
+    const headers = getAuthHeaders();
+    if (item.source === "gmail") {
+      await axios.put(`${API}/gmail/transactions/${item.origin_id}/discard`, {}, { headers });
+    } else {
+      // Statement/manual-origin items: there is no gmail discard endpoint for these.
+      // Rejecting removes them from the pending review queue.
+      await axios.put(`${API}/reconciliation/reject/${item.origin_id}?reason=${encodeURIComponent("Descartado")}`, {}, { headers });
+    }
+  };
+
+  const requestDiscard = (item) => setDiscardTarget(item);
+
+  const confirmDiscard = async () => {
+    const item = discardTarget;
+    if (!item) return;
+    setDiscardTarget(null);
     try {
-      await axios.put(`${API}/gmail/transactions/${item.id}/discard`, {}, { headers: getAuthHeaders() });
+      await discardItem(item);
       toast.success("Descartado");
       if (onAfterUpdate) onAfterUpdate();
     } catch (e) {
@@ -47,9 +86,7 @@ export default function TabPorRevisar({
     const zeros = (filteredReview || []).filter(isZeroValue);
     if (zeros.length === 0) { toast.info("No hay items sin valor"); return; }
     try {
-      const results = await Promise.allSettled(
-        zeros.map((z) => axios.put(`${API}/gmail/transactions/${z.id}/discard`, {}, { headers: getAuthHeaders() }))
-      );
+      const results = await Promise.allSettled(zeros.map((z) => discardItem(z)));
       const ok = results.filter((r) => r.status === "fulfilled").length;
       toast.success(`${ok} de ${zeros.length} descartados`);
       if (onAfterUpdate) onAfterUpdate();
@@ -97,7 +134,7 @@ export default function TabPorRevisar({
       <div className="flex flex-col lg:flex-row gap-3 lg:items-center justify-between pb-2 border-b">
         <div className="flex gap-2 flex-wrap">
           <Select value={reviewFilter.source} onValueChange={(v) => setReviewFilter({ ...reviewFilter, source: v })}>
-            <SelectTrigger className="w-[150px] h-9" data-testid="review-source-filter">
+            <SelectTrigger className="w-full sm:w-[150px] h-9" data-testid="review-source-filter">
               <SelectValue placeholder="Origen" />
             </SelectTrigger>
             <SelectContent className="z-[250]">
@@ -108,7 +145,7 @@ export default function TabPorRevisar({
             </SelectContent>
           </Select>
           <Select value={reviewFilter.category} onValueChange={(v) => setReviewFilter({ ...reviewFilter, category: v })}>
-            <SelectTrigger className="w-[170px] h-9" data-testid="review-category-filter">
+            <SelectTrigger className="w-full sm:w-[170px] h-9" data-testid="review-category-filter">
               <SelectValue placeholder="Categoría" />
             </SelectTrigger>
             <SelectContent className="z-[250]">
@@ -119,11 +156,11 @@ export default function TabPorRevisar({
             </SelectContent>
           </Select>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-2 text-xs cursor-pointer">
+        <div className="flex flex-col sm:flex-row sm:flex-wrap items-stretch sm:items-center gap-2 sm:gap-3">
+          <label className="flex items-center gap-2 text-xs cursor-pointer py-1.5">
             <input
               type="checkbox"
-              className="h-4 w-4 accent-primary"
+              className="h-5 w-5 accent-primary"
               checked={reviewAllSelected}
               onChange={toggleReviewSelectAll}
               data-testid="review-select-all"
@@ -135,6 +172,7 @@ export default function TabPorRevisar({
             variant="outline"
             onClick={openBulkEdit}
             disabled={reviewSelectedIds.length === 0}
+            className="w-full sm:w-auto"
             data-testid="review-bulk-categorize-btn"
           >
             Categorizar ({reviewSelectedIds.length})
@@ -144,7 +182,7 @@ export default function TabPorRevisar({
             variant="outline"
             onClick={handleDiscardAllZero}
             disabled={zeroCount === 0}
-            className="text-red-600 border-red-200 hover:bg-red-50"
+            className="w-full sm:w-auto text-red-600 border-red-200 hover:bg-red-50"
             data-testid="review-discard-zero-btn"
           >
             Descartar sin valor ({zeroCount})
@@ -154,15 +192,28 @@ export default function TabPorRevisar({
             onClick={handleReviewBulkApprove}
             disabled={reviewSelectedIds.length === 0 || reviewBulkApproving}
             data-testid="review-bulk-approve-btn"
-            className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
+            className="w-full sm:w-auto bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
           >
-            {reviewBulkApproving ? "Aprobando..." : `Aprobar seleccionados (${reviewSelectedIds.length})`}
+            {reviewBulkApproving
+              ? `Aprobando... (${bulkProgress?.done ?? 0}/${bulkProgress?.total ?? reviewSelectedIds.length})`
+              : `Aprobar seleccionados (${reviewSelectedIds.length})`}
           </Button>
         </div>
       </div>
 
       {/* Unified list */}
-      {sortedReview.length === 0 ? (
+      {fetchError ? (
+        <div className="text-center py-12 text-muted-foreground">
+          <WarningCircle size={40} className="mx-auto mb-3 text-red-500" />
+          <p className="font-medium text-red-700">No se pudieron cargar los movimientos</p>
+          <p className="text-xs mt-1">Ocurrió un error al conectar con el servidor</p>
+          {onRetry && (
+            <Button size="sm" variant="outline" className="mt-4" onClick={onRetry}>
+              Reintentar
+            </Button>
+          )}
+        </div>
+      ) : sortedReview.length === 0 ? (
         <div className="text-center py-12 text-muted-foreground">
           <CheckCircle size={40} className="mx-auto mb-3 text-emerald-500" />
           <p className="font-medium">No hay transacciones por revisar</p>
@@ -184,19 +235,21 @@ export default function TabPorRevisar({
                 className="flex items-center gap-3 px-3 py-2.5 border-b border-slate-100 hover:bg-slate-50 transition-colors"
                 data-testid={`review-item-${item.id}`}
               >
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 accent-[#0D9E82] shrink-0"
-                  checked={reviewSelectedIds.includes(item.id)}
-                  onChange={() => toggleReviewSelect(item.id)}
-                  data-testid={`review-check-${item.id}`}
-                />
+                <label className="flex items-center justify-center p-2 -m-2 shrink-0 cursor-pointer" aria-label="Seleccionar movimiento">
+                  <input
+                    type="checkbox"
+                    className="h-5 w-5 accent-[#0D9E82] shrink-0"
+                    checked={reviewSelectedIds.includes(item.id)}
+                    onChange={() => toggleReviewSelect(item.id)}
+                    data-testid={`review-check-${item.id}`}
+                  />
+                </label>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-800 truncate" data-testid={`review-comercio-${item.id}`}>
                     {displayName(item)}
                   </p>
-                  <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-slate-400">{item.date}</span>
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-xs text-slate-400">{formatDate(item.date)}</span>
                     <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200" data-testid={`review-source-${item.id}`}>
                       {originLabel}
                     </span>
@@ -213,27 +266,28 @@ export default function TabPorRevisar({
                     <span className="text-xs text-slate-400">· {catName}</span>
                   </div>
                 </div>
-                <span className="text-sm font-semibold text-red-600 shrink-0">
-                  ${(item.amount || 0).toFixed(2)}
+                <span className={`text-sm font-semibold shrink-0 ${item.tipo === "income" || item.tipo === "ingreso" ? "text-emerald-600" : "text-red-600"}`}>
+                  {fmtAmount(item.amount)}
                 </span>
                 <Button
-                  size="sm"
+                  size="icon"
                   variant="outline"
-                  className="gap-1 h-8 shrink-0"
+                  className="h-10 w-10 shrink-0"
                   onClick={() => openSingleEdit(item)}
                   data-testid={`review-edit-btn-${item.id}`}
+                  aria-label="Editar"
                 >
-                  <Pencil size={14} /> Editar
+                  <Pencil size={16} />
                 </Button>
                 <Button
-                  size="sm"
+                  size="icon"
                   variant="outline"
-                  className="gap-1 h-8 shrink-0 text-red-600 border-red-200 hover:bg-red-50"
-                  onClick={() => handleDiscard(item)}
+                  className="h-10 w-10 shrink-0 text-red-600 border-red-200 hover:bg-red-50"
+                  onClick={() => requestDiscard(item)}
                   data-testid={`review-discard-btn-${item.id}`}
                   aria-label="Descartar"
                 >
-                  <X size={14} />
+                  <X size={16} />
                 </Button>
               </div>
             );
@@ -248,6 +302,27 @@ export default function TabPorRevisar({
         onSave={handleSave}
         onClose={closeModal}
       />
+
+      <AlertDialog open={discardTarget !== null} onOpenChange={(open) => { if (!open) setDiscardTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Descartar este movimiento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              No podrás deshacer esta acción.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDiscard}
+              className="bg-red-600 hover:bg-red-700 text-white"
+              data-testid="confirm-discard-btn"
+            >
+              Descartar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

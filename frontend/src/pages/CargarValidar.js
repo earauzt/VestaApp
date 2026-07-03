@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useSearchParams, Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../context/AuthContext";
 import { Card, CardContent } from "../components/ui/card";
@@ -58,9 +59,12 @@ export default function CargarValidar() {
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
   useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
+  const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState("importar");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
+  const [pendingDataError, setPendingDataError] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ done: 0, total: 0 });
   
   // Upload state
   const [selectedFiles, setSelectedFiles] = useState([]);
@@ -121,9 +125,28 @@ export default function CargarValidar() {
       setDuplicatePairs(duplicatesRes.data.pairs || []);
       setStats(statsRes.data);
       setCrossCanalCount(crossRes.data.cross_canal_count || 0);
+      setPendingDataError(false);
     } catch (error) {
       if (process.env.NODE_ENV === 'development') console.error("Error fetching pending data:", error);
+      setPendingDataError(true);
     }
+  }, []);
+
+  // Deep-link support: Dashboard links to /movimientos?tab=por-revisar using
+  // human-readable query values that map onto our internal tab keys.
+  useEffect(() => {
+    const tabParam = searchParams.get("tab");
+    if (!tabParam) return;
+    const mapping = {
+      "por-revisar": "revisar",
+      "revisar": "revisar",
+      "todos": "historial",
+      "historial": "historial",
+      "importar": "importar",
+    };
+    const mapped = mapping[tabParam];
+    if (mapped) setActiveTab(mapped);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchGmailStatus = useCallback(async () => {
@@ -326,6 +349,7 @@ export default function CargarValidar() {
     const errors = [];
     try {
       const selected = unifiedReview.filter(r => reviewSelectedIds.includes(r.id));
+      setBulkProgress({ done: 0, total: selected.length });
       for (const item of selected) {
         const cat = rowCategory[item.id] || item.suggested_category;
         const subcat = rowSubcategory[item.id] || "";
@@ -356,6 +380,8 @@ export default function CargarValidar() {
           approved += 1;
         } catch (e) {
           errors.push({ id: item.id, error: e.response?.data?.detail || e.message });
+        } finally {
+          setBulkProgress((prev) => ({ ...prev, done: prev.done + 1 }));
         }
       }
       if (approved > 0) toast.success(`${approved} transacciones aprobadas y categorizadas`);
@@ -367,6 +393,7 @@ export default function CargarValidar() {
       fetchPendingData();
     } finally {
       setReviewBulkApproving(false);
+      setBulkProgress({ done: 0, total: 0 });
     }
   };
 
@@ -982,20 +1009,24 @@ export default function CargarValidar() {
         duplicatePairs={duplicatePairs}
         crossCanalCount={crossCanalCount}
         formatCurrency={formatCurrency}
+        onDuplicatesClick={duplicatePairs.length > 0 ? () => {
+          setSelectedPair(duplicatePairs[0]);
+          setShowDuplicateDialog(true);
+        } : undefined}
       />
 
       {/* Main Tabs */}
       <Card className="bento-card">
         <CardContent className="p-4 sm:p-6">
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <Tabs value={activeTab} onValueChange={(v) => { if (!reviewBulkApproving) setActiveTab(v); }}>
             <TabsList className="grid w-full grid-cols-2 mb-6">
-              <TabsTrigger value="importar" className="gap-2" data-testid="tab-importar">
+              <TabsTrigger value="importar" className="gap-2" disabled={reviewBulkApproving} data-testid="tab-importar">
                 <CloudArrowUp size={18} />
-                <span className="hidden sm:inline">Importar</span>
+                <span className="text-xs sm:text-sm">Importar</span>
               </TabsTrigger>
-              <TabsTrigger value="revisar" className="gap-2" data-testid="tab-revisar">
+              <TabsTrigger value="revisar" className="gap-2" disabled={reviewBulkApproving} data-testid="tab-revisar">
                 <CheckSquare size={18} />
-                <span className="hidden sm:inline">Por revisar</span>
+                <span className="text-xs sm:text-sm">Por revisar</span>
                 {(gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length) > 0 && (
                   <Badge variant="secondary" className="ml-1">
                     {gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length}
@@ -1044,9 +1075,13 @@ export default function CargarValidar() {
                 toggleReviewSelectAll={toggleReviewSelectAll}
                 handleReviewBulkApprove={handleReviewBulkApprove}
                 reviewBulkApproving={reviewBulkApproving}
+                bulkProgress={bulkProgress}
                 vendorStats={vendorStats}
                 getAuthHeaders={getAuthHeaders}
                 onAfterUpdate={() => { fetchPendingData(); }}
+                formatCurrency={formatCurrency}
+                fetchError={pendingDataError}
+                onRetry={fetchPendingData}
               />
             </TabsContent>
 
@@ -1055,13 +1090,13 @@ export default function CargarValidar() {
           </Tabs>
 
           <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
-            <a
-              href="/transactions"
+            <Link
+              to="/transactions"
               className="text-sm text-[#0D9E82] hover:underline inline-flex items-center gap-1"
               data-testid="ver-todas-transacciones"
             >
               Ver todas las transacciones →
-            </a>
+            </Link>
           </div>
         </CardContent>
       </Card>

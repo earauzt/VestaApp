@@ -311,7 +311,6 @@ La app Vesta se usa desde laptop, iPad y celular. Todo diseño debe ser responsi
 - Refactor process_bank_statement() (complejidad 48)
 - Split componentes masivos (CargarValidar 1352 lines, etc.)
 - Reduce inline objects (265 instancias)
-- Conexion directa con Apple Card
 - Notificaciones push, modo oscuro
 
 - [2026-04-20] PROMPT 1 - Fix categorización + bulk approve:

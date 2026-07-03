@@ -47,10 +47,10 @@ export default function ChatBot() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
-  const handleSend = async () => {
-    if (!message.trim() || loading) return;
+  const handleSend = async (overrideMessage) => {
+    const userMessage = (typeof overrideMessage === "string" ? overrideMessage : message).trim();
+    if (!userMessage || loading) return;
 
-    const userMessage = message.trim();
     setMessage("");
     setMessages(prev => [...prev, { role: "user", content: userMessage }]);
     setLoading(true);
@@ -95,9 +95,11 @@ export default function ChatBot() {
       {/* Chat Button */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
-        className="fixed bottom-20 right-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
+        className="fixed bottom-20 left-6 z-50 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
+        aria-label="Abrir asistente financiero"
+        aria-expanded={isOpen}
         data-testid="chat-toggle"
       >
         {isOpen ? <X size={24} /> : <ChatCircleDots size={28} weight="fill" />}
@@ -111,7 +113,7 @@ export default function ChatBot() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ duration: 0.2 }}
-            className="fixed bottom-36 right-6 z-50 w-[360px] max-w-[calc(100vw-48px)] h-[500px] max-h-[calc(100vh-150px)]"
+            className="fixed bottom-36 left-6 z-50 w-[360px] max-w-[calc(100vw-48px)] h-[500px] max-h-[calc(100vh-150px)]"
             data-testid="chat-window"
           >
             <Card className="flex flex-col h-full shadow-2xl border-2">
@@ -123,7 +125,7 @@ export default function ChatBot() {
                   </div>
                   <div>
                     <h3 className="font-semibold">Asistente Financiero</h3>
-                    <p className="text-xs opacity-80">Powered by OpenAI</p>
+                    <p className="text-xs opacity-80">Tu asistente de finanzas familiares</p>
                   </div>
                 </div>
               </div>
@@ -180,7 +182,8 @@ export default function ChatBot() {
                     {quickQuestions.map((q, i) => (
                       <button
                         key={q}
-                        onClick={() => { setMessage(q); }}
+                        onClick={() => handleSend(q)}
+                        disabled={loading}
                         className="text-xs px-2 py-1 rounded-full bg-muted hover:bg-primary/10 transition-colors"
                       >
                         {q}
@@ -202,8 +205,8 @@ export default function ChatBot() {
                     disabled={loading}
                     data-testid="chat-input"
                   />
-                  <Button 
-                    onClick={handleSend} 
+                  <Button
+                    onClick={() => handleSend()}
                     disabled={!message.trim() || loading}
                     size="icon"
                     data-testid="chat-send"

@@ -9,6 +9,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Badge } from "./ui/badge";
 import { Switch } from "./ui/switch";
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { toast } from "sonner";
 import { 
   Plus, 
@@ -47,6 +51,7 @@ export function CategoryRulesManager({ open, onOpenChange }) {
   });
   const [testText, setTestText] = useState("");
   const [testResult, setTestResult] = useState(null);
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
 
   useEffect(() => {
     if (open) {
@@ -98,14 +103,14 @@ export function CategoryRulesManager({ open, onOpenChange }) {
   };
 
   const handleDeleteRule = async (ruleId) => {
-    if (!window.confirm("¿Eliminar esta regla?")) return;
-
     try {
       await axios.delete(`${API}/categorization-rules/${ruleId}`, { headers: getAuthHeaders() });
       toast.success("Regla eliminada");
       fetchRules();
     } catch (error) {
       toast.error("Error al eliminar regla");
+    } finally {
+      setDeleteTargetId(null);
     }
   };
 
@@ -128,6 +133,7 @@ export function CategoryRulesManager({ open, onOpenChange }) {
   };
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -317,10 +323,10 @@ export function CategoryRulesManager({ open, onOpenChange }) {
                       → <span className="font-medium">{CATEGORIES[rule.category]?.name}</span> / {rule.subcategory}
                     </p>
                   </div>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleDeleteRule(rule.id)}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setDeleteTargetId(rule.id)}
                     className="text-destructive hover:text-destructive shrink-0"
                   >
                     <Trash size={16} />
@@ -345,5 +351,23 @@ export function CategoryRulesManager({ open, onOpenChange }) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+
+    <AlertDialog open={!!deleteTargetId} onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>¿Eliminar esta regla?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta acción no se puede deshacer.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction className="bg-red-600 hover:bg-red-700" onClick={() => handleDeleteRule(deleteTargetId)}>
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }

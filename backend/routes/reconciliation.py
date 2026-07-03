@@ -79,7 +79,7 @@ async def find_matching_transaction(user_id: str, amount: float, date: str, esta
 
 
 async def update_card_from_statement(user_id: str, bank_name: str, card_info: dict):
-    bank_patterns = {"diners": ["diners"], "pichincha": ["pichincha"], "pacificard": ["pacificard", "pacifico"], "apple_card": ["apple"], "banco_pacifico": ["pacifico", "banco pacifico"], "bolivariano": ["bolivariano"]}
+    bank_patterns = {"diners": ["diners"], "pichincha": ["pichincha"], "pacificard": ["pacificard", "pacifico"], "banco_pacifico": ["pacifico", "banco pacifico"], "bolivariano": ["bolivariano"]}
     patterns = bank_patterns.get(bank_name, [bank_name])
     existing_card = await db.credit_cards.find_one({"user_id": user_id, "$or": [{"name": {"$regex": p, "$options": "i"}} for p in patterns]})
     if existing_card:
@@ -191,7 +191,7 @@ async def upload_statement_for_reconciliation(file: UploadFile = File(...), bank
         detected_bank = bank_name if bank_name != "auto" else None
         card_info = result.get("card_info", {}) or {}
         if not detected_bank:
-            bank_keywords = {"diners": "diners", "pichincha": "pichincha", "pacificard": "pacificard", "apple": "apple_card", "pacifico": "banco_pacifico", "bolivariano": "bolivariano"}
+            bank_keywords = {"diners": "diners", "pichincha": "pichincha", "pacificard": "pacificard", "pacifico": "banco_pacifico", "bolivariano": "bolivariano"}
             text_to_check = f"{card_info.get('bank_name', '')} {card_info.get('card_name', '')} {file.filename}".lower()
             for keyword, bank_value in bank_keywords.items():
                 if keyword in text_to_check:

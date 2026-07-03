@@ -8,6 +8,16 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
@@ -86,6 +96,10 @@ export default function Deudas() {
     total_installments: 0,
     card_name: ""
   });
+
+  // Delete confirmation dialogs
+  const [deleteCardTarget, setDeleteCardTarget] = useState(null);
+  const [deleteDeferredTarget, setDeleteDeferredTarget] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -166,13 +180,14 @@ export default function Deudas() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Eliminar esta tarjeta?")) return;
     try {
       await axios.delete(`${API}/credit-cards/${id}`, { headers: getAuthHeaders() });
       toast.success("Tarjeta eliminada");
       fetchData();
     } catch (error) {
       toast.error("Error al eliminar");
+    } finally {
+      setDeleteCardTarget(null);
     }
   };
 
@@ -186,7 +201,7 @@ export default function Deudas() {
         monthly_payment: deferred.monthly_payment || 0,
         remaining_installments: deferred.remaining_installments || 0,
         total_installments: deferred.total_installments || 0,
-        card_name: deferred.card_name || ""
+        card_name: deferred.card_name || "none"
       });
     } else {
       setEditingDeferred(null);
@@ -196,7 +211,7 @@ export default function Deudas() {
         monthly_payment: 0,
         remaining_installments: 0,
         total_installments: 0,
-        card_name: ""
+        card_name: "none"
       });
     }
     setDeferredDialogOpen(true);
@@ -207,6 +222,7 @@ export default function Deudas() {
     try {
       const payload = {
         ...deferredForm,
+        card_name: deferredForm.card_name === "none" ? "" : deferredForm.card_name,
         total_amount: parseFloat(deferredForm.total_amount),
         monthly_payment: parseFloat(deferredForm.monthly_payment),
         remaining_installments: parseInt(deferredForm.remaining_installments),
@@ -236,13 +252,14 @@ export default function Deudas() {
   };
 
   const handleDeleteDeferred = async (id) => {
-    if (!window.confirm("¿Eliminar este diferido?")) return;
     try {
       await axios.delete(`${API}/deferred-payments/${id}`, { headers: getAuthHeaders() });
       toast.success("Diferido eliminado");
       fetchData();
     } catch (error) {
       toast.error("Error al eliminar");
+    } finally {
+      setDeleteDeferredTarget(null);
     }
   };
 
@@ -539,14 +556,14 @@ export default function Deudas() {
                                 <CurrencyDollar size={14} />
                                 Pagar
                               </Button>
-                              <Button size="sm" variant="ghost" onClick={() => handleEdit(card)}>
+                              <Button size="sm" variant="ghost" className="h-10 w-10 sm:h-8 sm:w-8 p-0" onClick={() => handleEdit(card)}>
                                 <Pencil size={14} />
                               </Button>
-                              <Button 
-                                size="sm" 
-                                variant="ghost" 
-                                onClick={() => handleDelete(card.id)}
-                                className="text-red-400 hover:text-red-300"
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => setDeleteCardTarget(card)}
+                                className="h-10 w-10 sm:h-8 sm:w-8 p-0 text-red-400 hover:text-red-300"
                               >
                                 <Trash size={14} />
                               </Button>
@@ -660,11 +677,11 @@ export default function Deudas() {
                               >
                                 {payment.remaining_installments} de {payment.total_installments} cuotas
                               </Badge>
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                <Button variant="ghost" size="icon" onClick={() => openDeferredDialog(payment)} className="h-8 w-8">
+                              <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" onClick={() => openDeferredDialog(payment)} className="h-10 w-10 sm:h-8 sm:w-8">
                                   <Pencil size={14} />
                                 </Button>
-                                <Button variant="ghost" size="icon" onClick={() => handleDeleteDeferred(payment.id)} className="h-8 w-8 text-red-500">
+                                <Button variant="ghost" size="icon" onClick={() => setDeleteDeferredTarget(payment)} className="h-10 w-10 sm:h-8 sm:w-8 text-red-500">
                                   <Trash size={14} />
                                 </Button>
                               </div>
@@ -745,7 +762,7 @@ export default function Deudas() {
                         <p className="text-xs text-muted-foreground">Meses para salir</p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted text-center">
-                        <p className="text-2xl font-bold text-emerald-600">{formatCurrency(snowballPlan.total_interest)}</p>
+                        <p className="text-2xl font-bold text-foreground">{formatCurrency(snowballPlan.total_interest)}</p>
                         <p className="text-xs text-muted-foreground">Interés total</p>
                       </div>
                       <div className="p-3 rounded-lg bg-muted text-center">
@@ -829,7 +846,7 @@ export default function Deudas() {
 
       {/* Add/Edit Card Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingCard ? "Editar Tarjeta" : "Agregar Tarjeta"}</DialogTitle>
             <DialogDescription>
@@ -971,7 +988,7 @@ export default function Deudas() {
 
       {/* Payment Dialog */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Registrar Pago</DialogTitle>
             <DialogDescription>
@@ -1033,7 +1050,7 @@ export default function Deudas() {
 
       {/* Deferred Payment Dialog */}
       <Dialog open={deferredDialogOpen} onOpenChange={setDeferredDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {editingDeferred ? "Editar Diferido" : "Nuevo Diferido"}
@@ -1130,6 +1147,48 @@ export default function Deudas() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Card Confirmation */}
+      <AlertDialog open={!!deleteCardTarget} onOpenChange={(open) => !open && setDeleteCardTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta tarjeta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará permanentemente {deleteCardTarget?.name ? `"${deleteCardTarget.name}"` : "esta tarjeta"} y todo su historial de pagos asociado. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              onClick={() => handleDelete(deleteCardTarget.id)}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Deferred Confirmation */}
+      <AlertDialog open={!!deleteDeferredTarget} onOpenChange={(open) => !open && setDeleteDeferredTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este diferido?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se eliminará permanentemente {deleteDeferredTarget?.description ? `"${deleteDeferredTarget.description}"` : "este pago diferido"} y su progreso de cuotas. Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+              onClick={() => handleDeleteDeferred(deleteDeferredTarget.id)}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

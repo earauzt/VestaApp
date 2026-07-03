@@ -297,7 +297,7 @@ async def get_travel_fund(year: int = None, user: dict = Depends(get_current_use
         spending_by_subcategory[subcat] = spending_by_subcategory.get(subcat, 0) + t.get("amount", 0)
     spending_breakdown = [{"subcategory": k, "amount": v} for k, v in sorted(spending_by_subcategory.items(), key=lambda x: x[1], reverse=True)]
 
-    card_expenses = [t for t in travel_expenses if t.get("payment_method") in ["tarjeta", "credit_card", "apple_card"]]
+    card_expenses = [t for t in travel_expenses if t.get("payment_method") in ["tarjeta", "credit_card"]]
     total_on_card = sum(t.get("amount", 0) for t in card_expenses)
 
     travel_deferred = await db.deferred_payments.find({"user_id": user["id"], "remaining_installments": {"$gt": 0}}).to_list(50)

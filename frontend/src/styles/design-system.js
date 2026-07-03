@@ -44,7 +44,11 @@ export const components = {
   badgeNeutral: 'text-xs font-medium px-2 py-0.5 rounded-full bg-[#F8FAF9] text-[#5C7A74]',
   divider: 'border-b border-[#E2EAE8]',
   accentBorder: 'border-l-4 border-l-[#0D9E82]',
+  focusRing: 'focus-visible:ring-2 focus-visible:ring-[#0D9E82] focus-visible:outline-none',
 };
+
+// Shared focus-ring token — import this instead of hardcoding ring classes.
+export const focusRing = components.focusRing;
 
 export default { colors, typography, components };
 

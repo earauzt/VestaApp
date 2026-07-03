@@ -198,8 +198,16 @@ export default function Dashboard() {
       {/* Sección 3 — Movimientos por revisar */}
       {porRevisarCount > 0 && (
         <Card
-          className="bento-card cursor-pointer hover:bg-slate-50 transition-colors"
+          className="bento-card cursor-pointer hover:bg-slate-50 transition-colors focus-visible:ring-2 focus-visible:ring-[#0D9E82] focus-visible:outline-none"
           onClick={() => navigate("/movimientos?tab=por-revisar")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              navigate("/movimientos?tab=por-revisar");
+            }
+          }}
           data-testid="por-revisar-card"
         >
           <CardContent className="p-5 flex items-center justify-between gap-4">

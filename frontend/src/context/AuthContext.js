@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef } from "react";
 import axios from "axios";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -7,6 +7,8 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 axios.defaults.withCredentials = true;
 
 const AuthContext = createContext(null);
+
+const SESSION_EXPIRED_PARAM = "session_expired";
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -20,6 +22,35 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(null);
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+
+  // Global 401 handling: if a request fails with 401 while we believe the
+  // user is logged in, the session expired server-side (cookie expired/revoked).
+  // Clear local auth state and redirect to /login with a friendly message.
+  // Login/register/auth-me requests are excluded since a 401 there just means
+  // "not authenticated yet" / "bad credentials", not an expired session.
+  useEffect(() => {
+    const interceptor = axios.interceptors.response.use(
+      (response) => response,
+      (error) => {
+        const status = error.response?.status;
+        const url = error.config?.url || "";
+        const isAuthEndpoint = url.includes("/auth/login") || url.includes("/auth/register") || url.includes("/auth/me");
+
+        if (status === 401 && !isAuthEndpoint && userRef.current) {
+          setUser(null);
+          setToken(null);
+          if (typeof window !== "undefined" && !window.location.pathname.startsWith("/login")) {
+            window.location.href = `/login?${SESSION_EXPIRED_PARAM}=1`;
+          }
+        }
+
+        return Promise.reject(error);
+      }
+    );
+    return () => axios.interceptors.response.eject(interceptor);
+  }, []);
 
   useEffect(() => {
     const initAuth = async () => {

@@ -124,11 +124,15 @@ export default function SriMatch() {
           variant="outline"
           className="gap-2"
           data-testid="process-pdfs-btn"
+          title="Busca en tu correo de Gmail los PDFs de facturas nuevas y los agrega a esta lista"
         >
           <RefreshCw size={16} className={processingPdfs ? "animate-spin" : ""} />
-          Procesar PDFs
+          Buscar facturas nuevas en Gmail
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground -mt-4 sm:text-right">
+        Revisa tu bandeja de Gmail en busca de PDFs de facturas nuevas para categorizar.
+      </p>
 
       {/* Sección: Por categorizar */}
       <Card data-testid="por-categorizar-section">
@@ -149,30 +153,40 @@ export default function SriMatch() {
             </div>
           ) : (
             porCategorizar.map((f) => (
-              <button
+              <div
                 key={f.id}
-                type="button"
-                onClick={() => setActiveFactura(f)}
-                className="w-full flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/40 transition-colors text-left"
+                className="w-full flex flex-col sm:flex-row sm:items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/40 transition-colors"
                 data-testid={`factura-categorizar-${f.id}`}
               >
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-sm truncate">
-                    {f.nombre_emisor || f.emisor || f.ruc_emisor || "Emisor desconocido"}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    {fmtDate(f.fecha)} · {f.numero_factura || "Sin número"}
-                  </p>
-                </div>
-                <span className="font-mono font-semibold text-sm shrink-0">
-                  {f.monto != null ? fmtCurrency(f.monto) : "—"}
-                </span>
+                <button
+                  type="button"
+                  onClick={() => setActiveFactura(f)}
+                  className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-3 text-left"
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-sm truncate">
+                      {f.nombre_emisor || f.emisor || f.ruc_emisor || "Emisor desconocido"}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {fmtDate(f.fecha)} · {f.numero_factura || "Sin número"}
+                    </p>
+                  </div>
+                  <span className="font-mono font-semibold text-sm shrink-0">
+                    {f.monto != null ? fmtCurrency(f.monto) : "—"}
+                  </span>
+                </button>
                 {f.filename && (
-                  <Badge variant="outline" className="text-[10px] gap-1 shrink-0 bg-red-50 text-red-700 border-red-200">
-                    <FileText size={11} /> PDF
-                  </Badge>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1 h-8 shrink-0"
+                    onClick={(e) => { e.stopPropagation(); handleViewPdf(f.id); }}
+                    data-testid={`ver-pdf-pendiente-${f.id}`}
+                  >
+                    <Eye size={14} /> Ver PDF
+                  </Button>
                 )}
-              </button>
+              </div>
             ))
           )}
         </CardContent>

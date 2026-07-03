@@ -11,6 +11,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "../components/ui/dialog";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "../components/ui/alert-dialog";
+import {
   User,
   EnvelopeSimple,
   GoogleLogo,
@@ -40,6 +50,7 @@ export default function Perfil() {
   const [loadingRules, setLoadingRules] = useState(false);
   const [editVendor, setEditVendor] = useState(null);
   const [editForm, setEditForm] = useState({ personal_category: "", subcategory: "" });
+  const [confirmDelete, setConfirmDelete] = useState(null); // { type: "vendor" | "rule", item }
 
   // Fiscal data state
   const [fiscal, setFiscal] = useState({ ruc: "", nombre_legal: "", tipo_contribuyente: "persona_natural", zona_sri: "" });
@@ -143,10 +154,10 @@ export default function Perfil() {
       if (res.data?.auth_url) {
         window.location.href = res.data.auth_url;
       } else {
-        toast.error("No se pudo iniciar la conexion con Gmail. Intenta de nuevo.");
+        toast.error("No se pudo iniciar la conexión con Gmail. Intenta de nuevo.");
       }
     } catch {
-      toast.error("No se pudo iniciar la conexion con Gmail. Intenta de nuevo.");
+      toast.error("No se pudo iniciar la conexión con Gmail. Intenta de nuevo.");
       setGmailConnecting(false);
     }
   };
@@ -155,7 +166,7 @@ export default function Perfil() {
     setSyncing(true);
     try {
       const res = await axios.post(`${API}/gmail/sync`, {}, { headers: getAuthHeadersRef.current() });
-      toast.success(`Sincronizacion completa: ${res.data.procesados} procesados, ${res.data.descartados} descartados`);
+      toast.success(`Sincronización completa: ${res.data.procesados} procesados, ${res.data.descartados} descartados`);
       fetchGmailStatus();
     } catch {
       toast.error("Error al sincronizar Gmail");
@@ -164,25 +175,25 @@ export default function Perfil() {
     }
   };
 
-  const handleDeleteVendor = async (vendor) => {
-    if (!window.confirm(`¿Eliminar "${vendor.establishment}" de tus comercios conocidos?`)) return;
-    try {
-      await axios.delete(`${API}/known-vendors/${vendor.id}`, { headers: getAuthHeadersRef.current() });
-      toast.success("Comercio eliminado");
-      fetchRulesData();
-    } catch {
-      toast.error("No se pudo eliminar");
-    }
-  };
+  const requestDeleteVendor = (vendor) => setConfirmDelete({ type: "vendor", item: vendor });
+  const requestDeleteRule = (rule) => setConfirmDelete({ type: "rule", item: rule });
 
-  const handleDeleteRule = async (rule) => {
-    if (!window.confirm(`¿Eliminar regla (${(rule.keywords || []).join(", ")})?`)) return;
+  const handleConfirmDelete = async () => {
+    if (!confirmDelete) return;
+    const { type, item } = confirmDelete;
     try {
-      await axios.delete(`${API}/categorization-rules/${rule.id}`, { headers: getAuthHeadersRef.current() });
-      toast.success("Regla eliminada");
+      if (type === "vendor") {
+        await axios.delete(`${API}/known-vendors/${item.id}`, { headers: getAuthHeadersRef.current() });
+        toast.success("Comercio eliminado");
+      } else {
+        await axios.delete(`${API}/categorization-rules/${item.id}`, { headers: getAuthHeadersRef.current() });
+        toast.success("Regla eliminada");
+      }
       fetchRulesData();
     } catch {
       toast.error("No se pudo eliminar");
+    } finally {
+      setConfirmDelete(null);
     }
   };
 
@@ -302,7 +313,7 @@ export default function Perfil() {
             <Button
               onClick={handleSaveFiscal}
               disabled={savingFiscal}
-              className="bg-[#0D9E82] hover:bg-[#0D6B63] text-white"
+              className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
               data-testid="fiscal-save-btn"
             >
               {savingFiscal ? "Guardando..." : "Guardar cambios"}
@@ -350,7 +361,7 @@ export default function Perfil() {
                   Sincronizar
                 </Button>
               ) : (
-                <Button size="sm" onClick={() => setShowConsentModal(true)} disabled={gmailConnecting} className="gap-2 bg-[#0D9E82] hover:bg-[#0D6B63] text-white" data-testid="profile-gmail-connect-btn">
+                <Button size="sm" onClick={() => setShowConsentModal(true)} disabled={gmailConnecting} className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white" data-testid="profile-gmail-connect-btn">
                   {gmailConnecting ? (
                     <><SpinnerGap size={14} className="animate-spin" /> Conectando...</>
                   ) : (
@@ -404,22 +415,28 @@ export default function Perfil() {
                       <Badge variant="outline" className="shrink-0 text-xs border-slate-200 text-slate-600" data-testid={`vendor-uses-${v.id}`}>
                         {v.times_used || 0} usos
                       </Badge>
-                      <button
+                      <Button
+                        variant="ghost"
+                        size="icon"
                         onClick={() => openEditVendor(v)}
-                        className="text-slate-400 hover:text-slate-700 p-1"
+                        className="h-10 w-10 shrink-0 text-slate-400 hover:text-slate-700"
                         data-testid={`vendor-edit-${v.id}`}
+                        aria-label="Editar comercio"
                         title="Editar"
                       >
-                        <Edit2 size={15} />
-                      </button>
-                      <button
-                        onClick={() => handleDeleteVendor(v)}
-                        className="text-slate-400 hover:text-[#DC2626] p-1"
+                        <Edit2 size={16} />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => requestDeleteVendor(v)}
+                        className="h-10 w-10 shrink-0 text-slate-400 hover:text-[#DC2626]"
                         data-testid={`vendor-delete-${v.id}`}
+                        aria-label="Eliminar comercio"
                         title="Eliminar"
                       >
-                        <Trash2 size={15} />
-                      </button>
+                        <Trash2 size={16} />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -449,14 +466,17 @@ export default function Perfil() {
                       <span className="text-xs text-slate-400 shrink-0">
                         {r.created_at ? new Date(r.created_at).toLocaleDateString('es-EC') : ""}
                       </span>
-                      <button
-                        onClick={() => handleDeleteRule(r)}
-                        className="text-slate-400 hover:text-[#DC2626] p-1"
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => requestDeleteRule(r)}
+                        className="h-10 w-10 shrink-0 text-slate-400 hover:text-[#DC2626]"
                         data-testid={`rule-delete-${r.id}`}
+                        aria-label="Eliminar regla"
                         title="Eliminar"
                       >
-                        <Trash2 size={15} />
-                      </button>
+                        <Trash2 size={16} />
+                      </Button>
                     </div>
                   ))}
                 </div>
@@ -489,7 +509,7 @@ export default function Perfil() {
               <Button
                 onClick={handleCreateInvite}
                 disabled={inviting}
-                className="bg-[#0D9E82] hover:bg-[#0D6B63] text-white gap-2"
+                className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white gap-2"
                 data-testid="invite-create-btn"
               >
                 <UserPlus size={15} />
@@ -534,7 +554,7 @@ export default function Perfil() {
       <Dialog open={showConsentModal} onOpenChange={setShowConsentModal}>
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-xl">¿Qué va a leer FamilyFinance de tu correo?</DialogTitle>
+            <DialogTitle className="text-xl">¿Qué va a leer Vesta de tu correo?</DialogTitle>
             <DialogDescription>Solo accedemos a emails de remitentes financieros específicos</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 py-2">
@@ -556,7 +576,7 @@ export default function Perfil() {
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowConsentModal(false)} className="border-slate-200 text-slate-700 hover:bg-slate-50">Cancelar</Button>
-            <Button onClick={() => { setShowConsentModal(false); handleConnectGmail(); }} disabled={gmailConnecting} className="gap-2 bg-[#0D9E82] hover:bg-[#0D6B63] text-white">
+            <Button onClick={() => { setShowConsentModal(false); handleConnectGmail(); }} disabled={gmailConnecting} className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white">
               {gmailConnecting ? <><SpinnerGap size={16} className="animate-spin" /> Conectando...</> : <><GoogleLogo size={18} weight="bold" /> Entendido, conectar</>}
             </Button>
           </DialogFooter>
@@ -607,10 +627,36 @@ export default function Perfil() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditVendor(null)} className="border-slate-200 text-slate-700 hover:bg-slate-50">Cancelar</Button>
-            <Button onClick={handleSaveVendor} className="bg-[#0D9E82] hover:bg-[#0D6B63] text-white" data-testid="vendor-edit-save">Guardar</Button>
+            <Button onClick={handleSaveVendor} className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white" data-testid="vendor-edit-save">Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation */}
+      <AlertDialog open={!!confirmDelete} onOpenChange={(o) => !o && setConfirmDelete(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmDelete?.type === "vendor" ? "¿Eliminar este comercio?" : "¿Eliminar esta regla?"}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDelete?.type === "vendor"
+                ? `Esta acción no se puede deshacer. "${confirmDelete?.item?.establishment}" dejará de reconocerse automáticamente.`
+                : "Esta acción no se puede deshacer. La regla dejará de aplicarse a nuevas transacciones."}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel data-testid="confirm-delete-cancel">Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-[#DC2626] hover:bg-red-700 text-white"
+              data-testid="confirm-delete-action"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

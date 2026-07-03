@@ -4,16 +4,16 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Checkbox } from "../components/ui/checkbox";
 import {
-  SpinnerGap,
+  LoaderCircle,
   CheckCircle,
   Plus,
-  Warning,
+  TriangleAlert,
   X,
-  LinkSimple
-} from "@phosphor-icons/react";
+  Link as LinkIcon
+} from "lucide-react";
 
 const CATEGORIES = {
-  servicios_basicos: "Servicios Basicos",
+  servicios_basicos: "Servicios Básicos",
   suscripciones: "Suscripciones",
   empleados: "Empleados",
   colegio_actividades: "Colegio y Actividades",
@@ -33,21 +33,21 @@ function getStatusBadge(status, confidence) {
     case "matched":
       return (
         <Badge className="bg-emerald-100 text-emerald-700 gap-1">
-          <CheckCircle size={12} weight="fill" />
+          <CheckCircle size={12} />
           Coincide ({Math.round(confidence * 100)}%)
         </Badge>
       );
     case "new":
       return (
-        <Badge className="bg-blue-100 text-blue-700 gap-1">
-          <Plus size={12} weight="bold" />
+        <Badge className="bg-slate-100 text-slate-700 gap-1">
+          <Plus size={12} />
           Nueva
         </Badge>
       );
     case "no_match":
       return (
         <Badge className="bg-amber-100 text-amber-700 gap-1">
-          <Warning size={12} weight="fill" />
+          <TriangleAlert size={12} />
           Sin coincidencia
         </Badge>
       );
@@ -69,9 +69,9 @@ export function TransactionList({
   return (
     <Card className="bento-card">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-base">Transacciones a Reconciliar</CardTitle>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center flex-wrap gap-2">
             <Button variant="outline" size="sm" onClick={onSelectAllNew}>
               Seleccionar todas las nuevas
             </Button>
@@ -91,9 +91,9 @@ export function TransactionList({
               transition={{ delay: index * 0.02 }}
               className={`p-3 rounded-lg border transition-all ${
                 tx.status === "matched"
-                  ? "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200"
+                  ? "bg-emerald-50 border-emerald-200"
                   : selectedItems.includes(tx.temp_id)
-                    ? "bg-blue-50 dark:bg-blue-950/20 border-blue-200"
+                    ? "bg-slate-50 border-slate-200"
                     : "bg-card border-border hover:border-primary/30"
               }`}
             >
@@ -105,7 +105,7 @@ export function TransactionList({
                   />
                 )}
                 {tx.status === "matched" && (
-                  <CheckCircle size={20} className="text-emerald-600" weight="fill" />
+                  <CheckCircle size={20} className="text-emerald-600" />
                 )}
 
                 <div className="flex-1 min-w-0">
@@ -120,7 +120,7 @@ export function TransactionList({
                         </Badge>
                       ) : (
                         <Badge className="text-xs gap-1 bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
-                          <Warning size={10} />
+                          <TriangleAlert size={10} />
                           Sugerido
                         </Badge>
                       )
@@ -143,7 +143,7 @@ export function TransactionList({
                       <>
                         <span>&bull;</span>
                         <span className="flex items-center gap-1 text-emerald-600">
-                          <LinkSimple size={12} />
+                          <LinkIcon size={12} />
                           Vinculada a: {tx.matched_transaction.description?.substring(0, 30)}...
                         </span>
                       </>
@@ -171,13 +171,13 @@ export function TransactionList({
           >
             {confirming ? (
               <>
-                <SpinnerGap size={16} className="animate-spin" />
+                <LoaderCircle size={16} className="animate-spin" />
                 Procesando...
               </>
             ) : (
               <>
                 <CheckCircle size={16} />
-                Confirmar Reconciliacion
+                Confirmar Reconciliación
               </>
             )}
           </Button>

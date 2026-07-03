@@ -1,24 +1,58 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import axios from "axios";
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { toast } from "sonner";
 import { Wallet, ChartLineUp, Shield, Users } from "@phosphor-icons/react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+// Human-friendly role labels (mirrors Layout.js getRoleLabel)
+const ROLE_LABELS = { admin: "Administrador", spouse: "Familiar", accountant: "Contadora" };
+const getRoleLabel = (role) => ROLE_LABELS[role] || role;
+
+// Maps common raw backend error strings to friendly Spanish messages.
+// Falls back to a generic message instead of showing raw backend text.
+function getFriendlyErrorMessage(error) {
+  const raw = error?.response?.data?.detail || "";
+  const normalized = String(raw).toLowerCase();
+
+  if (!raw) return "Ocurrió un error, intenta de nuevo";
+
+  if (normalized.includes("incorrect") || normalized.includes("invalid_credentials") || normalized.includes("credenciales")) {
+    return "Credenciales incorrectas";
+  }
+  if (normalized.includes("already registered") || normalized.includes("ya esta registrado") || normalized.includes("ya está registrado")) {
+    return "Ese correo ya está registrado";
+  }
+  if (normalized.includes("invalid_state") || normalized.includes("expired") || normalized.includes("expirada") || normalized.includes("invalida") || normalized.includes("inválida")) {
+    return "El enlace de invitación no es válido o expiró";
+  }
+  if (normalized.includes("no coincide")) {
+    return "El correo no coincide con la invitación";
+  }
+
+  return "Ocurrió un error, intenta de nuevo";
+}
+
 export default function Login() {
   const { login, register } = useAuth();
   const navigate = useNavigate();
   const { token: inviteToken } = useParams();
+  const [searchParams] = useSearchParams();
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (searchParams.get("session_expired")) {
+      toast.info("Tu sesión expiró, vuelve a ingresar");
+    }
+  }, [searchParams]);
 
   // Invite mode state
   const [inviteInfo, setInviteInfo] = useState(null); // {email, rol} when valid
@@ -47,7 +81,7 @@ export default function Login() {
       // Force full reload so AuthContext picks up the new session cookie
       window.location.href = "/dashboard";
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Error al aceptar la invitación");
+      toast.error(getFriendlyErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -61,7 +95,10 @@ export default function Login() {
   const [regName, setRegName] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPassword, setRegPassword] = useState("");
-  const [regRole, setRegRole] = useState("spouse");
+  // Public registration always creates the primary/admin account.
+  // Additional users (spouse/accountant) are added later via the invite flow,
+  // where the role comes from the invite token, not from user choice.
+  const REGISTER_DEFAULT_ROLE = "admin";
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -70,7 +107,7 @@ export default function Login() {
       await login(loginEmail, loginPassword);
       toast.success("Bienvenido de vuelta!");
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Error al iniciar sesión");
+      toast.error(getFriendlyErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -80,10 +117,10 @@ export default function Login() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await register(regName, regEmail, regPassword, regRole);
+      await register(regName, regEmail, regPassword, REGISTER_DEFAULT_ROLE);
       toast.success("Cuenta creada exitosamente!");
     } catch (error) {
-      toast.error(error.response?.data?.detail || "Error al registrarse");
+      toast.error(getFriendlyErrorMessage(error));
     } finally {
       setIsLoading(false);
     }
@@ -174,7 +211,7 @@ export default function Login() {
               <CardTitle className="text-2xl">{inviteToken ? "Aceptar invitación" : "Bienvenido"}</CardTitle>
               <CardDescription>
                 {inviteToken
-                  ? (inviteInfo ? `Te invitaron como ${inviteInfo.rol}` : (inviteError || "Validando invitación..."))
+                  ? (inviteInfo ? `Te invitaron como ${getRoleLabel(inviteInfo.rol)}` : (inviteError || "Validando invitación..."))
                   : "Ingresa o crea tu cuenta para continuar"}
               </CardDescription>
             </CardHeader>
@@ -287,20 +324,7 @@ export default function Login() {
                         required
                       />
                     </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="reg-role">Tipo de usuario</Label>
-                      <Select value={regRole} onValueChange={setRegRole}>
-                        <SelectTrigger data-testid="register-role">
-                          <SelectValue placeholder="Selecciona tu rol" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="admin">Administrador</SelectItem>
-                          <SelectItem value="spouse">Familiar</SelectItem>
-                          <SelectItem value="accountant">Contadora</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <Button 
+                    <Button
                       type="submit"
                       data-testid="register-submit"
                       className="w-full rounded-full"

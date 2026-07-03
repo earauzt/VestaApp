@@ -16,6 +16,8 @@ export default function TabImportar({
   // Handlers
   handleDrag, handleDrop, handleFileSelect, handleMultipleFilesUpload, handleExcelUpload, removeFile,
   isBankStatement, formatCurrency,
+  // Note: processing routes internally by file type (isExcel/isStatement); a single
+  // button triggers both flows sequentially so the user doesn't need to understand routing.
   // Navigation
   setActiveTab, fetchPendingData,
   // Gmail
@@ -85,21 +87,18 @@ export default function TabImportar({
 
           <div className="flex gap-2">
             <Button
-              onClick={handleMultipleFilesUpload}
-              disabled={loading || !selectedFiles.some(f => !f.name.endsWith('.xlsx') && !f.name.endsWith('.xls'))}
+              onClick={async () => {
+                const hasExcel = selectedFiles.some(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'));
+                const hasOther = selectedFiles.some(f => !f.name.endsWith('.xlsx') && !f.name.endsWith('.xls'));
+                // Route internally by file type so the user doesn't have to pick the right button.
+                if (hasOther) await handleMultipleFilesUpload();
+                if (hasExcel) await handleExcelUpload();
+              }}
+              disabled={loading || selectedFiles.length === 0}
               className="flex-1 gap-2"
             >
               {loading ? <SpinnerGap size={18} className="animate-spin" /> : <CloudArrowUp size={18} />}
-              Procesar Archivos
-            </Button>
-            <Button
-              onClick={handleExcelUpload}
-              disabled={loading || !selectedFiles.some(f => f.name.endsWith('.xlsx') || f.name.endsWith('.xls'))}
-              variant="outline"
-              className="gap-2"
-            >
-              <FileXls size={18} />
-              Excel
+              Procesar {selectedFiles.length} archivo{selectedFiles.length !== 1 ? "s" : ""}
             </Button>
           </div>
         </div>

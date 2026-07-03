@@ -12,31 +12,43 @@ import { Progress } from "../components/ui/progress";
 import { DateInput } from "../components/ui/date-input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "../components/ui/dropdown-menu";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "../components/ui/alert-dialog";
 import { toast } from "sonner";
 import { format, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
-import { 
-  Plus, 
-  Pencil, 
-  Trash, 
-  CalendarBlank,
-  Airplane,
+import {
+  Plus,
+  Pencil,
+  Trash,
+  Plane,
   PiggyBank,
   Target,
   CheckCircle,
   Clock,
-  MapPin,
-  CurrencyDollar,
-  Gear,
+  DollarSign,
+  Settings,
   Receipt,
-  Eye,
-  CaretRight,
-  LinkSimple,
-  MagnifyingGlass
-} from "@phosphor-icons/react";
-import {
+  ChevronRight,
+  Link as LinkIcon,
+  Search,
+  Loader2,
+  MoreHorizontal,
   Hotel as LIHotel,
-  Plane as LIPlane,
   Utensils as LIUtensils,
   Drama as LIDrama,
   Shirt as LIShirt,
@@ -53,13 +65,21 @@ import {
 } from "lucide-react";
 import { components, typography } from "../styles/design-system";
 
+function useDebouncedCallback(callback, delay) {
+  const timerRef = useRef(null);
+  return useCallback((...args) => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => callback(...args), delay);
+  }, [callback, delay]);
+}
+
 const IconRender = ({ Comp, size = 16, className = "" }) => Comp ? <Comp size={size} className={className} /> : null;
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SUBCATEGORY_ICONS = {
   "Hoteles": LIHotel,
-  "Pasajes": LIPlane,
+  "Pasajes": Plane,
   "Comida": LIUtensils,
   "Entretenimiento": LIDrama,
   "Ropa": LIShirt,
@@ -70,19 +90,19 @@ const SUBCATEGORY_ICONS = {
 };
 
 const GOAL_TYPES = [
-  { value: "viaje", label: "Viaje", Icon: LIPlane },
-  { value: "educacion", label: "Educacion", Icon: LIGrad },
+  { value: "viaje", label: "Viaje", Icon: Plane },
+  { value: "educacion", label: "Educación", Icon: LIGrad },
   { value: "hogar", label: "Hogar", Icon: LIHome },
   { value: "emergencia", label: "Emergencia", Icon: LIShield },
-  { value: "celebracion", label: "Celebracion", Icon: LIParty },
-  { value: "inversion", label: "Inversion", Icon: LITrend },
+  { value: "celebracion", label: "Celebración", Icon: LIParty },
+  { value: "inversion", label: "Inversión", Icon: LITrend },
   { value: "otro", label: "Otro", Icon: LIStar }
 ];
 
 const STATUS_CONFIG = {
-  active: { label: "Activa", color: "bg-slate-50 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]", icon: Target },
-  completed: { label: "Completada", color: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400", icon: CheckCircle },
-  cancelled: { label: "Cancelada", color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400", icon: Clock }
+  active: { label: "Activa", color: "bg-slate-50 text-[#0D9E82]", icon: Target },
+  completed: { label: "Completada", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle },
+  cancelled: { label: "Cancelada", color: "bg-red-100 text-red-800", icon: Clock }
 };
 
 export default function MetasViaje() {
@@ -127,6 +147,11 @@ export default function MetasViaje() {
   const [linkGoalId, setLinkGoalId] = useState(null);
   const [searchTx, setSearchTx] = useState("");
   const [searchResults, setSearchResults] = useState([]);
+  const [searchingTx, setSearchingTx] = useState(false);
+
+  // Delete confirmation state
+  const [deleteGoalId, setDeleteGoalId] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   const canEdit = user?.role === "admin" || user?.role === "spouse";
 
@@ -192,15 +217,23 @@ export default function MetasViaje() {
     }
   };
 
-  const handleDeleteGoal = async (goalId) => {
-    if (!window.confirm("¿Eliminar esta meta?")) return;
-    
+  const requestDeleteGoal = (goalId) => {
+    setDeleteGoalId(goalId);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleDeleteGoal = async () => {
+    if (!deleteGoalId) return;
+
     try {
-      await axios.delete(`${API}/travel-goals/${goalId}`, { headers: getAuthHeadersRef.current() });
+      await axios.delete(`${API}/travel-goals/${deleteGoalId}`, { headers: getAuthHeadersRef.current() });
       toast.success("Meta eliminada");
       fetchData();
     } catch (error) {
       toast.error("Error al eliminar meta");
+    } finally {
+      setDeleteDialogOpen(false);
+      setDeleteGoalId(null);
     }
   };
 
@@ -294,9 +327,8 @@ export default function MetasViaje() {
     setDialogOpen(true);
   };
 
-  const handleSearchTransactions = async (query) => {
-    setSearchTx(query);
-    if (query.length < 2) { setSearchResults([]); return; }
+  const runSearchTransactions = useCallback(async (query) => {
+    if (query.length < 2) { setSearchResults([]); setSearchingTx(false); return; }
     try {
       const res = await axios.get(`${API}/transactions`, { headers: getAuthHeadersRef.current() });
       const filtered = (Array.isArray(res.data) ? res.data : []).filter(t =>
@@ -304,7 +336,24 @@ export default function MetasViaje() {
         (t.establishment || "").toLowerCase().includes(query.toLowerCase())
       ).slice(0, 10);
       setSearchResults(filtered);
-    } catch { setSearchResults([]); }
+    } catch {
+      setSearchResults([]);
+    } finally {
+      setSearchingTx(false);
+    }
+  }, []);
+
+  const debouncedSearchTransactions = useDebouncedCallback(runSearchTransactions, 300);
+
+  const handleSearchTransactions = (query) => {
+    setSearchTx(query);
+    if (query.length < 2) {
+      setSearchResults([]);
+      setSearchingTx(false);
+      return;
+    }
+    setSearchingTx(true);
+    debouncedSearchTransactions(query);
   };
 
   const handleLinkTransaction = async (txId) => {
@@ -339,7 +388,7 @@ export default function MetasViaje() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Airplane size={32} className="text-[#0D9E82]" weight="duotone" />
+            <Plane size={32} className="text-[#0D9E82]" />
             Viajes
           </h1>
           <p className="text-muted-foreground">Gestiona tu fondo de viajes y entretenimiento</p>
@@ -386,17 +435,17 @@ export default function MetasViaje() {
                   </Button>
                 )}
               </div>
-              <div className="text-center p-3 rounded-xl bg-emerald-100/50 dark:bg-emerald-900/20">
-                <p className="text-xs text-emerald-700 dark:text-emerald-400 mb-1">Ya Ahorrado</p>
+              <div className="text-center p-3 rounded-xl bg-emerald-100/50">
+                <p className="text-xs text-emerald-700 mb-1">Ya Ahorrado</p>
                 <p className="text-2xl font-bold text-emerald-600">{formatCurrency(totalSaved)}</p>
                 <p className="text-xs text-muted-foreground">{travelFund.savings_progress?.toFixed(0) || 0}% de la meta</p>
               </div>
-              <div className="text-center p-3 rounded-xl bg-red-100/50 dark:bg-red-900/20">
-                <p className="text-xs text-red-700 dark:text-red-400 mb-1">Gastado</p>
+              <div className="text-center p-3 rounded-xl bg-red-100/50">
+                <p className="text-xs text-red-700 mb-1">Gastado</p>
                 <p className="text-2xl font-bold text-red-600">{formatCurrency(totalSpent)}</p>
               </div>
-              <div className="text-center p-3 rounded-xl bg-slate-50/50 dark:bg-slate-800">
-                <p className="text-xs text-[#0D9E82] dark:text-[#0D9E82] mb-1">Disponible</p>
+              <div className="text-center p-3 rounded-xl bg-slate-50/50">
+                <p className="text-xs text-[#0D9E82] mb-1">Disponible</p>
                 <p className="text-2xl font-bold text-[#0D9E82]">{formatCurrency(Math.max(0, available))}</p>
               </div>
             </div>
@@ -431,7 +480,7 @@ export default function MetasViaje() {
             Por Categoría
           </TabsTrigger>
           <TabsTrigger value="transactions" className="gap-2">
-            <CurrencyDollar size={16} />
+            <DollarSign size={16} />
             Transacciones
           </TabsTrigger>
         </TabsList>
@@ -441,7 +490,7 @@ export default function MetasViaje() {
           {activeGoals.length === 0 ? (
             <Card className="bento-card">
               <CardContent className="text-center py-12">
-                <Airplane size={48} className="mx-auto mb-4 text-muted-foreground opacity-50" />
+                <Plane size={48} className="mx-auto mb-4 text-muted-foreground opacity-50" />
                 <p className="text-muted-foreground mb-4">No tienes destinos de viaje activos</p>
                 {canEdit && (
                   <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2">
@@ -479,7 +528,7 @@ export default function MetasViaje() {
                               <h3 className="font-semibold truncate">{goal.destination}</h3>
                               <Badge variant="outline" className="text-[10px]">{GOAL_TYPES.find(t => t.value === (goal.tipo || "viaje"))?.label || "Otro"}</Badge>
                               <Badge variant="secondary" className="text-xs">
-                                {daysLeft > 0 ? `${daysLeft} dias` : "Vencida"}
+                                {daysLeft > 0 ? `${daysLeft} días` : "Vencida"}
                               </Badge>
                             </div>
                             <div className="flex items-center gap-4 text-sm text-muted-foreground mb-2">
@@ -500,40 +549,53 @@ export default function MetasViaje() {
                           
                           {/* Actions */}
                           {canEdit && (
-                            <div className="flex gap-1 shrink-0">
-                              <Button variant="ghost" size="icon" className="h-8 w-8" title="Vincular gasto"
-                                aria-label="Vincular gasto"
-                                data-testid={`link-tx-${goal.id}`}
-                                onClick={() => { setLinkGoalId(goal.id); setLinkDialogOpen(true); }}>
-                                <LinkSimple size={16} />
-                              </Button>
+                            <div className="flex items-center gap-2 shrink-0">
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8"
+                                className="h-10 w-10"
+                                title="Agregar ahorro"
+                                aria-label="Agregar ahorro"
                                 onClick={() => {
                                   setSelectedGoal(goal);
                                   setSavingsDialogOpen(true);
                                 }}
                               >
-                                <PiggyBank size={16} />
+                                <PiggyBank size={18} />
                               </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => openEditGoal(goal)}
-                              >
-                                <Pencil size={16} />
-                              </Button>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-8 w-8 text-red-500 hover:text-red-600"
-                                onClick={() => handleDeleteGoal(goal.id)}
-                              >
-                                <Trash size={16} />
-                              </Button>
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-10 w-10"
+                                    aria-label="Más acciones"
+                                    data-testid={`goal-actions-${goal.id}`}
+                                  >
+                                    <MoreHorizontal size={18} />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuItem
+                                    data-testid={`link-tx-${goal.id}`}
+                                    onClick={() => { setLinkGoalId(goal.id); setLinkDialogOpen(true); }}
+                                  >
+                                    <LinkIcon size={16} className="mr-2" />
+                                    Vincular gasto
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => openEditGoal(goal)}>
+                                    <Pencil size={16} className="mr-2" />
+                                    Editar
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    className="text-red-500 focus:text-red-600"
+                                    onClick={() => requestDeleteGoal(goal.id)}
+                                  >
+                                    <Trash size={16} className="mr-2" />
+                                    Eliminar
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
                             </div>
                           )}
                         </div>
@@ -657,7 +719,7 @@ export default function MetasViaje() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-red-600">{formatCurrency(tx.amount)}</span>
-                        <CaretRight size={16} className="text-muted-foreground" />
+                        <ChevronRight size={16} className="text-muted-foreground" />
                       </div>
                     </motion.div>
                   ))}
@@ -802,7 +864,7 @@ export default function MetasViaje() {
                 Cancelar
               </Button>
               <Button onClick={handleAddSavings} className="gap-2" data-testid="confirm-savings-btn">
-                <CurrencyDollar size={16} />
+                <DollarSign size={16} />
                 Agregar
               </Button>
             </DialogFooter>
@@ -866,7 +928,7 @@ export default function MetasViaje() {
                 Cancelar
               </Button>
               <Button onClick={handleFundDeposit} className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white" data-testid="confirm-fund-deposit-btn">
-                <CurrencyDollar size={16} />
+                <DollarSign size={16} />
                 Registrar
               </Button>
             </DialogFooter>
@@ -879,7 +941,7 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Gear size={24} className="text-slate-500" />
+              <Settings size={24} className="text-slate-500" />
               Editar Meta Anual
             </DialogTitle>
             <DialogDescription>
@@ -975,24 +1037,34 @@ export default function MetasViaje() {
       </Dialog>
 
       {/* Link Transaction Dialog */}
-      <Dialog open={linkDialogOpen} onOpenChange={setLinkDialogOpen}>
+      <Dialog open={linkDialogOpen} onOpenChange={(open) => {
+        setLinkDialogOpen(open);
+        if (!open) {
+          setSearchTx("");
+          setSearchResults([]);
+          setSearchingTx(false);
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <LinkSimple size={20} className="text-[#0D9E82]" />
+              <LinkIcon size={20} className="text-[#0D9E82]" />
               Vincular Gasto a Meta
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative">
-              <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
-                placeholder="Buscar transaccion..."
-                className="pl-9"
+                placeholder="Buscar transacción..."
+                className="pl-9 pr-9"
                 value={searchTx}
                 onChange={(e) => handleSearchTransactions(e.target.value)}
                 data-testid="link-tx-search"
               />
+              {searchingTx && (
+                <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground animate-spin" />
+              )}
             </div>
             <div className="max-h-60 overflow-y-auto space-y-1">
               {searchResults.map(tx => (
@@ -1015,6 +1087,27 @@ export default function MetasViaje() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Goal Confirmation */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta meta?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer. Se eliminará la meta de forma permanente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteGoalId(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 hover:bg-red-700 text-white"
+              onClick={handleDeleteGoal}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

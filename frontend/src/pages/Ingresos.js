@@ -8,10 +8,19 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel
+} from "../components/ui/alert-dialog";
 import { Badge } from "../components/ui/badge";
 import { Switch } from "../components/ui/switch";
 import { DateInput } from "../components/ui/date-input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Progress } from "../components/ui/progress";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -52,8 +61,7 @@ const PAYMENT_METHODS = {
   transferencia: "Transferencia",
   tarjeta: "Tarjeta",
   efectivo: "Efectivo",
-  venmo: "Venmo",
-  apple_card: "Apple Card"
+  venmo: "Venmo"
 };
 
 const STATUS_CONFIG = {
@@ -65,7 +73,7 @@ const STATUS_CONFIG = {
   partial: { label: "Parcial", color: "bg-slate-50 text-[#0D9E82]", icon: Clock }
 };
 
-export default function Ingresos() {
+export default function Ingresos({ embedded = false } = {}) {
   const { getAuthHeaders, user } = useAuth();
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
@@ -87,6 +95,7 @@ export default function Ingresos() {
   const [selectedReceivable, setSelectedReceivable] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState(new Date());
+  const [deleteTarget, setDeleteTarget] = useState(null); // { id, type }
 
   // Form state for income
   const [formData, setFormData] = useState({
@@ -320,8 +329,6 @@ export default function Ingresos() {
   };
 
   const handleDelete = async (id, type) => {
-    if (!window.confirm("¿Eliminar este registro?")) return;
-    
     try {
       const endpoint = type === "income" ? "income" : type === "expected" ? "expected-income" : "accounts-receivable";
       await axios.delete(`${API}/${endpoint}/${id}`, { headers: getAuthHeaders() });
@@ -330,6 +337,14 @@ export default function Ingresos() {
     } catch (error) {
       toast.error("Error al eliminar");
     }
+  };
+
+  const requestDelete = (id, type) => setDeleteTarget({ id, type });
+
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
+    await handleDelete(deleteTarget.id, deleteTarget.type);
+    setDeleteTarget(null);
   };
 
   const handleEdit = (item, type) => {
@@ -422,6 +437,9 @@ export default function Ingresos() {
 
   const canEdit = user?.role === "admin" || user?.role === "spouse";
 
+  const currentYear = new Date().getFullYear();
+  const yearOptions = Array.from({ length: 6 }, (_, i) => currentYear - i);
+
   // Calculate totals for expected incomes and receivables
   const totalExpectedPending = expectedIncomes
     .filter(i => i.status === "pending")
@@ -435,19 +453,23 @@ export default function Ingresos() {
     <div className="space-y-6" data-testid="ingresos-page">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Ingresos</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Gestiona ingresos, previstos y cuentas por cobrar
-          </p>
-        </div>
+        {embedded ? (
+          <h2 className="text-lg font-semibold">Ingresos</h2>
+        ) : (
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Ingresos</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Gestiona ingresos, previstos y cuentas por cobrar
+            </p>
+          </div>
+        )}
         <div className="flex items-center gap-2 flex-wrap">
           <Select value={selectedYear.toString()} onValueChange={(v) => setSelectedYear(parseInt(v))}>
             <SelectTrigger className="w-[120px]" data-testid="year-select">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {[2024, 2025, 2026].map((year) => (
+              {yearOptions.map((year) => (
                 <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
               ))}
             </SelectContent>
@@ -459,33 +481,41 @@ export default function Ingresos() {
       <Card className="bento-card" data-testid="ingresos-hero-card">
         <CardContent className="p-6 sm:p-8 space-y-3">
           <p className="text-xs text-slate-400 uppercase tracking-wide">Total recibido este año</p>
-          <p className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-800" data-testid="ingresos-total-hero">
-            {formatCurrency(summary?.total || 0)}
-          </p>
-          <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1">
-            <p className="text-sm text-slate-600" data-testid="ingresos-esperado">
-              <span className="font-medium">{formatCurrency(totalExpectedPending)}</span>
-              <span className="text-xs text-slate-400 ml-1">esperado</span>
-            </p>
-            <p className="text-sm text-slate-600" data-testid="ingresos-por-cobrar">
-              <span className="font-medium">{formatCurrency(totalReceivablePending)}</span>
-              <span className="text-xs text-slate-400 ml-1">por cobrar</span>
-            </p>
-            <p className="text-sm text-slate-600" data-testid="ingresos-proyectado">
-              <span className="font-medium">{formatCurrency((summary?.total || 0) + totalExpectedPending + totalReceivablePending)}</span>
-              <span className="text-xs text-slate-400 ml-1">flujo proyectado</span>
-            </p>
-          </div>
+          {loading ? (
+            <>
+              <div className="h-10 sm:h-12 w-48 sm:w-64 bg-slate-100 rounded animate-pulse" data-testid="ingresos-total-hero" />
+              <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1">
+                <div className="h-4 w-24 bg-slate-100 rounded animate-pulse" />
+                <div className="h-4 w-24 bg-slate-100 rounded animate-pulse" />
+                <div className="h-4 w-32 bg-slate-100 rounded animate-pulse" />
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-800" data-testid="ingresos-total-hero">
+                {formatCurrency(summary?.total || 0)}
+              </p>
+              <div className="flex flex-wrap gap-x-6 gap-y-1 pt-1">
+                <p className="text-sm text-slate-600" data-testid="ingresos-esperado">
+                  <span className="font-medium">{formatCurrency(totalExpectedPending)}</span>
+                  <span className="text-xs text-slate-400 ml-1">esperado</span>
+                </p>
+                <p className="text-sm text-slate-600" data-testid="ingresos-por-cobrar">
+                  <span className="font-medium">{formatCurrency(totalReceivablePending)}</span>
+                  <span className="text-xs text-slate-400 ml-1">por cobrar</span>
+                </p>
+                <p className="text-sm text-slate-600" data-testid="ingresos-proyectado">
+                  <span className="font-medium">{formatCurrency((summary?.total || 0) + totalExpectedPending + totalReceivablePending)}</span>
+                  <span className="text-xs text-slate-400 ml-1">flujo proyectado</span>
+                </p>
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
 
-      {/* 3 secciones verticales en scroll (tabs eliminados) */}
-      <Tabs value="ingresos" className="space-y-8">
-        <TabsList className="hidden">
-          <TabsTrigger value="ingresos" />
-          <TabsTrigger value="previstos" />
-          <TabsTrigger value="cuentas" />
-        </TabsList>
+      {/* 3 secciones verticales en scroll */}
+      <div className="space-y-8">
 
         {/* Sección: Ingresos */}
         <section className="space-y-3" data-testid="section-ingresos">
@@ -500,9 +530,7 @@ export default function Ingresos() {
               </Button>
             )}
           </div>
-        </section>
 
-        <TabsContent value="ingresos" className="space-y-4" forceMount>
           <Card className="bento-card">
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -576,10 +604,10 @@ export default function Ingresos() {
                                 <Button variant="ghost" size="icon" onClick={() => handleEdit(income, "income")}>
                                   <Pencil size={16} />
                                 </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => handleDelete(income.id, "income")}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => requestDelete(income.id, "income")}
                                   className="text-destructive hover:text-destructive"
                                 >
                                   <Trash size={16} />
@@ -595,7 +623,7 @@ export default function Ingresos() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </section>
 
         {/* Sección: Ingresos Previstos */}
         <section className="space-y-3" data-testid="section-previstos">
@@ -610,17 +638,6 @@ export default function Ingresos() {
               </Button>
             )}
           </div>
-        </section>
-
-        <TabsContent value="previstos" className="space-y-4" forceMount>
-          <div className="flex justify-end hidden">
-            {canEdit && (
-              <Button onClick={() => openDialog("expected")} className="gap-2" data-testid="add-expected-btn">
-                <Plus size={18} weight="bold" />
-                Nuevo Ingreso Previsto
-              </Button>
-            )}
-          </div>
 
           <Card className="bento-card">
             <CardHeader>
@@ -631,7 +648,9 @@ export default function Ingresos() {
               <CardDescription>Ingresos que esperas recibir próximamente</CardDescription>
             </CardHeader>
             <CardContent>
-              {expectedIncomes.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-8 text-muted-foreground">Cargando...</div>
+              ) : expectedIncomes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No hay ingresos previstos
                 </div>
@@ -692,10 +711,10 @@ export default function Ingresos() {
                                 <Button variant="ghost" size="icon" onClick={() => handleEdit(item, "expected")}>
                                   <Pencil size={16} />
                                 </Button>
-                                <Button 
-                                  variant="ghost" 
-                                  size="icon" 
-                                  onClick={() => handleDelete(item.id, "expected")}
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  onClick={() => requestDelete(item.id, "expected")}
                                   className="text-destructive hover:text-destructive"
                                 >
                                   <Trash size={16} />
@@ -711,7 +730,7 @@ export default function Ingresos() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
+        </section>
 
         {/* Sección: Cuentas por Cobrar */}
         <section className="space-y-3" data-testid="section-cuentas">
@@ -726,17 +745,6 @@ export default function Ingresos() {
               </Button>
             )}
           </div>
-        </section>
-
-        <TabsContent value="cuentas" className="space-y-4" forceMount>
-          <div className="flex justify-end hidden">
-            {canEdit && (
-              <Button onClick={() => openDialog("receivable")} className="gap-2" data-testid="add-receivable-btn">
-                <Plus size={18} weight="bold" />
-                Nueva Cuenta por Cobrar
-              </Button>
-            )}
-          </div>
 
           <Card className="bento-card">
             <CardHeader>
@@ -747,7 +755,9 @@ export default function Ingresos() {
               <CardDescription>Facturas emitidas pendientes de cobro</CardDescription>
             </CardHeader>
             <CardContent>
-              {accountsReceivable.length === 0 ? (
+              {loading ? (
+                <div className="text-center py-8 text-muted-foreground">Cargando...</div>
+              ) : accountsReceivable.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No hay cuentas por cobrar
                 </div>
@@ -819,10 +829,10 @@ export default function Ingresos() {
                                 <CurrencyDollar size={14} />
                                 Registrar Pago
                               </Button>
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                onClick={() => handleDelete(item.id, "receivable")}
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => requestDelete(item.id, "receivable")}
                                 className="text-destructive hover:text-destructive"
                               >
                                 <Trash size={16} />
@@ -837,12 +847,12 @@ export default function Ingresos() {
               )}
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+        </section>
+      </div>
 
       {/* Dialog for Income */}
       <Dialog open={dialogOpen && dialogType === "income"} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[450px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar Ingreso" : "Nuevo Ingreso"}</DialogTitle>
             <DialogDescription>
@@ -971,7 +981,7 @@ export default function Ingresos() {
 
       {/* Dialog for Expected Income */}
       <Dialog open={dialogOpen && dialogType === "expected"} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[450px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{editingItem ? "Editar Ingreso Previsto" : "Nuevo Ingreso Previsto"}</DialogTitle>
             <DialogDescription>
@@ -1073,7 +1083,7 @@ export default function Ingresos() {
 
       {/* Dialog for Accounts Receivable */}
       <Dialog open={dialogOpen && dialogType === "receivable"} onOpenChange={(open) => { setDialogOpen(open); if (!open) resetForm(); }}>
-        <DialogContent className="sm:max-w-[450px]">
+        <DialogContent className="sm:max-w-[450px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nueva Cuenta por Cobrar</DialogTitle>
             <DialogDescription>
@@ -1144,7 +1154,7 @@ export default function Ingresos() {
 
       {/* Dialog for Recording Payment */}
       <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:max-w-[400px] max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Registrar Pago</DialogTitle>
             <DialogDescription>
@@ -1184,6 +1194,22 @@ export default function Ingresos() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Delete AlertDialog */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este registro?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTarget(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

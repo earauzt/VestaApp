@@ -8,6 +8,7 @@ import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "../components/ui/dialog";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction, AlertDialogCancel } from "../components/ui/alert-dialog";
 import { Badge } from "../components/ui/badge";
 import { Switch } from "../components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
@@ -42,13 +43,12 @@ const PAYMENT_METHODS = [
   { value: "tarjeta_diners", label: "Tarjeta Diners", icon: CreditCard },
   { value: "tarjeta_pichincha", label: "Tarjeta Pichincha", icon: CreditCard },
   { value: "tarjeta_pacificard", label: "Tarjeta Pacificard", icon: CreditCard },
-  { value: "apple_card", label: "Apple Card", icon: CreditCard },
   { value: "efectivo", label: "Efectivo", icon: Money },
   { value: "venmo", label: "Venmo", icon: Receipt }
 ];
 
 const CATEGORIES = [
-  { value: "tarjeta_credito", label: "Pago Tarjeta de Crédito", subcategories: ["Diners", "Pichincha", "Pacificard", "Apple Card"] },
+  { value: "tarjeta_credito", label: "Pago Tarjeta de Crédito", subcategories: ["Diners", "Pichincha", "Pacificard"] },
   { value: "servicios_basicos", label: "Servicios Básicos", subcategories: ["Luz", "Agua", "Internet", "Gas", "Teléfono"] },
   { value: "suscripciones", label: "Suscripciones", subcategories: ["Netflix", "Spotify", "Amazon", "Disney+", "iCloud"] },
   { value: "empleados", label: "Empleados", subcategories: ["Ramona", "Angélica", "IESS"] },
@@ -63,7 +63,7 @@ const CATEGORIES = [
   { value: "diferido", label: "Pago Diferido", subcategories: ["Compras a plazos"] }
 ];
 
-export default function Flujo() {
+export default function Flujo({ embedded = false } = {}) {
   const { getAuthHeaders, user } = useAuth();
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
@@ -77,6 +77,7 @@ export default function Flujo() {
   const [editingPayment, setEditingPayment] = useState(null);
   const [viewMode, setViewMode] = useState("week"); // week, category
   const [filterWeek, setFilterWeek] = useState("all"); // all, week1, week2, week3, week4
+  const [deleteTargetId, setDeleteTargetId] = useState(null);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -173,13 +174,14 @@ export default function Flujo() {
   };
 
   const handleDelete = async (id) => {
-    if (!window.confirm("¿Eliminar este pago programado?")) return;
     try {
       await axios.delete(`${API}/scheduled-payments/${id}`, { headers: getAuthHeadersRef.current() });
       toast.success("Pago eliminado");
       fetchData();
     } catch (error) {
       toast.error("Error al eliminar");
+    } finally {
+      setDeleteTargetId(null);
     }
   };
 
@@ -293,7 +295,13 @@ export default function Flujo() {
   const weeks = groupByWeek(filteredPayments);
   const byCategory = groupByCategory(payments);
   const totalMonthly = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const monthlyIncome = incomeData?.total_monthly || incomeData?.total || 0;
+  // NOTE: GET /api/income/summary returns `total` as the SUM OF ALL INCOME FOR THE
+  // ENTIRE YEAR (no month filter server-side), not a monthly figure. `total_monthly`
+  // is not actually returned by the backend today (kept as a forward-compatible
+  // fallback). So we divide the annual total by 12 to approximate a monthly figure
+  // before deriving a weekly figure (still using the 4-weeks-per-month model used
+  // elsewhere on this page).
+  const monthlyIncome = incomeData?.total_monthly || (incomeData?.total ? incomeData.total / 12 : 0);
   const weeklyIncome = monthlyIncome / 4;
 
   // Semaphore: color for weekly card based on projected balance
@@ -330,12 +338,16 @@ export default function Flujo() {
     <div className="space-y-6" data-testid="flujo-page">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Planificación de Flujo</h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Programa tus pagos y asigna con qué tarjeta/cuenta pagar
-          </p>
-        </div>
+        {embedded ? (
+          <h2 className="text-lg font-semibold">Planificación de Flujo</h2>
+        ) : (
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Planificación de Flujo</h1>
+            <p className="text-sm sm:text-base text-muted-foreground">
+              Programa tus pagos y asigna con qué tarjeta/cuenta pagar
+            </p>
+          </div>
+        )}
         <div className="flex items-center gap-2 flex-wrap">
           <Badge variant="outline" className="text-lg px-4 py-2">
             Total mensual: {formatCurrency(totalMonthly)}
@@ -382,8 +394,23 @@ export default function Flujo() {
       </div>
 
       {/* VIEW: By Week */}
-      {viewMode === "week" && (
+      {viewMode === "week" && loading && (
         <div className="space-y-6">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="space-y-2 animate-pulse">
+              <div className="h-5 w-40 bg-slate-200 rounded" />
+              <div className="h-16 bg-slate-100 rounded-lg" />
+            </div>
+          ))}
+        </div>
+      )}
+      {viewMode === "week" && !loading && (
+        <div className="space-y-6">
+          <div className="flex items-center gap-4 text-xs text-slate-400">
+            <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-red-500" /> Déficit</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-amber-500" /> Ajustado</span>
+            <span className="flex items-center gap-1"><span className="inline-block w-2 h-2 rounded-full bg-emerald-500" /> Holgado</span>
+          </div>
           {Object.entries(weeks).map(([key, week]) => {
             const semaphore = getWeekSemaphore(week.payments);
             return (
@@ -391,8 +418,14 @@ export default function Flujo() {
               {/* Week Header — Parker-style */}
               <div className="flex items-center justify-between mb-2 py-2">
                 <div className="flex items-center gap-2">
-                  <span className={`inline-block w-2 h-2 rounded-full ${semaphore.color === "#ef4444" ? "bg-red-500" : semaphore.color === "#f59e0b" ? "bg-amber-500" : "bg-emerald-500"}`} />
+                  <span
+                    className={`inline-block w-2 h-2 rounded-full ${semaphore.color === "#ef4444" ? "bg-red-500" : semaphore.color === "#f59e0b" ? "bg-amber-500" : "bg-emerald-500"}`}
+                    role="img"
+                    aria-label={semaphore.label}
+                    title={semaphore.label}
+                  />
                   <h3 className="text-sm font-semibold text-slate-500 uppercase tracking-wide">{week.label}</h3>
+                  <span className="text-xs text-slate-400">· {semaphore.label}</span>
                   <span className="text-xs text-slate-400 ml-1">({week.payments.length} pagos)</span>
                 </div>
                 <span className="text-sm font-semibold text-slate-700 font-mono">
@@ -415,7 +448,7 @@ export default function Flujo() {
                     const isPastDue = payment.days_until_due < 0;
                     const isDueSoon = payment.is_due_soon;
                     const CategoryLabel = getCategoryLabel(payment.category);
-                    const isCard = payment.payment_method?.includes("tarjeta") || payment.payment_method === "apple_card";
+                    const isCard = payment.payment_method?.includes("tarjeta");
 
                     return (
                       <motion.div
@@ -478,11 +511,11 @@ export default function Flujo() {
                           <span className="text-sm font-semibold text-slate-700 shrink-0 font-mono">{formatCurrency(payment.amount)}</span>
                           {canEdit && (
                             <div className="flex gap-0.5 shrink-0">
-                              <Button variant="ghost" size="icon" onClick={() => handleEdit(payment)} className="h-7 w-7 text-slate-400 hover:text-slate-600">
-                                <Pencil size={14} />
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(payment)} className="h-10 w-10 text-slate-400 hover:text-slate-600">
+                                <Pencil size={18} />
                               </Button>
-                              <Button variant="ghost" size="icon" onClick={() => handleDelete(payment.id)} className="h-7 w-7 text-slate-400 hover:text-red-500">
-                                <Trash size={14} />
+                              <Button variant="ghost" size="icon" onClick={() => setDeleteTargetId(payment.id)} className="h-10 w-10 text-slate-400 hover:text-red-500">
+                                <Trash size={18} />
                               </Button>
                             </div>
                           )}
@@ -497,7 +530,14 @@ export default function Flujo() {
       )}
 
       {/* VIEW: By Category */}
-      {viewMode === "category" && (
+      {viewMode === "category" && loading && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {[1, 2].map((i) => (
+            <div key={i} className="h-40 bg-slate-100 rounded-lg animate-pulse" />
+          ))}
+        </div>
+      )}
+      {viewMode === "category" && !loading && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {Object.entries(byCategory).map(([category, data]) => {
             const budget = getCategoryBudget(category);
@@ -553,8 +593,8 @@ export default function Flujo() {
                           <div className="flex items-center gap-2">
                             <span className="font-mono text-sm font-bold">{formatCurrency(payment.amount)}</span>
                             {canEdit && (
-                              <Button variant="ghost" size="icon" onClick={() => handleEdit(payment)} className="h-6 w-6">
-                                <Pencil size={12} />
+                              <Button variant="ghost" size="icon" onClick={() => handleEdit(payment)} className="h-9 w-9">
+                                <Pencil size={16} />
                               </Button>
                             )}
                           </div>
@@ -765,7 +805,7 @@ export default function Flujo() {
             </div>
 
             {/* Credit Card Info - Only show for credit card payments */}
-            {(formData.payment_method?.includes("tarjeta") || formData.payment_method === "apple_card") && (
+            {formData.payment_method?.includes("tarjeta") && (
               <Card className="bg-muted/50 border-dashed">
                 <CardContent className="p-4 space-y-3">
                   <div className="flex items-center gap-2 text-sm font-medium text-primary">
@@ -838,6 +878,22 @@ export default function Flujo() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Confirm Delete AlertDialog */}
+      <AlertDialog open={!!deleteTargetId} onOpenChange={(open) => { if (!open) setDeleteTargetId(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar este pago programado?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta acción no se puede deshacer.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteTargetId(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => handleDelete(deleteTargetId)}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

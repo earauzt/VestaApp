@@ -12,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Sheet, SheetContent, SheetTrigger } from "./ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from "./ui/tooltip";
 import {
   LayoutDashboard,
   ArrowLeftRight,
@@ -92,15 +93,22 @@ export default function Layout({ children }) {
 
       {/* Navigation */}
       <nav className={`flex-1 space-y-1 overflow-y-auto ${mobile ? "p-3" : "p-3"}`}>
+        <TooltipProvider delayDuration={200}>
         {filteredNavItems.map((item) => {
           const isActive = location.pathname === item.path;
           const Icon = item.icon;
-          return (
-            <Link key={item.path} to={item.path} data-testid={`nav-${item.path.slice(1)}`}>
+          const showTooltip = collapsed && !mobile;
+          const navLink = (
+            <Link
+              key={item.path}
+              to={item.path}
+              data-testid={`nav-${item.path.slice(1)}`}
+              className="block focus-visible:ring-2 focus-visible:ring-[#0D9E82] focus-visible:outline-none rounded-md"
+            >
               <div
                 className={`flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
                   isActive
-                    ? "bg-[#0D9E82] text-white"
+                    ? "bg-[#1A3330] text-white"
                     : "text-[#6B8F87] hover:bg-[#1A3330] hover:text-white"
                 }`}
               >
@@ -109,7 +117,19 @@ export default function Layout({ children }) {
               </div>
             </Link>
           );
+
+          if (!showTooltip) {
+            return navLink;
+          }
+
+          return (
+            <Tooltip key={item.path}>
+              <TooltipTrigger asChild>{navLink}</TooltipTrigger>
+              <TooltipContent side="right">{item.label}</TooltipContent>
+            </Tooltip>
+          );
         })}
+        </TooltipProvider>
       </nav>
 
       {/* User section */}

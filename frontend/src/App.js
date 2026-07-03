@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, Link } from "react-router-dom";
 import { Toaster } from "./components/ui/sonner";
+import { toast } from "sonner";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 import ChatBot from "./components/ChatBot";
 import FAB from "./components/FAB";
@@ -12,6 +13,21 @@ import Deudas from "./pages/Deudas";
 import MetasViaje from "./pages/MetasViaje";
 import Perfil from "./pages/Perfil";
 import Layout from "./components/Layout";
+
+function NotFound() {
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 px-4 text-center">
+      <h1 className="text-4xl font-bold text-[#0D9E82]">404</h1>
+      <p className="text-lg font-medium text-foreground">Página no encontrada</p>
+      <p className="text-sm text-muted-foreground max-w-sm">
+        La página que buscas no existe o fue movida.
+      </p>
+      <Link to="/dashboard" className="text-sm font-medium text-[#0D9E82] hover:underline">
+        Volver al dashboard
+      </Link>
+    </div>
+  );
+}
 
 const ProtectedRoute = ({ children, allowedRoles }) => {
   const { user, loading } = useAuth();
@@ -29,6 +45,7 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
   }
 
   if (allowedRoles && !allowedRoles.includes(user.role)) {
+    toast.error("No tienes acceso a esa sección");
     return <Navigate to="/dashboard" replace />;
   }
 
@@ -123,7 +140,7 @@ function AppRoutes() {
       <Route path="/international" element={<Navigate to="/movimientos?tab=todos" replace />} />
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<NotFound />} />
     </Routes>
   );
 }

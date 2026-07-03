@@ -11,6 +11,16 @@ import { Badge } from "../components/ui/badge";
 import { Progress } from "../components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "../components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "../components/ui/alert-dialog";
 import { toast } from "sonner";
 import { 
   Pencil, 
@@ -28,15 +38,18 @@ import {
 import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-export default function PresupuestoEditable() {
+export default function PresupuestoEditable({ embedded = false } = {}) {
   const { getAuthHeaders } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [budgetConfig, setBudgetConfig] = useState(null);
-  const [editingCategory, setEditingCategory] = useState(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
-  const [newCategory, setNewCategory] = useState({ key: "", name: "", monthly_budget: 0 });
-  
+  const [newCategory, setNewCategory] = useState({ name: "", monthly_budget: 0 });
+  const [isDirty, setIsDirty] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [addSubDialog, setAddSubDialog] = useState({ open: false, catKey: null, name: "" });
+
   // Income projection state
   const [incomeProjection, setIncomeProjection] = useState({
     personal: { monthly: 7250, annual: 87000 },
@@ -94,6 +107,7 @@ export default function PresupuestoEditable() {
         investment_goal: investmentGoal
       }, { headers: getAuthHeaders() });
       toast.success("Presupuesto guardado");
+      setIsDirty(false);
     } catch (error) {
       toast.error("Error al guardar");
     } finally {
@@ -112,6 +126,7 @@ export default function PresupuestoEditable() {
         }
       }
     }));
+    setIsDirty(true);
   };
 
   const handleSubcategoryChange = (catKey, subName, value) => {
@@ -128,19 +143,31 @@ export default function PresupuestoEditable() {
         }
       }
     }));
+    setIsDirty(true);
+  };
+
+  const generateCategoryKey = (name) => {
+    return name
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
   };
 
   const handleAddCategory = () => {
-    if (!newCategory.key || !newCategory.name) {
-      toast.error("Completa nombre y clave");
+    const key = generateCategoryKey(newCategory.name || "");
+    if (!newCategory.name || !key) {
+      toast.error("Completa el nombre de la categoría");
       return;
     }
-    
+
     setBudgetConfig(prev => ({
       ...prev,
       categories: {
         ...prev.categories,
-        [newCategory.key]: {
+        [key]: {
           name: newCategory.name,
           monthly_budget: parseFloat(newCategory.monthly_budget) || 0,
           annual_budget: (parseFloat(newCategory.monthly_budget) || 0) * 12,
@@ -150,26 +177,40 @@ export default function PresupuestoEditable() {
         }
       }
     }));
-    
+
     setShowAddDialog(false);
-    setNewCategory({ key: "", name: "", monthly_budget: 0 });
+    setNewCategory({ name: "", monthly_budget: 0 });
+    setIsDirty(true);
     toast.success("Categoría añadida");
   };
 
-  const handleDeleteCategory = (key) => {
+  const confirmDeleteCategory = (key) => {
     const { [key]: removed, ...rest } = budgetConfig.categories;
     setBudgetConfig(prev => ({
       ...prev,
       categories: rest
     }));
+    setIsDirty(true);
+    setDeleteTarget(null);
     toast.success("Categoría eliminada");
   };
 
   const handleAddSubcategory = (catKey) => {
-    const name = prompt("Nombre de la subcategoría:");
+    setAddSubDialog({ open: true, catKey, name: "" });
+  };
+
+  const confirmAddSubcategory = () => {
+    const name = addSubDialog.name?.trim();
     if (name) {
-      handleSubcategoryChange(catKey, name, 0);
+      handleSubcategoryChange(addSubDialog.catKey, name, 0);
     }
+    setAddSubDialog({ open: false, catKey: null, name: "" });
+  };
+
+  const confirmDiscardChanges = () => {
+    fetchBudgetConfig();
+    setIsDirty(false);
+    setShowResetConfirm(false);
   };
 
   const calculateTotals = () => {
@@ -200,14 +241,18 @@ export default function PresupuestoEditable() {
     <div className="space-y-6" data-testid="presupuesto-editable">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Mi Presupuesto</h1>
-          <p className="text-muted-foreground">Edita tus categorías, ingresos y metas</p>
-        </div>
+        {embedded ? (
+          <h2 className="text-lg font-semibold">Mi Presupuesto</h2>
+        ) : (
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Mi Presupuesto</h1>
+            <p className="text-muted-foreground">Edita tus categorías, ingresos y metas</p>
+          </div>
+        )}
         <div className="flex gap-2">
-          <Button variant="outline" onClick={fetchBudgetConfig} className="gap-2">
+          <Button variant="outline" onClick={() => setShowResetConfirm(true)} disabled={!isDirty} className="gap-2">
             <ArrowCounterClockwise size={18} />
-            Resetear
+            Descartar cambios
           </Button>
           <Button onClick={handleSaveBudget} disabled={saving} className="gap-2">
             <FloppyDisk size={18} />
@@ -215,6 +260,22 @@ export default function PresupuestoEditable() {
           </Button>
         </div>
       </div>
+
+      {/* Discard changes confirmation */}
+      <AlertDialog open={showResetConfirm} onOpenChange={setShowResetConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Descartar cambios?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Se perderán los cambios sin guardar.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDiscardChanges}>Descartar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Resumen Mensual - Números protagonistas */}
       <Card className="bento-card" data-testid="resumen-mensual-card">
@@ -226,9 +287,15 @@ export default function PresupuestoEditable() {
           <p className="text-lg font-medium text-emerald-600" data-testid="resumen-ingresos">
             +{formatCurrency(totalIncome)} <span className="text-xs text-slate-400 font-normal ml-1">ingresos</span>
           </p>
-          <p className="text-lg font-medium text-slate-700" data-testid="resumen-gastos">
-            {formatCurrency(totalExpenses)} <span className="text-xs text-slate-400 font-normal ml-1">gastos</span>
-          </p>
+          <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100">
+            <p className="text-sm font-medium text-slate-500">Balance del mes</p>
+            <p
+              className={`text-2xl font-bold ${balance >= 0 ? "text-emerald-600" : "text-red-600"}`}
+              data-testid="resumen-balance"
+            >
+              {formatCurrency(balance)}
+            </p>
+          </div>
           <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100">
             <div>
               <p className="text-xs text-slate-400">Ahorro mensual ({savingsGoal.percentage}%)</p>
@@ -279,17 +346,10 @@ export default function PresupuestoEditable() {
                         {category.type === "fixed" && <Badge variant="outline">Fijo</Badge>}
                       </div>
                       <div className="flex gap-1">
-                        <Button 
-                          variant="ghost" 
+                        <Button
+                          variant="ghost"
                           size="icon"
-                          onClick={() => setEditingCategory(editingCategory === key ? null : key)}
-                        >
-                          <Pencil size={16} />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="icon"
-                          onClick={() => handleDeleteCategory(key)}
+                          onClick={() => setDeleteTarget(key)}
                           className="text-red-500"
                         >
                           <Trash size={16} />
@@ -394,11 +454,11 @@ export default function PresupuestoEditable() {
                   <Input
                     type="number"
                     value={savingsGoal.monthly || 0}
-                    onChange={(e) => setSavingsGoal(prev => ({
+                    onChange={(e) => { setSavingsGoal(prev => ({
                       ...prev,
                       monthly: parseFloat(e.target.value) || 0,
                       percentage: totalIncome > 0 ? Math.round((parseFloat(e.target.value) / totalIncome) * 100) : 0
-                    }))}
+                    })); setIsDirty(true); }}
                     className="font-mono text-lg"
                   />
                 </div>
@@ -408,11 +468,11 @@ export default function PresupuestoEditable() {
                     <Input
                       type="number"
                       value={savingsGoal.percentage || 0}
-                      onChange={(e) => setSavingsGoal(prev => ({
+                      onChange={(e) => { setSavingsGoal(prev => ({
                         ...prev,
                         percentage: parseFloat(e.target.value) || 0,
                         monthly: totalIncome * (parseFloat(e.target.value) / 100)
-                      }))}
+                      })); setIsDirty(true); }}
                       className="w-24"
                     />
                     <span className="text-muted-foreground">%</span>
@@ -437,11 +497,11 @@ export default function PresupuestoEditable() {
                   <Input
                     type="number"
                     value={investmentGoal.monthly || 0}
-                    onChange={(e) => setInvestmentGoal(prev => ({
+                    onChange={(e) => { setInvestmentGoal(prev => ({
                       ...prev,
                       monthly: parseFloat(e.target.value) || 0,
                       percentage: totalIncome > 0 ? Math.round((parseFloat(e.target.value) / totalIncome) * 100) : 0
-                    }))}
+                    })); setIsDirty(true); }}
                     className="font-mono text-lg"
                   />
                 </div>
@@ -451,11 +511,11 @@ export default function PresupuestoEditable() {
                     <Input
                       type="number"
                       value={investmentGoal.percentage || 0}
-                      onChange={(e) => setInvestmentGoal(prev => ({
+                      onChange={(e) => { setInvestmentGoal(prev => ({
                         ...prev,
                         percentage: parseFloat(e.target.value) || 0,
                         monthly: totalIncome * (parseFloat(e.target.value) / 100)
-                      }))}
+                      })); setIsDirty(true); }}
                       className="w-24"
                     />
                     <span className="text-muted-foreground">%</span>
@@ -472,19 +532,11 @@ export default function PresupuestoEditable() {
 
       {/* Add Category Dialog */}
       <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nueva Categoría de Gasto</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label>Clave (sin espacios)</Label>
-              <Input
-                value={newCategory.key}
-                onChange={(e) => setNewCategory(prev => ({ ...prev, key: e.target.value.toLowerCase().replace(/\s/g, "_") }))}
-                placeholder="ej: transporte_publico"
-              />
-            </div>
             <div>
               <Label>Nombre</Label>
               <Input
@@ -509,6 +561,52 @@ export default function PresupuestoEditable() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Add Subcategory Dialog */}
+      <Dialog open={addSubDialog.open} onOpenChange={(open) => setAddSubDialog(prev => ({ ...prev, open }))}>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nueva Subcategoría</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nombre de la subcategoría</Label>
+              <Input
+                value={addSubDialog.name}
+                onChange={(e) => setAddSubDialog(prev => ({ ...prev, name: e.target.value }))}
+                placeholder="ej: Gasolina"
+                autoFocus
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddSubDialog({ open: false, catKey: null, name: "" })}>Cancelar</Button>
+            <Button onClick={confirmAddSubcategory}>Añadir</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Category Confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar categoría?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteTarget && budgetConfig?.categories?.[deleteTarget] && (
+                <>
+                  Se eliminará "{budgetConfig.categories[deleteTarget].name}" y sus{" "}
+                  {Object.keys(budgetConfig.categories[deleteTarget].subcategories || {}).length}{" "}
+                  subcategorías. Este cambio se aplicará al guardar.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => confirmDeleteCategory(deleteTarget)}>Eliminar</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -28,14 +28,23 @@ export default function SRILimits() {
   const { getAuthHeaders } = useAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [cargasFamiliares, setCargasFamiliares] = useState("0");
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cargasFamiliares]);
 
   const fetchData = async () => {
-    setLoading(true);
+    // Only show the full-page loading skeleton on the very first load.
+    // On subsequent refetches (e.g. changing cargas familiares), keep the
+    // previous data visible with a subtle overlay instead of unmounting it.
+    if (!data) {
+      setLoading(true);
+    } else {
+      setRefreshing(true);
+    }
     try {
       const response = await axios.get(
         `${API}/sri/deduction-limits?cargas_familiares=${cargasFamiliares}`,
@@ -46,6 +55,7 @@ export default function SRILimits() {
       toast.error("Error al cargar límites SRI");
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   };
 
@@ -62,7 +72,7 @@ export default function SRILimits() {
     return "bg-emerald-500";
   };
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-pulse text-muted-foreground">Cargando límites SRI...</div>
@@ -71,11 +81,17 @@ export default function SRILimits() {
   }
 
   return (
-    <div className="space-y-6" data-testid="sri-limits-page">
+    <div className="space-y-6 relative" data-testid="sri-limits-page">
+      {refreshing && (
+        <div className="fixed top-4 right-4 z-50 flex items-center gap-2 bg-background border rounded-full px-3 py-1.5 shadow-md text-sm text-muted-foreground" data-testid="sri-limits-refreshing">
+          <span className="h-3 w-3 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          Actualizando...
+        </div>
+      )}
       {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className={`flex flex-col md:flex-row md:items-center justify-between gap-4 transition-opacity ${refreshing ? "opacity-50" : ""}`}>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-3">
+          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
             <Scales size={32} className="text-primary" weight="duotone" />
             Límites SRI Ecuador {data?.year}
           </h1>
@@ -98,6 +114,7 @@ export default function SRILimits() {
         </Select>
       </div>
 
+      <div className={`space-y-6 transition-opacity ${refreshing ? "opacity-50" : ""}`}>
       {/* Contribuyente Info */}
       {data?.contribuyente && (
         <Card className="bento-card bg-white border-slate-200 border-l-4 border-l-[#0D9E82]">
@@ -393,6 +410,7 @@ export default function SRILimits() {
           </div>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

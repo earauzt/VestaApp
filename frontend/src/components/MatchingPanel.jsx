@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { CreditCard, Bank, X } from "@phosphor-icons/react";
+import { CreditCard, Landmark, X } from "lucide-react";
 import { BANKS } from "./ReconciliationHeader";
 
 export function MatchingPanel({
@@ -42,7 +42,7 @@ export function MatchingPanel({
                         {statement.statement_type === "credit_card" ? (
                           <CreditCard size={20} className="text-primary" />
                         ) : (
-                          <Bank size={20} className="text-primary" />
+                          <Landmark size={20} className="text-primary" />
                         )}
                         <div>
                           <p className="font-medium">{statement.file_name}</p>
@@ -57,7 +57,7 @@ export function MatchingPanel({
                           <p className="text-sm font-medium">{statement.total_transactions} transacciones</p>
                           <p className="text-xs text-muted-foreground">
                             <span className="text-emerald-600">{statement.matched} coinciden</span> &bull;{" "}
-                            <span className="text-blue-600">{statement.new} nuevas</span>
+                            <span className="text-slate-600">{statement.new} nuevas</span>
                           </p>
                         </div>
                         <Badge variant={statement.status === "completed" ? "default" : "secondary"}>
@@ -87,13 +87,13 @@ export function MatchingPanel({
                 </p>
               </div>
 
-              <div className="flex items-center gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-emerald-600">{reconciliationData.summary.matched}</p>
                   <p className="text-xs text-muted-foreground">Coinciden</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">{reconciliationData.summary.new}</p>
+                  <p className="text-2xl font-bold text-slate-600">{reconciliationData.summary.new}</p>
                   <p className="text-xs text-muted-foreground">Nuevas</p>
                 </div>
                 <div className="text-center">
@@ -115,13 +115,13 @@ export function MatchingPanel({
                 </div>
                 {reconciliationData.card_info.minimum_payment && (
                   <div>
-                    <p className="text-muted-foreground">Pago Minimo</p>
+                    <p className="text-muted-foreground">Pago Mínimo</p>
                     <p className="font-bold text-lg text-amber-600">{formatCurrency(reconciliationData.card_info.minimum_payment)}</p>
                   </div>
                 )}
                 {reconciliationData.card_info.credit_limit && (
                   <div>
-                    <p className="text-muted-foreground">Limite</p>
+                    <p className="text-muted-foreground">Límite</p>
                     <p className="font-bold">{formatCurrency(reconciliationData.card_info.credit_limit)}</p>
                   </div>
                 )}

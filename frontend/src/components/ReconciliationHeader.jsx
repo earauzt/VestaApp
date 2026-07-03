@@ -12,12 +12,11 @@ import {
 } from "@phosphor-icons/react";
 
 const BANKS = [
-  { value: "auto", label: "Detectar automaticamente", icon: null },
+  { value: "auto", label: "Detectar automáticamente", icon: null },
   { value: "diners", label: "Diners Club", icon: CreditCard, type: "credit_card" },
   { value: "pichincha", label: "Banco Pichincha", icon: CreditCard, type: "credit_card" },
   { value: "pacificard", label: "Pacificard", icon: CreditCard, type: "credit_card" },
-  { value: "apple_card", label: "Apple Card", icon: CreditCard, type: "credit_card" },
-  { value: "banco_pacifico", label: "Banco Pacifico", icon: Bank, type: "bank_account" },
+  { value: "banco_pacifico", label: "Banco Pacífico", icon: Bank, type: "bank_account" },
   { value: "bolivariano", label: "Banco Bolivariano", icon: Bank, type: "bank_account" }
 ];
 
@@ -39,7 +38,7 @@ export function ReconciliationHeader({
           Reconciliar Estado de Cuenta
         </CardTitle>
         <CardDescription>
-          Sube un estado de cuenta de tarjeta de credito o banco para reconciliar con tus transacciones existentes
+          Sube un estado de cuenta de tarjeta de crédito o banco para reconciliar con tus transacciones existentes
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -96,8 +95,7 @@ export function ReconciliationHeader({
             <Badge variant="outline" className="gap-1"><CreditCard size={12} /> Diners</Badge>
             <Badge variant="outline" className="gap-1"><CreditCard size={12} /> Pichincha</Badge>
             <Badge variant="outline" className="gap-1"><CreditCard size={12} /> Pacificard</Badge>
-            <Badge variant="outline" className="gap-1"><CreditCard size={12} /> Apple Card</Badge>
-            <Badge variant="outline" className="gap-1"><Bank size={12} /> Pacifico</Badge>
+            <Badge variant="outline" className="gap-1"><Bank size={12} /> Pacífico</Badge>
             <Badge variant="outline" className="gap-1"><Bank size={12} /> Bolivariano</Badge>
           </div>
           <Button variant="ghost" size="sm" onClick={onLoadHistory} disabled={loadingHistory}>
