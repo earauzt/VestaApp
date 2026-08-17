@@ -69,10 +69,13 @@ async def lookup_vendor_endpoint(establishment: str, user: dict = Depends(get_cu
         await db.known_vendors.update_one({"id": vendor["id"]}, {"$set": {"last_used": datetime.now(timezone.utc).isoformat()}, "$inc": {"times_used": 1}})
         return {"found": True, "vendor": KnownVendorResponse(**vendor), "personal_category": vendor["personal_category"], "sri_category": vendor.get("sri_category"), "subcategory": vendor.get("subcategory"), "is_deductible": vendor.get("is_deductible", False)}
 
-    vendor = await db.known_vendors.find_one({
-        "user_id": user["id"],
-        "aliases": {"$regex": f"^{re.escape(normalized)}$", "$options": "i"}
-    }, {"_id": 0})
+    # "aliases" es jsonb (array); Postgres no soporta ilike sobre jsonb como
+    # Mongo soporta $regex contra cada elemento — se resuelve en Python.
+    vendor = None
+    async for v in db.known_vendors.find({"user_id": user["id"]}, {"_id": 0}):
+        if any((a or "").strip().lower() == normalized for a in (v.get("aliases") or [])):
+            vendor = v
+            break
     if vendor:
         await db.known_vendors.update_one({"id": vendor["id"]}, {"$set": {"last_used": datetime.now(timezone.utc).isoformat()}, "$inc": {"times_used": 1}})
         return {"found": True, "alias_match": True, "vendor": KnownVendorResponse(**vendor), "personal_category": vendor["personal_category"], "sri_category": vendor.get("sri_category"), "subcategory": vendor.get("subcategory"), "is_deductible": vendor.get("is_deductible", False)}

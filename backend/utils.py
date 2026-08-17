@@ -177,10 +177,14 @@ async def lookup_known_vendor(user_id: str, establishment: str, description: str
         return _format_vendor_result(vendor, "exact")
 
     # Strategy 1.5: Alias match
-    vendor = await db.known_vendors.find_one({
-        "user_id": user_id,
-        "aliases": {"$regex": f"^{re.escape(search_lower)}$", "$options": "i"}
-    }, {"_id": 0})
+    # "aliases" es una columna jsonb (array), Postgres no soporta ilike sobre
+    # jsonb — a diferencia de Mongo, que sí puede aplicar un $regex a cada
+    # elemento de un array. Se resuelve en Python en vez de empujar el filtro a la DB.
+    vendor = None
+    async for v in db.known_vendors.find({"user_id": user_id}, {"_id": 0}):
+        if any((a or "").strip().lower() == search_lower for a in (v.get("aliases") or [])):
+            vendor = v
+            break
     if vendor:
         await _update_vendor_usage(vendor["id"])
         return _format_vendor_result(vendor, "alias")
