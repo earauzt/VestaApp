@@ -11,6 +11,8 @@ import base64
 import secrets as secrets_mod
 from difflib import SequenceMatcher
 
+os.environ.setdefault("OAUTHLIB_RELAX_TOKEN_SCOPE", "1")
+
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
