@@ -382,11 +382,13 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
     if ultimo_sync_dt:
         # Sync incremental: solo emails desde el último sync
         after_ts = int(ultimo_sync_dt.timestamp())
-        max_results = 100
+        max_total = 100
     else:
-        # Primer sync: últimos 90 días, máx 100 emails
+        # Primer sync / backfill historico: hasta 90 dias, con paginacion real
+        # (antes esto se cortaba en 100 mensajes silenciosamente — con >100 notificaciones
+        # bancarias en 3 meses, se perdia el resto del historico sin avisar).
         after_ts = int((now - timedelta(days=90)).timestamp())
-        max_results = 100
+        max_total = 1000
 
     GMAIL_SENDER_FILTER = (
         "from:(servicios@dinersclub.com.ec OR notificaciones@infopacificard.com.ec "
@@ -403,8 +405,17 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         "OR documentos OR documentoselectronicos) "
         f"after:{after_ts}"
     )
-    results = service.users().messages().list(userId='me', q=GMAIL_SENDER_FILTER, maxResults=max_results).execute()
-    messages = results.get('messages', [])
+    messages = []
+    page_token = None
+    while True:
+        page = service.users().messages().list(
+            userId='me', q=GMAIL_SENDER_FILTER, maxResults=min(500, max_total - len(messages)),
+            pageToken=page_token
+        ).execute()
+        messages.extend(page.get('messages', []))
+        page_token = page.get('nextPageToken')
+        if not page_token or len(messages) >= max_total:
+            break
     if not messages:
         await db.gmail_tokens.update_one({"user_id": user["id"]}, {"$set": {"ultimo_sync": now.isoformat()}})
         return {"status": "success", "total": 0, "procesados": 0, "descartados": 0, "message": "No hay emails nuevos"}
