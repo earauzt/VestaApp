@@ -16,6 +16,7 @@ match+sort, el otro es match+group con sum/cond, ambos resueltos en Python).
 """
 import os
 import re
+import uuid
 import asyncio
 import logging
 from pathlib import Path
@@ -256,6 +257,8 @@ class _Collection:
 
     async def insert_one(self, doc: dict):
         clean = {k: v for k, v in doc.items() if k != "_id"}
+        if not clean.get("id"):
+            clean["id"] = str(uuid.uuid4())
         for _ in range(10):
             try:
                 await asyncio.to_thread(lambda p=clean: _sb.table(self.table).insert(p).execute())
@@ -269,6 +272,9 @@ class _Collection:
 
     async def insert_many(self, docs: list):
         clean = [{k: v for k, v in d.items() if k != "_id"} for d in docs]
+        for d in clean:
+            if not d.get("id"):
+                d["id"] = str(uuid.uuid4())
         for _ in range(10):
             if not clean:
                 break
