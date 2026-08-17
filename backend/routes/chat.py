@@ -7,8 +7,8 @@ import logging
 
 from database import db
 from models import ChatMessage, ChatResponse, BUDGET_CATEGORIES
-from utils import get_current_user, EMERGENT_LLM_KEY
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from utils import get_current_user
+import ai_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -16,7 +16,7 @@ router = APIRouter()
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat_with_ai(chat_message: ChatMessage, user: dict = Depends(get_current_user)):
-    if not EMERGENT_LLM_KEY:
+    if not ai_client.is_configured():
         raise HTTPException(status_code=500, detail="API key no configurada")
     session_id = chat_message.session_id or f"chat_{user['id']}_{uuid.uuid4().hex[:8]}"
     try:
@@ -62,9 +62,16 @@ CONTEXTO FINANCIERO DEL USUARIO:
 - Ahorro: 10% ($1,250/mes)
 - Inversion: 15% ($1,875/mes)
 """
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=session_id,
+        historial = await db.chat_history.find(
+            {"session_id": session_id, "user_id": user["id"]}, {"_id": 0, "user_message": 1, "ai_response": 1}
+        ).sort("timestamp", 1).to_list(20)
+        conversation = []
+        for h in historial:
+            conversation.append({"role": "user", "content": h["user_message"]})
+            conversation.append({"role": "assistant", "content": h["ai_response"]})
+        conversation.append({"role": "user", "content": chat_message.message})
+
+        response = await ai_client.ask_conversation(
             system_message=f"""Eres un asistente financiero personal experto en finanzas familiares y leyes tributarias de Ecuador.
 
 Tu rol es ayudar al usuario a:
@@ -82,9 +89,10 @@ IMPORTANTE:
 - No inventes datos que no tienes
 
 {financial_context}
-"""
-        ).with_model("openai", "gpt-5.2")
-        response = await chat.send_message(UserMessage(text=chat_message.message))
+""",
+            messages=conversation,
+            max_tokens=1500,
+        )
         await db.chat_history.insert_one({"session_id": session_id, "user_id": user["id"], "user_message": chat_message.message, "ai_response": response, "timestamp": datetime.now(timezone.utc).isoformat()})
         return ChatResponse(response=response, session_id=session_id)
     except Exception as e:

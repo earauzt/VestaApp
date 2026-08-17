@@ -14,8 +14,8 @@ from models import (
     get_budget_categories, get_income_structure, get_budget_summary,
     get_budget_goals
 )
-from utils import get_current_user, EMERGENT_LLM_KEY
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+from utils import get_current_user
+import ai_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -101,7 +101,7 @@ async def get_budget_suggestions(user: dict = Depends(get_current_user)):
 
 @router.get("/predictions")
 async def get_predictions(user: dict = Depends(get_current_user)):
-    if not EMERGENT_LLM_KEY:
+    if not ai_client.is_configured():
         return {"predictions": [], "advice": ["Configure API key para predicciones AI"], "sri_tips": []}
     now = datetime.now(timezone.utc)
     three_months_ago = (now - timedelta(days=90)).strftime("%Y-%m-%d")
@@ -116,12 +116,14 @@ async def get_predictions(user: dict = Depends(get_current_user)):
         summary[cat]["total"] += t["amount"]
         summary[cat]["count"] += 1
     try:
-        chat = LlmChat(api_key=EMERGENT_LLM_KEY, session_id=f"predict_{uuid.uuid4()}", system_message="""Eres un asesor financiero experto en finanzas personales y leyes tributarias de Ecuador.
+        response = await ai_client.ask(
+            system_message="""Eres un asesor financiero experto en finanzas personales y leyes tributarias de Ecuador.
             Analiza los gastos y proporciona:
             1. Predicciones de gastos para el proximo mes por categoria
             2. Consejos especificos para optimizar recursos
-            3. Recomendaciones para maximizar deducciones SRI""")
-        response = await chat.send_message(UserMessage(text=f"Analiza estos gastos de los ultimos 3 meses y proporciona predicciones: {json.dumps(summary)}"))
+            3. Recomendaciones para maximizar deducciones SRI""",
+            user_text=f"Analiza estos gastos de los ultimos 3 meses y proporciona predicciones: {json.dumps(summary)}"
+        )
         json_match = re.search(r'\{.*\}', response, re.DOTALL)
         if json_match:
             result = json.loads(json_match.group())

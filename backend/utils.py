@@ -5,7 +5,7 @@ from jose import JWTError, jwt
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from pathlib import Path
-from emergentintegrations.llm.chat import LlmChat, UserMessage, FileContentWithMimeType
+import ai_client
 import os
 import re
 import json
@@ -27,7 +27,6 @@ logger = logging.getLogger(__name__)
 SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'default_secret_key')
 ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', 1440))
-EMERGENT_LLM_KEY = os.environ.get('EMERGENT_LLM_KEY', '')
 
 # Google OAuth2 / Gmail
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
@@ -314,12 +313,10 @@ def generate_sri_alerts(category_progress, total_deductible, limite_global):
 # ================= AI HELPERS =================
 
 async def classify_with_ai(text: str, context: str = "expense") -> dict:
-    if not EMERGENT_LLM_KEY:
+    if not ai_client.is_configured():
         return {"category": "otros", "subcategory": "Varios", "amount": 0, "description": text}
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"classify_{uuid.uuid4()}",
+        response = await ai_client.ask(
             system_message="""Eres un asistente financiero experto en leyes tributarias de Ecuador.
             Clasifica las transacciones en las siguientes categorias del SRI:
             - alimentacion: Comida, Restaurantes, Supermercado
@@ -330,9 +327,9 @@ async def classify_with_ai(text: str, context: str = "expense") -> dict:
             - transporte: Carros, Combustible, Mantenimiento vehicular
             - otros: Empleados, Viajes y Entretenimiento, Varios
 
-            Responde SOLO en formato JSON: {"category": "...", "subcategory": "...", "amount": numero, "description": "...", "establishment": "..."}"""
-        ).with_model("openai", "gpt-5.2")
-        response = await chat.send_message(UserMessage(text=f"Clasifica esta transaccion: {text}"))
+            Responde SOLO en formato JSON: {"category": "...", "subcategory": "...", "amount": numero, "description": "...", "establishment": "..."}""",
+            user_text=f"Clasifica esta transaccion: {text}"
+        )
         json_match = re.search(r'\{[^}]+\}', response)
         if json_match:
             return json.loads(json_match.group())
@@ -343,7 +340,7 @@ async def classify_with_ai(text: str, context: str = "expense") -> dict:
 
 
 async def process_image_with_ai(file_path: str, document_type: str = "receipt") -> dict:
-    if not EMERGENT_LLM_KEY:
+    if not ai_client.is_configured():
         return {"error": "API key not configured"}
     try:
         ext = os.path.splitext(file_path)[1].lower()
@@ -456,16 +453,14 @@ Responde UNICAMENTE con JSON valido, sin explicaciones adicionales."""
             {"transactions": [{"amount": numero, "description": "...", "category": "...", "subcategory": "...", "establishment": "...", "date": "YYYY-MM-DD"}]}"""
             user_prompt = "Extrae toda la informacion de este recibo/factura ecuatoriana"
 
-        logger.info(f"Sending file to Gemini for OCR processing: {file_path}")
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"ocr_{uuid.uuid4()}",
-            system_message=system_prompt
-        ).with_model("gemini", "gemini-2.5-flash")
-
-        file_content = FileContentWithMimeType(file_path=file_path, mime_type=mime_type)
-        response = await chat.send_message(UserMessage(text=user_prompt, file_contents=[file_content]))
-        logger.info(f"Gemini response received, length: {len(response)}")
+        logger.info(f"Sending file to Claude for OCR processing: {file_path}")
+        response = await ai_client.ask_with_file(
+            system_message=system_prompt,
+            user_text=user_prompt,
+            file_path=file_path,
+            mime_type=mime_type,
+        )
+        logger.info(f"Claude response received, length: {len(response)}")
 
         json_match = re.search(r'\{[\s\S]*\}', response)
         if json_match:
@@ -509,7 +504,7 @@ def extract_text_from_pdf(file_path: str) -> str:
 
 
 async def process_bank_statement_text(text: str) -> dict:
-    if not EMERGENT_LLM_KEY:
+    if not ai_client.is_configured():
         return {"error": "API key not configured"}
     try:
         system_prompt = """Eres un experto en analisis de estados de cuenta bancarios de Ecuador.
@@ -593,13 +588,7 @@ REGLAS:
 
 Responde SOLO con el JSON estructurado."""
 
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"bank_stmt_{uuid.uuid4()}",
-            system_message=system_prompt
-        ).with_model("gemini", "gemini-2.5-flash")
-
-        response = await chat.send_message(UserMessage(text=user_prompt))
+        response = await ai_client.ask(system_message=system_prompt, user_text=user_prompt, max_tokens=4000)
         logger.info(f"AI response length: {len(response)}")
 
         json_match = re.search(r'\{[\s\S]*\}', response)

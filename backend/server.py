@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 # Create the main app
-app = FastAPI(title="FamilyFinance Ecuador API")
+app = FastAPI(title="Vesta API")
 
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
@@ -51,7 +51,7 @@ api_router.include_router(sri_match_router)
 # Health and root endpoints
 @api_router.get("/")
 async def root():
-    return {"message": "FamilyFinance Ecuador API", "version": "1.0.0"}
+    return {"message": "Vesta API", "version": "1.0.0"}
 
 @api_router.get("/health")
 async def health():

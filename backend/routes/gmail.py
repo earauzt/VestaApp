@@ -19,23 +19,17 @@ from database import db
 from models import GMAIL_SCOPES, BANK_DOMAINS, BANK_SENDERS, DISCARD_SUBJECTS, SERVICE_DOMAINS, apply_categorization_rules
 from utils import (
     get_current_user, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
-    GOOGLE_REDIRECT_URI, EMERGENT_LLM_KEY, extract_text_from_pdf,
+    GOOGLE_REDIRECT_URI, extract_text_from_pdf,
     process_bank_statement_text, lookup_known_vendor
 )
 from routes.documents import _upsert_card_from_statement, _save_deferred_purchases
 from routes.sri_match import try_sri_match
-from emergentintegrations.llm.chat import LlmChat, UserMessage
+import ai_client
 from parsers import dispatch as parser_dispatch, extract_html_body, extract_text_body
 from utils import dedup_or_merge
 
-GOOGLE_REDIRECT_URI_PROD = os.environ.get("GOOGLE_REDIRECT_URI_PROD", "")
-PROD_HOST = "finwise-ec.emergent.host"
-
 
 def _resolve_redirect_uri(request: Request) -> str:
-    host = (request.headers.get("x-forwarded-host") or request.headers.get("host") or "").split(":")[0].lower()
-    if host == PROD_HOST and GOOGLE_REDIRECT_URI_PROD:
-        return GOOGLE_REDIRECT_URI_PROD
     return GOOGLE_REDIRECT_URI
 
 logger = logging.getLogger(__name__)
@@ -183,12 +177,10 @@ async def _classify_email_with_ai(subject: str, body_snippet: str, force_type: s
         '(patron RUC: 13 digitos, patron factura: 001-001-XXXXXXXXX).'
     )
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"gmail_classify_{uuid.uuid4()}",
-            system_message=system_prompt
-        ).with_model("openai", "gpt-4o")
-        response = await chat.send_message(UserMessage(text=f"Subject: {subject}\n\nBody: {body_snippet[:2000]}"))
+        response = await ai_client.ask(
+            system_message=system_prompt,
+            user_text=f"Subject: {subject}\n\nBody: {body_snippet[:2000]}"
+        )
         json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
         if json_match:
             result = json.loads(json_match.group())
@@ -215,12 +207,10 @@ async def _classify_service_receipt(subject: str, body_snippet: str) -> dict:
         '"proxima_renovacion": "YYYY-MM-DD" o null (siguiente fecha de cobro si se menciona)}'
     )
     try:
-        chat = LlmChat(
-            api_key=EMERGENT_LLM_KEY,
-            session_id=f"gmail_service_{uuid.uuid4()}",
-            system_message=system_prompt
-        ).with_model("openai", "gpt-4o")
-        response = await chat.send_message(UserMessage(text=f"Subject: {subject}\n\nBody: {body_snippet[:2000]}"))
+        response = await ai_client.ask(
+            system_message=system_prompt,
+            user_text=f"Subject: {subject}\n\nBody: {body_snippet[:2000]}"
+        )
         json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
         if json_match:
             return json.loads(json_match.group())
