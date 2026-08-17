@@ -4,7 +4,7 @@ import os
 import logging
 from pathlib import Path
 
-from database import db, client, MONGO_URL, DB_NAME
+from database import db, client
 from seed_data import seed_database
 
 # Configure logging
@@ -72,7 +72,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_db_seed():
     logger.info("Iniciando aplicacion - Ejecutando seed de datos...")
-    await seed_database(MONGO_URL, DB_NAME)
+    await seed_database()
     logger.info("Seed de datos completado")
     from routes.gmail import start_gmail_cron
     start_gmail_cron()

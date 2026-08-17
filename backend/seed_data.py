@@ -1,490 +1,71 @@
+"""Datos iniciales de Vesta — se asegura de que existan al arrancar la app.
+Un solo usuario, sin login: nada de contraseñas ni tabla de usuarios aca.
 """
-Script de datos iniciales para FinTrack Ecuador
-Se ejecuta automáticamente al iniciar la app para asegurar que los datos base existan
-"""
-import asyncio
-from motor.motor_asyncio import AsyncIOMotorClient
-from passlib.context import CryptContext
 from datetime import datetime, timezone
-import os
 import logging
-import certifi
 
 logger = logging.getLogger(__name__)
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-# Datos del usuario admin
-ADMIN_USER = {
-    "id": "admin-emilio-001",
-    "email": "earauzt@gmail.com",
-    "name": "Emilio Arauz",
-    "role": "admin",
-    "created_at": "2026-01-01T00:00:00Z"
-}
-ADMIN_PASSWORD = os.environ.get('SEED_ADMIN_PASSWORD', 'Realmadrid2011')
+USER_ID = "emilio"
 
-# Datos de usuarios adicionales
-ADDITIONAL_USERS = [
-    {
-        "id": "user-kp-001",
-        "email": "karlapolit@gmail.com",
-        "name": "KP",
-        "role": "spouse",
-        "password": os.environ.get('SEED_SPOUSE_PASSWORD', 'Emilio87')
-    },
-    {
-        "id": "user-contadora-001",
-        "email": "cmmgcontador@outlook.com",
-        "name": "Contadora",
-        "role": "accountant",
-        "password": os.environ.get('SEED_ACCOUNTANT_PASSWORD', 'Arauz2025')
-    },
-    {
-        "id": "user-demo-001",
-        "email": "demo@fintrack.ec",
-        "name": "Usuario Demo",
-        "role": "demo",
-        "password": os.environ.get('SEED_DEMO_PASSWORD', 'demo2026')
-    }
-]
-
-# Datos DEMO para usuarios externos (datos ficticios)
-DEMO_CREDIT_CARDS = [
-    {
-        "id": "demo-card-visa",
-        "user_id": "user-demo-001",
-        "name": "Visa Gold Demo",
-        "bank": "Banco Demo",
-        "credit_limit": 5000.00,
-        "current_balance": 1250.50,
-        "minimum_payment": 125.00,
-        "available_credit": 3749.50,
-        "apr": 15.50,
-        "cut_off_day": 15,
-        "payment_due_day": 1,
-        "statement_date": "2026-01-15",
-        "due_date": "2026-02-01",
-        "currency": "USD",
-        "is_international": False
-    },
-    {
-        "id": "demo-card-mastercard",
-        "user_id": "user-demo-001",
-        "name": "Mastercard Platinum Demo",
-        "bank": "Banco Demo",
-        "credit_limit": 8000.00,
-        "current_balance": 2340.00,
-        "minimum_payment": 234.00,
-        "available_credit": 5660.00,
-        "apr": 16.00,
-        "cut_off_day": 20,
-        "payment_due_day": 5,
-        "statement_date": "2026-01-20",
-        "due_date": "2026-02-05",
-        "currency": "USD",
-        "is_international": False
-    }
-]
-
-DEMO_TRANSACTIONS = [
-    {
-        "id": "demo-tx-001",
-        "user_id": "user-demo-001",
-        "amount": 45.50,
-        "description": "Supermercado La Favorita",
-        "category": "comida",
-        "subcategory": "Supermercado",
-        "date": "2026-01-28",
-        "transaction_type": "expense",
-        "status": "approved",
-        "source_type": "manual"
-    },
-    {
-        "id": "demo-tx-002",
-        "user_id": "user-demo-001",
-        "amount": 28.00,
-        "description": "Gasolina Primax",
-        "category": "carros",
-        "subcategory": "Gasolina",
-        "date": "2026-01-27",
-        "transaction_type": "expense",
-        "status": "approved",
-        "source_type": "manual"
-    },
-    {
-        "id": "demo-tx-003",
-        "user_id": "user-demo-001",
-        "amount": 120.00,
-        "description": "Cena Restaurante Demo",
-        "category": "restaurantes",
-        "subcategory": "Restaurantes",
-        "date": "2026-01-26",
-        "transaction_type": "expense",
-        "status": "approved",
-        "source_type": "manual"
-    },
-    {
-        "id": "demo-tx-004",
-        "user_id": "user-demo-001",
-        "amount": 85.00,
-        "description": "Planilla Eléctrica",
-        "category": "servicios_basicos",
-        "subcategory": "Electricidad",
-        "date": "2026-01-25",
-        "transaction_type": "expense",
-        "status": "approved",
-        "source_type": "manual"
-    },
-    {
-        "id": "demo-tx-005",
-        "user_id": "user-demo-001",
-        "amount": 3500.00,
-        "description": "Salario Mensual",
-        "category": "ingreso",
-        "subcategory": "Salario",
-        "date": "2026-01-15",
-        "transaction_type": "income",
-        "source": "Personal",
-        "status": "approved",
-        "source_type": "manual"
-    },
-    {
-        "id": "demo-tx-006",
-        "user_id": "user-demo-001",
-        "amount": 15.99,
-        "description": "Netflix Suscripción",
-        "category": "otros",
-        "subcategory": "Streaming",
-        "date": "2026-01-20",
-        "transaction_type": "expense",
-        "status": "approved",
-        "source_type": "manual"
-    }
-]
-
-DEMO_TRAVEL_GOALS = [
-    {
-        "id": "demo-goal-001",
-        "user_id": "user-demo-001",
-        "destination": "Cancún, México",
-        "target_amount": 2500.00,
-        "saved_amount": 800.00,
-        "target_date": "2026-07-15",
-        "status": "active",
-        "notes": "Vacaciones de verano"
-    }
-]
-
-# Datos de las 4 tarjetas
 CREDIT_CARDS = [
     {
-        "id": "card-pacificard-black",
-        "user_id": "admin-emilio-001",
-        "name": "Pacificard Black",
-        "bank": "Pacificard",
-        "credit_limit": 15000.00,
-        "current_balance": 27677.32,
-        "minimum_payment": 1807.17,
-        "available_credit": 0,
-        "apr": 16.77,
-        "cut_off_day": 23,
-        "payment_due_day": 9,
-        "statement_date": "2026-01-23",
-        "due_date": "2026-02-09",
-        "currency": "USD",
-        "is_international": False
+        "id": "card-pacificard-black", "user_id": USER_ID, "name": "Pacificard Black", "bank": "Pacificard",
+        "credit_limit": 15000.00, "current_balance": 27677.32, "minimum_payment": 1807.17,
+        "apr": 16.77, "cut_off_day": 23, "payment_due_day": 9, "currency": "USD", "is_international": False,
     },
     {
-        "id": "card-pichincha-platinum",
-        "user_id": "admin-emilio-001",
-        "name": "Mastercard Quantum",
-        "bank": "Banco Pichincha",
-        "credit_limit": 40000.00,
-        "current_balance": 5648.09,
-        "minimum_payment": 4613.61,
-        "available_credit": 9216.01,
-        "apr": 16.77,
-        "cut_off_day": 24,
-        "payment_due_day": 9,
-        "card_number_last4": "3223",
-        "statement_date": "2026-03-24",
-        "due_date": "2026-04-08",
-        "currency": "USD",
-        "is_international": False
+        "id": "card-pichincha-platinum", "user_id": USER_ID, "name": "Mastercard Quantum", "bank": "Banco Pichincha",
+        "credit_limit": 40000.00, "current_balance": 5648.09, "minimum_payment": 4613.61,
+        "apr": 16.77, "cut_off_day": 24, "payment_due_day": 9, "currency": "USD", "is_international": False,
     },
     {
-        "id": "card-diners",
-        "user_id": "admin-emilio-001",
-        "name": "Diners Club",
-        "bank": "Diners Club",
-        "credit_limit": 12700.00,
-        "current_balance": 2313.35,
-        "minimum_payment": 369.33,
-        "available_credit": 10366.27,
-        "apr": 16.77,
-        "cut_off_day": 3,
-        "payment_due_day": 20,
-        "statement_date": "2026-01-03",
-        "due_date": "2026-01-20",
-        "currency": "USD",
-        "is_international": False
-    }
+        "id": "card-diners", "user_id": USER_ID, "name": "Diners Club", "bank": "Diners Club",
+        "credit_limit": 12700.00, "current_balance": 2313.35, "minimum_payment": 369.33,
+        "apr": 16.77, "cut_off_day": 3, "payment_due_day": 20, "currency": "USD", "is_international": False,
+    },
 ]
 
-# Datos de los 6 diferidos
 DEFERRED_PAYMENTS = [
-    # Pacificard
-    {
-        "id": "def-pacificard-001",
-        "user_id": "admin-emilio-001",
-        "description": "PACIFICARD EFECTIVO BANCA",
-        "total_amount": 11070.90,
-        "monthly_payment": 738.06,
-        "remaining_installments": 13,
-        "total_installments": 15,
-        "card_id": "card-pacificard-black",
-        "card_name": "Pacificard Black"
-    },
-    {
-        "id": "def-pacificard-002",
-        "user_id": "admin-emilio-001",
-        "description": "PACIFICARD EFECTIVO BANCA",
-        "total_amount": 12639.90,
-        "monthly_payment": 601.90,
-        "remaining_installments": 13,
-        "total_installments": 21,
-        "card_id": "card-pacificard-black",
-        "card_name": "Pacificard Black"
-    },
-    {
-        "id": "def-pacificard-003",
-        "user_id": "admin-emilio-001",
-        "description": "TECNICENTRO JULIO GUERRA",
-        "total_amount": 1557.42,
-        "monthly_payment": 259.57,
-        "remaining_installments": 1,
-        "total_installments": 6,
-        "card_id": "card-pacificard-black",
-        "card_name": "Pacificard Black"
-    },
-    # Pichincha
-    {
-        "id": "def-pichincha-001",
-        "user_id": "admin-emilio-001",
-        "description": "MUNICIPIO DE SAMBOROND",
-        "total_amount": 3953.46,
-        "monthly_payment": 1317.82,
-        "remaining_installments": 2,
-        "total_installments": 3,
-        "card_id": "card-pichincha-platinum",
-        "card_name": "Pichincha Platinum"
-    },
-    {
-        "id": "def-pichincha-002",
-        "user_id": "admin-emilio-001",
-        "description": "SRI PAGOS EN LINEA",
-        "total_amount": 737.88,
-        "monthly_payment": 245.96,
-        "remaining_installments": 1,
-        "total_installments": 3,
-        "card_id": "card-pichincha-platinum",
-        "card_name": "Pichincha Platinum"
-    },
-    {
-        "id": "def-pichincha-003",
-        "user_id": "admin-emilio-001",
-        "description": "SRI PAGOS EN LINEA",
-        "total_amount": 1665.84,
-        "monthly_payment": 277.64,
-        "remaining_installments": 1,
-        "total_installments": 6,
-        "card_id": "card-pichincha-platinum",
-        "card_name": "Pichincha Platinum"
-    }
+    {"id": "def-pacificard-001", "user_id": USER_ID, "description": "PACIFICARD EFECTIVO BANCA", "total_amount": 11070.90, "monthly_payment": 738.06, "remaining_installments": 13, "total_installments": 15, "card_id": "card-pacificard-black", "card_name": "Pacificard Black"},
+    {"id": "def-pacificard-002", "user_id": USER_ID, "description": "PACIFICARD EFECTIVO BANCA", "total_amount": 12639.90, "monthly_payment": 601.90, "remaining_installments": 13, "total_installments": 21, "card_id": "card-pacificard-black", "card_name": "Pacificard Black"},
+    {"id": "def-pacificard-003", "user_id": USER_ID, "description": "TECNICENTRO JULIO GUERRA", "total_amount": 1557.42, "monthly_payment": 259.57, "remaining_installments": 1, "total_installments": 6, "card_id": "card-pacificard-black", "card_name": "Pacificard Black"},
+    {"id": "def-pichincha-001", "user_id": USER_ID, "description": "MUNICIPIO DE SAMBOROND", "total_amount": 3953.46, "monthly_payment": 1317.82, "remaining_installments": 2, "total_installments": 3, "card_id": "card-pichincha-platinum", "card_name": "Pichincha Platinum"},
+    {"id": "def-pichincha-002", "user_id": USER_ID, "description": "SRI PAGOS EN LINEA", "total_amount": 737.88, "monthly_payment": 245.96, "remaining_installments": 1, "total_installments": 3, "card_id": "card-pichincha-platinum", "card_name": "Pichincha Platinum"},
+    {"id": "def-pichincha-003", "user_id": USER_ID, "description": "SRI PAGOS EN LINEA", "total_amount": 1665.84, "monthly_payment": 277.64, "remaining_installments": 1, "total_installments": 6, "card_id": "card-pichincha-platinum", "card_name": "Pichincha Platinum"},
 ]
 
 
-async def seed_database(mongo_url: str, db_name: str):
-    """Carga los datos iniciales si no existen"""
+async def seed_database():
+    from database import db
     try:
-        client = AsyncIOMotorClient(mongo_url, tlsCAFile=certifi.where())
-        db = client[db_name]
-        
-        # 1. Crear usuario admin si no existe
-        existing_user = await db.users.find_one({"email": ADMIN_USER["email"]})
-        if not existing_user:
-            user_doc = {
-                **ADMIN_USER,
-                "password": pwd_context.hash(ADMIN_PASSWORD),
-                "hashed_password": pwd_context.hash(ADMIN_PASSWORD)
-            }
-            await db.users.insert_one(user_doc)
-            logger.info(f"✅ Usuario admin creado: {ADMIN_USER['email']}")
-            user_id = ADMIN_USER["id"]
-        else:
-            # Usar el user_id existente
-            user_id = existing_user.get("id", ADMIN_USER["id"])
-            # Asegurar que el password esté actualizado
-            await db.users.update_one(
-                {"email": ADMIN_USER["email"]},
-                {"$set": {
-                    "password": pwd_context.hash(ADMIN_PASSWORD),
-                    "hashed_password": pwd_context.hash(ADMIN_PASSWORD)
-                }}
-            )
-            logger.info(f"ℹ️ Usuario admin ya existe: {ADMIN_USER['email']} (ID: {user_id})")
-        
-        # 1.5 Crear usuarios adicionales (KP y Contadora)
-        for add_user in ADDITIONAL_USERS:
-            existing = await db.users.find_one({"email": add_user["email"]})
-            if not existing:
-                user_doc = {
-                    "id": add_user["id"],
-                    "email": add_user["email"],
-                    "name": add_user["name"],
-                    "role": add_user["role"],
-                    "password": pwd_context.hash(add_user["password"]),
-                    "hashed_password": pwd_context.hash(add_user["password"]),
-                    "created_at": datetime.now(timezone.utc).isoformat()
-                }
-                await db.users.insert_one(user_doc)
-                logger.info(f"✅ Usuario creado: {add_user['name']} ({add_user['role']})")
-            else:
-                # Actualizar nombre y password
-                await db.users.update_one(
-                    {"email": add_user["email"]},
-                    {"$set": {
-                        "name": add_user["name"],
-                        "password": pwd_context.hash(add_user["password"]),
-                        "hashed_password": pwd_context.hash(add_user["password"])
-                    }}
-                )
-                logger.info(f"ℹ️ Usuario actualizado: {add_user['name']} ({add_user['role']})")
-        
-        # 2. Crear tarjetas si no existen
         for card in CREDIT_CARDS:
-            card_data = {**card, "user_id": user_id}  # Usar el user_id correcto
-            existing_card = await db.credit_cards.find_one({"id": card["id"]})
-            if not existing_card:
-                card_doc = {
-                    **card_data,
-                    "created_at": datetime.now(timezone.utc).isoformat()
-                }
-                await db.credit_cards.insert_one(card_doc)
-                logger.info(f"✅ Tarjeta creada: {card['name']}")
-            else:
-                # Actualizar datos de la tarjeta incluyendo user_id
-                await db.credit_cards.update_one(
-                    {"id": card["id"]},
-                    {"$set": {
-                        "user_id": user_id,
-                        "current_balance": card["current_balance"],
-                        "minimum_payment": card["minimum_payment"],
-                        "due_date": card["due_date"],
-                        "updated_at": datetime.now(timezone.utc).isoformat()
-                    }}
-                )
-                logger.info(f"ℹ️ Tarjeta actualizada: {card['name']}")
-        
-        # 3. Crear diferidos si no existen
-        for deferred in DEFERRED_PAYMENTS:
-            deferred_data = {**deferred, "user_id": user_id}  # Usar el user_id correcto
-            existing_def = await db.deferred_payments.find_one({"id": deferred["id"]})
-            if not existing_def:
-                def_doc = {
-                    **deferred_data,
-                    "created_at": datetime.now(timezone.utc).isoformat()
-                }
-                await db.deferred_payments.insert_one(def_doc)
-                logger.info(f"✅ Diferido creado: {deferred['description']}")
-            else:
-                # Actualizar user_id si existe
-                await db.deferred_payments.update_one(
-                    {"id": deferred["id"]},
-                    {"$set": {"user_id": user_id}}
-                )
-                logger.info(f"ℹ️ Diferido ya existe: {deferred['description']}")
-        
-        # 4. Crear datos DEMO para usuario demo
-        demo_user_id = "user-demo-001"
-        
-        # 4.1 Crear tarjetas demo
-        for card in DEMO_CREDIT_CARDS:
-            existing_card = await db.credit_cards.find_one({"id": card["id"]})
-            if not existing_card:
-                card_doc = {
-                    **card,
-                    "created_at": datetime.now(timezone.utc).isoformat()
-                }
-                await db.credit_cards.insert_one(card_doc)
-                logger.info(f"✅ Tarjeta DEMO creada: {card['name']}")
-        
-        # 4.2 Crear transacciones demo
-        for tx in DEMO_TRANSACTIONS:
-            existing_tx = await db.transactions.find_one({"id": tx["id"]})
-            if not existing_tx:
-                tx_doc = {
-                    **tx,
-                    "created_at": datetime.now(timezone.utc).isoformat()
-                }
-                await db.transactions.insert_one(tx_doc)
-                logger.info(f"✅ Transacción DEMO creada: {tx['description']}")
-        
-        # 4.3 Crear metas de viaje demo
-        for goal in DEMO_TRAVEL_GOALS:
-            existing_goal = await db.travel_goals.find_one({"id": goal["id"]})
-            if not existing_goal:
-                goal_doc = {
-                    **goal,
-                    "created_at": datetime.now(timezone.utc).isoformat()
-                }
-                await db.travel_goals.insert_one(goal_doc)
-                logger.info(f"✅ Meta de viaje DEMO creada: {goal['destination']}")
-        
-        # Resumen
-        cards_count = await db.credit_cards.count_documents({})
-        deferred_count = await db.deferred_payments.count_documents({})
-        users_count = await db.users.count_documents({})
+            existing = await db.credit_cards.find_one({"id": card["id"]})
+            if not existing:
+                await db.credit_cards.insert_one({**card, "created_at": datetime.now(timezone.utc).isoformat()})
+                logger.info(f"Tarjeta creada: {card['name']}")
 
-        # Seed sri_categorias (SESIÓN 8)
+        for deferred in DEFERRED_PAYMENTS:
+            existing = await db.deferred_payments.find_one({"id": deferred["id"]})
+            if not existing:
+                await db.deferred_payments.insert_one({**deferred, "created_at": datetime.now(timezone.utc).isoformat()})
+                logger.info(f"Diferido creado: {deferred['description']}")
+
         try:
             from models import SRI_CATEGORIAS_REGLAS
             for key, rule in SRI_CATEGORIAS_REGLAS.items():
                 await db.sri_categorias.update_one(
                     {"categoria": key},
-                    {"$set": {"categoria": key, **rule, "updated_at": datetime.now(timezone.utc).isoformat()}},
+                    {"$set": {"categoria": key, **rule}},
                     upsert=True,
                 )
-            logger.info(f"   - SRI categorias: {await db.sri_categorias.count_documents({})}")
         except Exception as e:
-            logger.warning(f"SRI categorias seed failed: {e}")
-        
-        logger.info(f"\n📊 Base de datos inicializada:")
-        logger.info(f"   - Usuarios: {users_count}")
-        logger.info(f"   - Tarjetas: {cards_count}")
-        logger.info(f"   - Diferidos: {deferred_count}")
-        
+            logger.warning(f"SRI categorias seed fallo: {e}")
+
+        cards_count = await db.credit_cards.count_documents({})
+        deferred_count = await db.deferred_payments.count_documents({})
+        logger.info(f"Base de datos inicializada — tarjetas: {cards_count}, diferidos: {deferred_count}")
         return True
-        
     except Exception as e:
-        logger.error(f"❌ Error en seed_database: {e}")
+        logger.error(f"Error en seed_database: {e}")
         return False
-
-
-async def run_seed():
-    """Función para ejecutar el seed manualmente"""
-    from dotenv import load_dotenv
-    load_dotenv()
-    
-    mongo_url = os.environ.get('MONGO_URL')
-    db_name = os.environ.get('DB_NAME', 'fintrack_ec')
-    
-    if not mongo_url:
-        print("❌ MONGO_URL no configurada")
-        return
-    
-    await seed_database(mongo_url, db_name)
-
-
-if __name__ == "__main__":
-    asyncio.run(run_seed())

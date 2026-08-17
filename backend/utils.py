@@ -1,7 +1,4 @@
 from fastapi import HTTPException, Depends, Request
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from passlib.context import CryptContext
-from jose import JWTError, jwt
 from datetime import datetime, timezone, timedelta
 from typing import List, Optional
 from pathlib import Path
@@ -23,65 +20,28 @@ UPLOADS_DIR.mkdir(exist_ok=True)
 
 logger = logging.getLogger(__name__)
 
-# JWT Settings
-SECRET_KEY = os.environ.get('JWT_SECRET_KEY', 'default_secret_key')
-ALGORITHM = os.environ.get('JWT_ALGORITHM', 'HS256')
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.environ.get('ACCESS_TOKEN_EXPIRE_MINUTES', 1440))
-
 # Google OAuth2 / Gmail
 GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
 GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
 GOOGLE_REDIRECT_URI = os.environ.get('GOOGLE_REDIRECT_URI')
 
-# Password hashing
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-security = HTTPBearer(auto_error=False)
 
+# ================= IDENTIDAD FIJA (sin login) =================
+# Vesta es de un solo usuario — el "candado" es que la URL es privada, no un
+# login. get_current_user/check_role se mantienen como Depends() para no tener
+# que tocar las firmas de cada endpoint en los 12 archivos de rutas; simplemente
+# ya no verifican nada, siempre devuelven el mismo perfil.
 
-# ================= AUTH HELPERS =================
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_password_hash(password: str) -> str:
-    return pwd_context.hash(password)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    expire = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-
-async def get_current_user(request: Request, credentials: HTTPAuthorizationCredentials = Depends(security)):
-    token = None
-
-    # 1) Try httpOnly cookie
-    token = request.cookies.get("access_token")
-
-    # 2) Fall back to Authorization header
-    if not token and credentials:
-        token = credentials.credentials
-
-    if not token:
-        raise HTTPException(status_code=401, detail="No autenticado", headers={"WWW-Authenticate": "Bearer"})
-
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            raise HTTPException(status_code=401, detail="Token invalido", headers={"WWW-Authenticate": "Bearer"})
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Token invalido", headers={"WWW-Authenticate": "Bearer"})
-
-    user = await db.users.find_one({"id": user_id}, {"_id": 0})
-    if user is None:
-        raise HTTPException(status_code=401, detail="Usuario no encontrado", headers={"WWW-Authenticate": "Bearer"})
-    return user
+async def get_current_user(request: Request = None):
+    profile = await db.profile.find_one({"id": "emilio"})
+    if profile is None:
+        profile = {"id": "emilio", "email": "earauzt@gmail.com", "name": "Emilio Arauz",
+                   "created_at": datetime.now(timezone.utc).isoformat()}
+    profile.setdefault("role", "admin")
+    return profile
 
 def check_role(allowed_roles: List[str]):
     async def role_checker(user: dict = Depends(get_current_user)):
-        if user["role"] not in allowed_roles:
-            raise HTTPException(status_code=403, detail="Acceso denegado")
         return user
     return role_checker
 
