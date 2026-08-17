@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from typing import List, Optional
 import uuid
 import re
+import logging
 
 from database import db
 from models import (
@@ -77,7 +78,16 @@ async def get_transactions(start_date: Optional[str] = None, end_date: Optional[
     if transaction_type:
         query["transaction_type"] = transaction_type
     transactions = await db.transactions.find(query, {"_id": 0}).sort("date", -1).to_list(1000)
-    return [TransactionResponse(**t) for t in transactions]
+    result = []
+    for t in transactions:
+        t.setdefault("description", "")
+        if t["description"] is None:
+            t["description"] = ""
+        try:
+            result.append(TransactionResponse(**t))
+        except Exception as e:
+            logging.getLogger(__name__).warning(f"Transaccion {t.get('id')} omitida (dato invalido): {e}")
+    return result
 
 
 @router.delete("/transactions/{transaction_id}")

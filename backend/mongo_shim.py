@@ -11,8 +11,8 @@ rutas casi no necesitan cambiar.
 Cubre el subconjunto de MongoDB realmente usado en este codebase: find_one,
 find (con sort/limit/to_list), insert_one, update_one (soporta $set/$inc/$push/
 $unset, incluida notacion de punto para columnas jsonb), delete_one,
-count_documents, y aggregate (solo para los 2 pipelines que existen: uno es
-match+sort, el otro es match+group con sum/cond, ambos resueltos en Python).
+count_documents, y aggregate ($match + $sort y/o $group con acumuladores $sum,
+incluyendo $cond), todo resuelto en Python trayendo las filas filtradas.
 """
 import os
 import re
@@ -418,9 +418,12 @@ class _Collection:
 
 
 class _AggregateCursor:
-    """Soporta unicamente los 2 pipelines reales de este codebase:
-    [$match, $sort] y [$match, $group con $sum/$cond] — ambos resueltos
-    trayendo las filas filtradas y agregando en Python."""
+    """Soporta pipelines [$match, $sort] y [$match, $group] contra las tablas
+    vesta_*, resolviendo todo en Python trayendo las filas filtradas.
+
+    El $group soporta acumuladores $sum sobre: una constante (conteo), un campo
+    ("$campo"), o un $cond de la forma {"$cond": [{"$eq": ["$campo", valor]}, then, else]}.
+    El _id del group puede ser un campo ("$campo") o None/literal (un solo bucket)."""
 
     def __init__(self, table: str, pipeline: list):
         self.table = table
@@ -441,19 +444,44 @@ class _AggregateCursor:
         resp = await asyncio.to_thread(q.execute)
         return [_strip_id(d) for d in (resp.data or [])]
 
+    @staticmethod
+    def _resolve(expr, row):
+        """Resuelve una referencia "$campo" contra la fila, o devuelve el literal tal cual."""
+        if isinstance(expr, str) and expr.startswith("$"):
+            return row.get(expr[1:])
+        return expr
+
+    @classmethod
+    def _eval_accumulator(cls, acc_expr, row):
+        if not isinstance(acc_expr, dict) or "$sum" not in acc_expr:
+            return 0
+        expr = acc_expr["$sum"]
+        if isinstance(expr, dict) and "$cond" in expr:
+            if_expr, then_val, else_val = expr["$cond"]
+            matched = False
+            if isinstance(if_expr, dict) and "$eq" in if_expr:
+                left, right = if_expr["$eq"]
+                matched = cls._resolve(left, row) == cls._resolve(right, row)
+            return cls._resolve(then_val, row) if matched else cls._resolve(else_val, row)
+        if isinstance(expr, str) and expr.startswith("$"):
+            return row.get(expr[1:]) or 0
+        # constante (ej. 1) => cuenta filas
+        return expr
+
     async def _grouped(self):
         rows = await self._rows()
         group_stage = next((s["$group"] for s in self.pipeline if "$group" in s), None)
         if not group_stage:
             return rows
-        group_key_field = group_stage["_id"].lstrip("$")
+        id_spec = group_stage.get("_id")
+        group_key_field = id_spec[1:] if isinstance(id_spec, str) and id_spec.startswith("$") else None
+        accumulators = {k: v for k, v in group_stage.items() if k != "_id"}
         buckets = {}
         for row in rows:
-            key = row.get(group_key_field)
-            b = buckets.setdefault(key, {"_id": key, "total": 0, "null_monto": 0})
-            b["total"] += 1
-            if row.get("monto") is None:
-                b["null_monto"] += 1
+            key = row.get(group_key_field) if group_key_field else None
+            b = buckets.setdefault(key, {"_id": key, **{name: 0 for name in accumulators}})
+            for name, acc_expr in accumulators.items():
+                b[name] += self._eval_accumulator(acc_expr, row) or 0
         return list(buckets.values())
 
     async def to_list(self, length=None):

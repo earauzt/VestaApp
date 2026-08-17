@@ -298,37 +298,44 @@ async def confirm_reconciliation_matches(statement_id: str, confirmed_matches: L
     created = 0
     matched = 0
     skipped = 0
+    failed = 0
+    errors = []
     for item in confirmed_matches:
-        action = item.get("action", "skip")
-        if action == "skip":
-            skipped += 1
-            continue
-        if action == "match":
-            matched_id = item.get("matched_id")
-            if matched_id:
-                await db.transactions.update_one({"id": matched_id, "user_id": user["id"]}, {"$set": {"reconciled": True, "reconciled_at": datetime.now(timezone.utc).isoformat(), "statement_id": statement_id}})
-                matched += 1
-        elif action == "create":
-            tx_data = item.get("transaction_data", {})
-            vendor_lookup = await lookup_known_vendor(user["id"], tx_data.get("establishment", ""), tx_data.get("description", ""))
-            category = item.get("category") or (vendor_lookup.get("personal_category") if vendor_lookup["found"] else tx_data.get("category", "otros"))
-            sri_category = item.get("sri_category") or (vendor_lookup.get("sri_category") if vendor_lookup["found"] else None)
-            subcategory = item.get("subcategory") or (vendor_lookup.get("subcategory") if vendor_lookup["found"] else tx_data.get("subcategory", "Varios"))
-            transaction_doc = {
-                "id": str(uuid.uuid4()), "user_id": user["id"], "amount": tx_data.get("amount", 0), "description": tx_data.get("description", ""), "establishment": tx_data.get("establishment", ""),
-                "date": tx_data.get("date", datetime.now().strftime("%Y-%m-%d")), "category": category, "personal_category": category, "sri_category": sri_category, "subcategory": subcategory,
-                "transaction_type": "expense", "is_deductible": vendor_lookup.get("is_deductible", False) if vendor_lookup["found"] else SRI_CATEGORIES.get(category, {}).get("deductible", False),
-                "status": TransactionStatus.APPROVED, "source_type": SourceType.BANK_STATEMENT, "reconciled": True, "reconciled_at": datetime.now(timezone.utc).isoformat(),
-                "statement_id": statement_id, "auto_categorized_by": "known_vendor" if vendor_lookup["found"] else "user", "created_at": datetime.now(timezone.utc).isoformat()
-            }
-            result = await dedup_or_merge(user["id"], transaction_doc, "estado_cuenta")
-            if not vendor_lookup["found"] and tx_data.get("establishment") and result["action"] == "inserted":
-                vendor_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "establishment": tx_data["establishment"].strip(), "personal_category": category, "sri_category": sri_category, "subcategory": subcategory, "is_deductible": transaction_doc["is_deductible"], "times_used": 1, "last_used": datetime.now(timezone.utc).isoformat(), "created_at": datetime.now(timezone.utc).isoformat()}
-                await db.known_vendors.insert_one(vendor_doc)
-            created += 1
+        try:
+            action = item.get("action", "skip")
+            if action == "skip":
+                skipped += 1
+                continue
+            if action == "match":
+                matched_id = item.get("matched_id")
+                if matched_id:
+                    await db.transactions.update_one({"id": matched_id, "user_id": user["id"]}, {"$set": {"reconciled": True, "reconciled_at": datetime.now(timezone.utc).isoformat(), "statement_id": statement_id}})
+                    matched += 1
+            elif action == "create":
+                tx_data = item.get("transaction_data", {})
+                vendor_lookup = await lookup_known_vendor(user["id"], tx_data.get("establishment", ""), tx_data.get("description", ""))
+                category = item.get("category") or (vendor_lookup.get("personal_category") if vendor_lookup["found"] else tx_data.get("category", "otros"))
+                sri_category = item.get("sri_category") or (vendor_lookup.get("sri_category") if vendor_lookup["found"] else None)
+                subcategory = item.get("subcategory") or (vendor_lookup.get("subcategory") if vendor_lookup["found"] else tx_data.get("subcategory", "Varios"))
+                transaction_doc = {
+                    "id": str(uuid.uuid4()), "user_id": user["id"], "amount": tx_data.get("amount", 0), "description": tx_data.get("description", ""), "establishment": tx_data.get("establishment", ""),
+                    "date": tx_data.get("date", datetime.now().strftime("%Y-%m-%d")), "category": category, "personal_category": category, "sri_category": sri_category, "subcategory": subcategory,
+                    "transaction_type": "expense", "is_deductible": vendor_lookup.get("is_deductible", False) if vendor_lookup["found"] else SRI_CATEGORIES.get(category, {}).get("deductible", False),
+                    "status": TransactionStatus.APPROVED, "source_type": SourceType.BANK_STATEMENT, "reconciled": True, "reconciled_at": datetime.now(timezone.utc).isoformat(),
+                    "statement_id": statement_id, "auto_categorized_by": "known_vendor" if vendor_lookup["found"] else "user", "created_at": datetime.now(timezone.utc).isoformat()
+                }
+                result = await dedup_or_merge(user["id"], transaction_doc, "estado_cuenta")
+                if not vendor_lookup["found"] and tx_data.get("establishment") and result["action"] == "inserted":
+                    vendor_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "establishment": tx_data["establishment"].strip(), "personal_category": category, "sri_category": sri_category, "subcategory": subcategory, "is_deductible": transaction_doc["is_deductible"], "times_used": 1, "last_used": datetime.now(timezone.utc).isoformat(), "created_at": datetime.now(timezone.utc).isoformat()}
+                    await db.known_vendors.insert_one(vendor_doc)
+                created += 1
+        except Exception as e:
+            logger.error(f"confirm-matches: item fallido ({item.get('action')}): {e}")
+            failed += 1
+            errors.append(str(e))
 
-    await db.statement_uploads.update_one({"id": statement_id, "user_id": user["id"]}, {"$set": {"status": "completed", "completed_at": datetime.now(timezone.utc).isoformat(), "final_stats": {"created": created, "matched": matched, "skipped": skipped}}})
-    return {"message": "Reconciliacion completada", "created": created, "matched": matched, "skipped": skipped}
+    await db.statement_uploads.update_one({"id": statement_id, "user_id": user["id"]}, {"$set": {"status": "completed", "completed_at": datetime.now(timezone.utc).isoformat(), "final_stats": {"created": created, "matched": matched, "skipped": skipped, "failed": failed}}})
+    return {"message": "Reconciliacion completada", "created": created, "matched": matched, "skipped": skipped, "failed": failed, "errors": errors}
 
 
 @router.get("/reconciliation/history")
@@ -475,6 +482,9 @@ async def bulk_approve_transactions(body: Dict[str, Any], user: dict = Depends(g
 
 @router.get("/reconciliation/stats")
 async def get_reconciliation_stats(user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))):
+    # Sin $match a proposito: admin/accountant ven las stats de todas las
+    # transacciones de la familia, no solo las propias (mismo alcance que el
+    # resto de vistas de contadora).
     pipeline = [{"$group": {"_id": "$status", "count": {"$sum": 1}, "total_amount": {"$sum": "$amount"}}}]
     results = await db.transactions.aggregate(pipeline).to_list(10)
     stats = {"pending_review": 0, "approved": 0, "rejected": 0, "duplicate_suspect": 0, "duplicate_confirmed": 0, "total_pending_amount": 0, "total_approved_amount": 0}

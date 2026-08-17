@@ -114,22 +114,34 @@ export default function CargarValidar() {
   const [gmailDocuments, setGmailDocuments] = useState([]);
 
   const fetchPendingData = useCallback(async () => {
-    try {
-      const [pendingRes, duplicatesRes, statsRes, crossRes] = await Promise.all([
-        axios.get(`${API}/reconciliation/pending`, { headers: getAuthHeadersRef.current() }),
-        axios.get(`${API}/reconciliation/duplicates`, { headers: getAuthHeadersRef.current() }),
-        axios.get(`${API}/reconciliation/stats`, { headers: getAuthHeadersRef.current() }),
-        axios.get(`${API}/reconciliation/cross-canal-stats`, { headers: getAuthHeadersRef.current() }).catch(() => ({ data: { cross_canal_count: 0 } }))
-      ]);
-      setPendingTransactions(pendingRes.data.pending_review || []);
-      setDuplicatePairs(duplicatesRes.data.pairs || []);
-      setStats(statsRes.data);
-      setCrossCanalCount(crossRes.data.cross_canal_count || 0);
-      setPendingDataError(false);
-    } catch (error) {
-      if (process.env.NODE_ENV === 'development') console.error("Error fetching pending data:", error);
-      setPendingDataError(true);
+    // Cada endpoint se resuelve de forma independiente: si uno falla (ej. un 500
+    // puntual en /stats) no debe tumbar pending/duplicates, que sí responden bien.
+    const [pendingRes, duplicatesRes, statsRes, crossRes] = await Promise.allSettled([
+      axios.get(`${API}/reconciliation/pending`, { headers: getAuthHeadersRef.current() }),
+      axios.get(`${API}/reconciliation/duplicates`, { headers: getAuthHeadersRef.current() }),
+      axios.get(`${API}/reconciliation/stats`, { headers: getAuthHeadersRef.current() }),
+      axios.get(`${API}/reconciliation/cross-canal-stats`, { headers: getAuthHeadersRef.current() })
+    ]);
+
+    if (pendingRes.status === "fulfilled") {
+      setPendingTransactions(pendingRes.value.data.pending_review || []);
+    } else if (process.env.NODE_ENV === 'development') {
+      console.error("Error fetching pending transactions:", pendingRes.reason);
     }
+    if (duplicatesRes.status === "fulfilled") {
+      setDuplicatePairs(duplicatesRes.value.data.pairs || []);
+    } else if (process.env.NODE_ENV === 'development') {
+      console.error("Error fetching duplicates:", duplicatesRes.reason);
+    }
+    if (statsRes.status === "fulfilled") {
+      setStats(statsRes.value.data);
+    } else if (process.env.NODE_ENV === 'development') {
+      console.error("Error fetching stats:", statsRes.reason);
+    }
+    setCrossCanalCount(crossRes.status === "fulfilled" ? (crossRes.value.data.cross_canal_count || 0) : 0);
+
+    // Solo mostramos el error bloqueante si el dato principal (pending) no cargó.
+    setPendingDataError(pendingRes.status === "rejected");
   }, []);
 
   // Deep-link support: Dashboard links to /movimientos?tab=por-revisar using

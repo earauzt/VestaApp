@@ -381,7 +381,7 @@ export default function Transactions() {
   };
 
   const filteredTransactions = transactions.filter(t => {
-    const matchesSearch = t.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = (t.description || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
                          t.establishment?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesCategory = filterCategory === "all" || t.category === filterCategory;
     const matchesType = filterType === "all" || t.transaction_type === filterType;

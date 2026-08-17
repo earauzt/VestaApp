@@ -20,6 +20,7 @@ import {
   Target,
   CreditCard,
   Scale,
+  Bell,
   Menu,
   LogOut,
   User,
@@ -36,6 +37,7 @@ const navItems = [
   { path: "/viajes", label: "Metas", icon: Target, roles: ["admin", "spouse", "demo"] },
   { path: "/deudas", label: "Deudas", icon: CreditCard, roles: ["admin", "spouse", "demo"] },
   { path: "/fiscal", label: "Fiscal", icon: Scale, roles: ["admin", "spouse", "accountant", "demo"] },
+  { path: "/alertas", label: "Alertas", icon: Bell, roles: ["admin", "spouse", "accountant", "demo"] },
 ];
 
 export default function Layout({ children }) {

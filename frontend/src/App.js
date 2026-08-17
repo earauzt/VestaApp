@@ -12,6 +12,7 @@ import Fiscal from "./pages/Fiscal";
 import Deudas from "./pages/Deudas";
 import MetasViaje from "./pages/MetasViaje";
 import Perfil from "./pages/Perfil";
+import Alertas from "./pages/Alertas";
 import Layout from "./components/Layout";
 
 function NotFound() {
@@ -122,6 +123,15 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
             <Perfil />
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/alertas"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "spouse", "accountant", "demo"]}>
+            <Alertas />
           </ProtectedRoute>
         }
       />
