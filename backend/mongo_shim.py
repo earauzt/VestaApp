@@ -21,6 +21,7 @@ import logging
 from pathlib import Path
 from dotenv import load_dotenv
 from supabase import create_client, Client
+from postgrest.exceptions import APIError
 
 logger = logging.getLogger(__name__)
 
@@ -160,7 +161,24 @@ def _strip_id(doc):
         return None
     doc = dict(doc)
     doc.pop("_id", None)
+    extra = doc.pop("extra", None)
+    if extra:
+        for k, v in extra.items():
+            doc.setdefault(k, v)
     return doc
+
+
+_MISSING_COLUMN_RE = re.compile(r"Could not find the '([^']+)' column")
+
+
+def _missing_column(exc: Exception):
+    """Mongo era schema-less; el codigo original guarda campos que la tabla
+    Postgres actual no tiene. En vez de un 500, detectamos el error de columna
+    faltante de PostgREST (PGRST204) y devolvemos el nombre de la columna para
+    que el llamador la mueva a la columna `extra` (jsonb) de respaldo."""
+    msg = str(getattr(exc, "message", "") or exc)
+    m = _MISSING_COLUMN_RE.search(msg)
+    return m.group(1) if m else None
 
 
 class _Cursor:
@@ -238,13 +256,34 @@ class _Collection:
 
     async def insert_one(self, doc: dict):
         clean = {k: v for k, v in doc.items() if k != "_id"}
-        await asyncio.to_thread(lambda: _sb.table(self.table).insert(clean).execute())
-        return type("InsertResult", (), {"inserted_id": clean.get("id")})()
+        for _ in range(10):
+            try:
+                await asyncio.to_thread(lambda p=clean: _sb.table(self.table).insert(p).execute())
+                return type("InsertResult", (), {"inserted_id": clean.get("id")})()
+            except APIError as e:
+                col = _missing_column(e)
+                if not col or col not in clean:
+                    raise
+                clean.setdefault("extra", {})[col] = clean.pop(col)
+        raise RuntimeError(f"insert_one: demasiadas columnas faltantes en {self.table}")
 
     async def insert_many(self, docs: list):
         clean = [{k: v for k, v in d.items() if k != "_id"} for d in docs]
-        if clean:
-            await asyncio.to_thread(lambda: _sb.table(self.table).insert(clean).execute())
+        for _ in range(10):
+            if not clean:
+                break
+            try:
+                await asyncio.to_thread(lambda p=clean: _sb.table(self.table).insert(p).execute())
+                break
+            except APIError as e:
+                col = _missing_column(e)
+                moved = False
+                for d in clean:
+                    if col and col in d:
+                        d.setdefault("extra", {})[col] = d.pop(col)
+                        moved = True
+                if not moved:
+                    raise
         return type("InsertManyResult", (), {"inserted_ids": [d.get("id") for d in clean]})()
 
     async def _fetch_one_raw(self, filt):
@@ -253,7 +292,12 @@ class _Collection:
         q = q.limit(1)
         resp = await asyncio.to_thread(q.execute)
         rows = resp.data or []
-        return rows[0] if rows else None
+        if not rows:
+            return None
+        row = dict(rows[0])
+        for k, v in (row.get("extra") or {}).items():
+            row.setdefault(k, v)
+        return row
 
     async def update_one(self, filt: dict, update: dict, upsert: bool = False):
         jsonb_cols = JSONB_COLUMNS.get(self.table, set())
@@ -296,9 +340,19 @@ class _Collection:
 
         if current:
             if set_fields:
-                q = _sb.table(self.table).update(set_fields)
-                q = _apply_filter(q, filt)
-                await asyncio.to_thread(q.execute)
+                existing_extra = dict(current.get("extra") or {})
+                for _ in range(10):
+                    try:
+                        q = _sb.table(self.table).update(set_fields)
+                        q = _apply_filter(q, filt)
+                        await asyncio.to_thread(q.execute)
+                        break
+                    except APIError as e:
+                        col = _missing_column(e)
+                        if not col or col not in set_fields:
+                            raise
+                        existing_extra[col] = set_fields.pop(col)
+                        set_fields["extra"] = existing_extra
             return _Result(matched_count=1)
         elif upsert:
             new_doc = {**filt, **set_fields}
@@ -306,18 +360,40 @@ class _Collection:
                 merged = {k: v for k, v in changes.items() if v != "__DELETE__"}
                 new_doc[col] = merged
             new_doc = {k: v for k, v in new_doc.items() if not isinstance(v, dict) or k not in ("$or",)}
-            await asyncio.to_thread(lambda: _sb.table(self.table).upsert(new_doc).execute())
+            for _ in range(10):
+                try:
+                    await asyncio.to_thread(lambda p=new_doc: _sb.table(self.table).upsert(p).execute())
+                    break
+                except APIError as e:
+                    col = _missing_column(e)
+                    if not col or col not in new_doc:
+                        raise
+                    new_doc.setdefault("extra", {})[col] = new_doc.pop(col)
             return _Result(matched_count=0, upserted_id=new_doc.get("id"))
         return _Result(matched_count=0)
 
     async def update_many(self, filt: dict, update: dict):
         set_fields = dict(update.get("$set", {}))
-        q = _sb.table(self.table).update(set_fields) if set_fields else None
-        if q is None:
+        if not set_fields:
             return _Result(matched_count=0)
-        q = _apply_filter(q, filt)
-        resp = await asyncio.to_thread(q.execute)
-        return _Result(matched_count=len(resp.data or []))
+        for _ in range(10):
+            try:
+                q = _sb.table(self.table).update(set_fields)
+                q = _apply_filter(q, filt)
+                resp = await asyncio.to_thread(q.execute)
+                return _Result(matched_count=len(resp.data or []))
+            except APIError as e:
+                col = _missing_column(e)
+                if not col or col not in set_fields:
+                    raise
+                # update_many no tiene una fila "current" por registro para mezclar
+                # con su extra individual; se descarta el campo desconocido en vez
+                # de arriesgar sobreescribir el extra de otras filas.
+                logger.warning("update_many: columna '%s' no existe en %s, se omite", col, self.table)
+                set_fields.pop(col)
+                if not set_fields:
+                    return _Result(matched_count=0)
+        return _Result(matched_count=0)
 
     async def delete_one(self, filt: dict):
         q = _sb.table(self.table).delete()
