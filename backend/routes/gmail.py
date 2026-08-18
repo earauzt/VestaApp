@@ -42,6 +42,18 @@ def _normalize_comercio(s: str) -> str:
     return " ".join((s or "").strip().lower().split())
 
 
+def _sanitize_comercio(value, max_len: int = 60):
+    """Salvavidas contra clasificaciones de IA que devuelven el correo completo
+    (boilerplate legal/promocional) en el campo 'comercio' en vez del nombre del
+    establecimiento. Un comercio real nunca es tan largo; si lo es, se descarta
+    a None para que el fallback de descripcion (mas limpio) tome el control
+    en vez de mostrar texto crudo del correo en la UI."""
+    if not value:
+        return None
+    value = str(value).strip()
+    return value if 0 < len(value) <= max_len else None
+
+
 def _parse_fecha_any(s: str):
     """Intenta parsear fechas en formatos comunes, retorna datetime o None."""
     if not s:
@@ -176,7 +188,12 @@ async def _classify_email_with_ai(subject: str, body_snippet: str, force_type: s
         'facturacion@*, facturas@*, comprobantes@*, documentos@*, documentoselectronicos@*, '
         'electronica@*. En CUALQUIERA de estos casos => tipo DEBE ser factura_sri '
         '(NO consumo, NO descarte). Extrae numero_factura y ruc_emisor del cuerpo '
-        '(patron RUC: 13 digitos, patron factura: 001-001-XXXXXXXXX).'
+        '(patron RUC: 13 digitos, patron factura: 001-001-XXXXXXXXX). '
+        'IMPORTANTE sobre "comercio": debe ser UNICAMENTE el nombre corto del '
+        'establecimiento (maximo 50 caracteres, ej: "SUPERMAXI", "UBER EATS", '
+        '"AMAZON MKTPLACE"). NUNCA copies avisos legales, terminos y condiciones, '
+        'ni el texto completo del correo — si no puedes identificar un nombre '
+        'corto y claro, devuelve null.'
     )
     try:
         response = await ai_client.ask(
@@ -186,6 +203,7 @@ async def _classify_email_with_ai(subject: str, body_snippet: str, force_type: s
         json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
         if json_match:
             result = json.loads(json_match.group())
+            result["comercio"] = _sanitize_comercio(result.get("comercio"))
             if force_type:
                 result["tipo"] = force_type
             return result
@@ -206,7 +224,9 @@ async def _classify_service_receipt(subject: str, body_snippet: str) -> dict:
         '"fecha": "YYYY-MM-DD" o null (fecha del cobro), '
         '"descripcion_corta": string (resumen de 1 linea), '
         '"es_suscripcion": boolean (true si es cobro recurrente/subscription), '
-        '"proxima_renovacion": "YYYY-MM-DD" o null (siguiente fecha de cobro si se menciona)}'
+        '"proxima_renovacion": "YYYY-MM-DD" o null (siguiente fecha de cobro si se menciona)}. '
+        'El campo "comercio" debe ser corto (maximo 50 caracteres) — nunca copies '
+        'avisos legales ni el texto completo del correo.'
     )
     try:
         response = await ai_client.ask(
@@ -215,7 +235,9 @@ async def _classify_service_receipt(subject: str, body_snippet: str) -> dict:
         )
         json_match = re.search(r'\{[^{}]*\}', response, re.DOTALL)
         if json_match:
-            return json.loads(json_match.group())
+            result = json.loads(json_match.group())
+            result["comercio"] = _sanitize_comercio(result.get("comercio"))
+            return result
     except Exception as e:
         logger.error(f"Service receipt classification error: {e}")
     return {"tipo": "recibo_servicio", "comercio": None, "monto": None, "tarjeta_ultimos4": None, "fecha": None, "descripcion_corta": subject[:60], "es_suscripcion": False, "proxima_renovacion": None}
@@ -293,6 +315,25 @@ async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, t
                     logger.info(f"Gmail PDF processed: {tx_count} transactions from {filepath}")
                 except Exception as e:
                     logger.error(f"Error processing Gmail PDF text: {e}")
+
+            elif tipo == "factura_sri":
+                # Extraer emisor/RUC/monto AHORA (regex, sin costo) mientras el archivo
+                # todavia existe en este contenedor. Antes se guardaba con procesado=False
+                # a la espera de que alguien llamara /gmail/process-factura-pdfs mas tarde;
+                # como el filesystem del contenedor es efimero, ese PDF ya no estaba cuando
+                # por fin se intentaba procesar -> quedaba "Emisor desconocido" para siempre.
+                try:
+                    parsed = await _parse_factura_pdf(filepath)
+                    if parsed.get("ok"):
+                        for k in ("numero_factura", "ruc_emisor", "monto", "fecha"):
+                            if parsed.get(k) is not None:
+                                doc_record[k] = parsed[k]
+                        if parsed.get("emisor"):
+                            doc_record["emisor"] = parsed["emisor"]
+                            doc_record["nombre_emisor"] = parsed["emisor"]
+                        doc_record["procesado"] = True
+                except Exception as e:
+                    logger.error(f"Error parseando factura PDF al momento de descarga: {e}")
 
             await db.gmail_documents.insert_one(doc_record)
             result["filepath"] = filepath

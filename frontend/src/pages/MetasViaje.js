@@ -62,6 +62,7 @@ import {
   Confetti,
   TrendUp,
   Star,
+  Warning,
 } from "@phosphor-icons/react";
 
 function useDebouncedCallback(callback, delay) {
@@ -443,9 +444,12 @@ export default function MetasViaje() {
                 <p className="text-xs text-red-700 mb-1">Gastado</p>
                 <p className="text-2xl font-bold text-red-600">{formatCurrency(totalSpent)}</p>
               </div>
-              <div className="text-center p-3 rounded-xl bg-slate-50/50">
-                <p className="text-xs text-primary mb-1">Disponible</p>
-                <p className="text-2xl font-bold text-primary">{formatCurrency(Math.max(0, available))}</p>
+              <div className={`text-center p-3 rounded-xl ${available < 0 ? "bg-red-100/50" : "bg-slate-50/50"}`}>
+                <p className={`text-xs mb-1 ${available < 0 ? "text-red-700" : "text-primary"}`}>Disponible</p>
+                <p className={`text-2xl font-bold ${available < 0 ? "text-red-600" : "text-primary"}`}>{formatCurrency(available)}</p>
+                {available < 0 && (
+                  <p className="text-[10px] text-red-600 mt-0.5">Gastando de un fondo sin ahorrar todavía</p>
+                )}
               </div>
             </div>
             
@@ -462,6 +466,24 @@ export default function MetasViaje() {
                   <span>Ahorra <strong>{formatCurrency(travelFund.monthly_suggested_saving)}</strong>/mes para completar tu meta</span>
                 </p>
               )}
+              {/* Ritmo real vs esperado: % del año transcurrido vs % ya ahorrado.
+                  El numero de "cuanto ahorrar al mes" no dice si YA vas atrasado. */}
+              {(() => {
+                const now = new Date();
+                const expectedPct = travelFund.year === now.getFullYear()
+                  ? ((now.getMonth() + 1) / 12) * 100
+                  : (travelFund.year > now.getFullYear() ? 0 : 100);
+                const actualPct = travelFund.savings_progress || 0;
+                const onTrack = actualPct >= expectedPct - 5;
+                return (
+                  <p className={`text-xs flex items-center gap-1.5 ${onTrack ? "text-emerald-600" : "text-amber-600"}`}>
+                    {onTrack ? <CheckCircle size={13} /> : <Warning size={13} />}
+                    {onTrack
+                      ? "Vas a buen ritmo para tu meta anual"
+                      : `Vas atrasado: llevas ${actualPct.toFixed(0)}% ahorrado y ya pasó ${expectedPct.toFixed(0)}% del año`}
+                  </p>
+                );
+              })()}
             </div>
           </CardContent>
         </Card>

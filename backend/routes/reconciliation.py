@@ -538,6 +538,14 @@ async def get_reconciliation_stats(user: dict = Depends(check_role([UserRole.ADM
             stats["duplicate_suspect"] = r["count"]
         elif status == TransactionStatus.DUPLICATE_CONFIRMED:
             stats["duplicate_confirmed"] = r["count"]
+
+    # Candidatos de Gmail aun no importados a `transactions` (bandeja separada,
+    # `gmail_transactions` con estado=pendiente). Se exponen sumados aqui para que
+    # Dashboard/Movimientos/Alertas muestren el MISMO numero de "pendientes" en vez
+    # de cada uno calcular su propia combinacion y terminar mostrando 3 totales
+    # distintos para el mismo concepto.
+    stats["gmail_no_importados"] = await db.gmail_transactions.count_documents({"estado": "pendiente"})
+    stats["pending_review_total"] = stats["pending_review"] + stats["gmail_no_importados"]
     return stats
 
 

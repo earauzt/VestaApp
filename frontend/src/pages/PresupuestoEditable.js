@@ -32,7 +32,9 @@ import {
   TrendUp,
   PiggyBank,
   ChartLine,
-  Airplane
+  Airplane,
+  CaretDown,
+  CaretUp
 } from "@phosphor-icons/react";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -40,6 +42,17 @@ const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 export default function PresupuestoEditable({ embedded = false } = {}) {
   const { getAuthHeaders } = useAuth();
   const [loading, setLoading] = useState(true);
+  // Colapsado por default: las 11 categorias expandidas a la vez hacian de esta
+  // pantalla una sola pagina larguisima de puro scroll. Solo se expande la que
+  // se esta editando.
+  const [expandedCats, setExpandedCats] = useState(new Set());
+  const toggleCategoryExpanded = (key) => {
+    setExpandedCats(prev => {
+      const next = new Set(prev);
+      next.has(key) ? next.delete(key) : next.add(key);
+      return next;
+    });
+  };
   const [saving, setSaving] = useState(false);
   const [budgetConfig, setBudgetConfig] = useState(null);
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -287,6 +300,34 @@ export default function PresupuestoEditable({ embedded = false } = {}) {
           <p className="text-lg font-medium text-emerald-600" data-testid="resumen-ingresos">
             +{formatCurrency(totalIncome)} <span className="text-xs text-slate-400 font-normal ml-1">ingresos</span>
           </p>
+
+          {/* Cada resta que compone el balance final, visible — antes solo se veia
+              el ahorro y el balance ya restaba tambien inversion + viajes "invisibles". */}
+          <div className="pt-3 mt-2 border-t border-slate-100 space-y-1.5">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500">Ahorro mensual ({savingsGoal.percentage}%)</span>
+              <span className="font-medium text-slate-700">-{formatCurrency(savingsGoal.monthly)}</span>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-slate-500">Inversión mensual ({investmentGoal.percentage}%)</span>
+              <span className="font-medium text-slate-700">-{formatCurrency(investmentGoal.monthly)}</span>
+            </div>
+            {travelMonthly > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-slate-500">Ahorro para viajes</span>
+                <span className="font-medium text-slate-700">-{formatCurrency(travelMonthly)}</span>
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs text-slate-400 hover:text-primary -ml-2"
+              onClick={() => setActiveTab("metas")}
+            >
+              <Pencil size={12} className="mr-1" /> Editar metas
+            </Button>
+          </div>
+
           <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100">
             <p className="text-sm font-medium text-slate-500">Balance del mes</p>
             <p
@@ -295,20 +336,6 @@ export default function PresupuestoEditable({ embedded = false } = {}) {
             >
               {formatCurrency(balance)}
             </p>
-          </div>
-          <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100">
-            <div>
-              <p className="text-xs text-slate-400">Ahorro mensual ({savingsGoal.percentage}%)</p>
-              <p className="text-sm font-semibold text-primary">{formatCurrency(savingsGoal.monthly)}</p>
-            </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 text-xs text-slate-500 hover:text-primary"
-              onClick={() => setActiveTab("metas")}
-            >
-              <Pencil size={13} className="mr-1" /> Editar
-            </Button>
           </div>
         </CardContent>
       </Card>
@@ -386,48 +413,62 @@ export default function PresupuestoEditable({ embedded = false } = {}) {
                       </div>
                     </div>
 
-                    {/* Subcategories - Always visible */}
+                    {/* Subcategorias: colapsadas por default, se expanden por categoria */}
                     {category.subcategories && Object.keys(category.subcategories).length > 0 && (
-                      <div className="border-t pt-4 mt-2 space-y-3">
-                        <div className="flex items-center justify-between">
-                          <Label className="font-medium text-sm">Detalle por Subcategoría</Label>
-                          <Button variant="ghost" size="sm" onClick={() => handleAddSubcategory(key)}>
-                            <Plus size={14} className="mr-1" /> Añadir
-                          </Button>
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                          {Object.entries(category.subcategories).map(([subName, subValue]) => (
-                            <div key={subName} className="p-3 rounded-lg bg-muted/50 border space-y-1">
-                              <Label className="text-xs text-muted-foreground truncate block">{subName}</Label>
-                              <div className="flex items-center gap-1">
-                                <span className="text-muted-foreground text-sm">$</span>
-                                <Input
-                                  type="number"
-                                  value={subValue || 0}
-                                  onChange={(e) => handleSubcategoryChange(key, subName, e.target.value)}
-                                  className="text-sm font-mono h-8"
-                                />
-                              </div>
+                      <div className="border-t pt-3 mt-2 space-y-3">
+                        <button
+                          type="button"
+                          onClick={() => toggleCategoryExpanded(key)}
+                          className="flex items-center justify-between w-full text-left"
+                          data-testid={`toggle-subcategorias-${key}`}
+                        >
+                          <Label className="font-medium text-sm cursor-pointer">
+                            Detalle por Subcategoría ({Object.keys(category.subcategories).length})
+                          </Label>
+                          {expandedCats.has(key) ? <CaretUp size={16} className="text-muted-foreground" /> : <CaretDown size={16} className="text-muted-foreground" />}
+                        </button>
+                        {expandedCats.has(key) && (
+                          <>
+                            <div className="flex justify-end -mt-1">
+                              <Button variant="ghost" size="sm" onClick={() => handleAddSubcategory(key)}>
+                                <Plus size={14} className="mr-1" /> Añadir
+                              </Button>
                             </div>
-                          ))}
-                        </div>
-                        {/* Subcategory total vs category budget */}
-                        {(() => {
-                          const subTotal = Object.values(category.subcategories).reduce((sum, v) => sum + (v || 0), 0);
-                          const diff = (category.monthly_budget || 0) - subTotal;
-                          return (
-                            <div className="flex justify-between items-center pt-2 text-sm">
-                              <span className="text-muted-foreground">
-                                Suma subcategorías: <span className="font-mono">{formatCurrency(subTotal)}</span>
-                              </span>
-                              {diff !== 0 && (
-                                <Badge variant={diff > 0 ? "secondary" : "destructive"}>
-                                  {diff > 0 ? `+${formatCurrency(diff)} sin asignar` : `${formatCurrency(diff)} excedido`}
-                                </Badge>
-                              )}
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                              {Object.entries(category.subcategories).map(([subName, subValue]) => (
+                                <div key={subName} className="p-3 rounded-lg bg-muted/50 border space-y-1">
+                                  <Label className="text-xs text-muted-foreground truncate block">{subName}</Label>
+                                  <div className="flex items-center gap-1">
+                                    <span className="text-muted-foreground text-sm">$</span>
+                                    <Input
+                                      type="number"
+                                      value={subValue || 0}
+                                      onChange={(e) => handleSubcategoryChange(key, subName, e.target.value)}
+                                      className="text-sm font-mono h-8"
+                                    />
+                                  </div>
+                                </div>
+                              ))}
                             </div>
-                          );
-                        })()}
+                            {/* Subcategory total vs category budget */}
+                            {(() => {
+                              const subTotal = Object.values(category.subcategories).reduce((sum, v) => sum + (v || 0), 0);
+                              const diff = (category.monthly_budget || 0) - subTotal;
+                              return (
+                                <div className="flex justify-between items-center pt-2 text-sm">
+                                  <span className="text-muted-foreground">
+                                    Suma subcategorías: <span className="font-mono">{formatCurrency(subTotal)}</span>
+                                  </span>
+                                  {diff !== 0 && (
+                                    <Badge variant={diff > 0 ? "secondary" : "destructive"}>
+                                      {diff > 0 ? `+${formatCurrency(diff)} sin asignar` : `${formatCurrency(diff)} excedido`}
+                                    </Badge>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </>
+                        )}
                       </div>
                     )}
 

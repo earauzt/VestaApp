@@ -122,6 +122,26 @@ export default function Deudas() {
     }
   };
 
+  const handleRegisterInstallment = async (paymentId) => {
+    try {
+      const res = await axios.post(`${API}/deferred-payments/${paymentId}/register-installment`, {}, { headers: getAuthHeaders() });
+      toast.success(res.data.message || "Cuota registrada");
+      fetchData();
+    } catch (error) {
+      toast.error("Error al registrar la cuota");
+    }
+  };
+
+  // Diferidos sin una cuota registrada en >45 dias son sospechosos de estar
+  // desactualizados (nadie los toca desde que se crearon) — se marcan para que
+  // sea obvio cuales revisar en vez de asumir que el numero sigue vigente.
+  const isDeferredStale = (payment) => {
+    const lastTouch = payment.last_payment_date || payment.created_at;
+    if (!lastTouch) return true;
+    const days = (Date.now() - new Date(lastTouch).getTime()) / 86400000;
+    return days > 45;
+  };
+
   const calculateSnowball = async () => {
     try {
       const response = await axios.post(
@@ -371,7 +391,7 @@ export default function Deudas() {
                 <CurrencyDollar size={20} className="text-emerald-600 shrink-0" />
                 <div>
                   <p className="text-xs text-muted-foreground">Crédito Disponible</p>
-                  <p className="text-lg font-bold text-emerald-600">{formatCurrency(summary.total_available_credit)}</p>
+                  <p className={`text-lg font-bold ${summary.total_available_credit >= 0 ? "text-emerald-600" : "text-red-600"}`}>{formatCurrency(summary.total_available_credit)}</p>
                 </div>
               </div>
             </CardContent>
@@ -385,6 +405,11 @@ export default function Deudas() {
                   <p className="text-xs text-muted-foreground">Utilización</p>
                   <p className={`text-lg font-bold ${getUtilizationColor(summary.utilization_rate)}`}>
                     {summary.utilization_rate}%
+                    {summary.utilization_rate > 100 && (
+                      <span className="ml-1.5 text-[10px] font-bold uppercase tracking-wide bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full align-middle">
+                        Sobregiro
+                      </span>
+                    )}
                   </p>
                 </div>
               </div>
@@ -493,13 +518,17 @@ export default function Deudas() {
                                   </div>
                                 </div>
                               )}
-                              <Progress 
-                                value={utilization} 
-                                className="h-2"
+                              <Progress
+                                value={Math.min(utilization, 100)}
+                                className={`h-2 ${utilization > 100 ? "[&>div]:bg-red-500" : ""}`}
                               />
                               <div className="flex justify-between text-xs text-slate-400">
-                                <span>Utilización: {utilization.toFixed(0)}%</span>
-                                <span>Disponible: {formatCurrency(card.available_credit)}</span>
+                                <span className={utilization > 100 ? "text-red-400 font-semibold" : ""}>
+                                  Utilización: {utilization.toFixed(0)}%{utilization > 100 ? " · Sobregiro" : ""}
+                                </span>
+                                <span className={card.available_credit < 0 ? "text-red-400 font-semibold" : ""}>
+                                  Disponible: {formatCurrency(card.available_credit)}
+                                </span>
                               </div>
                             </div>
 
@@ -669,15 +698,24 @@ export default function Deudas() {
                                   Cuota: {formatCurrency(payment.monthly_payment)}/mes
                                 </span>
                               </div>
+                              <p className={`text-xs mt-1 ${isDeferredStale(payment) ? "text-amber-600 font-medium" : "text-muted-foreground"}`}>
+                                {payment.last_payment_date
+                                  ? `Última cuota registrada: ${new Date(payment.last_payment_date).toLocaleDateString("es-EC")}`
+                                  : `Sin actualizar desde que se creó (${new Date(payment.created_at).toLocaleDateString("es-EC")})`}
+                                {isDeferredStale(payment) && " — verifica si sigue vigente"}
+                              </p>
                             </div>
                             <div className="flex items-center gap-2">
-                              <Badge 
+                              <Badge
                                 variant={payment.remaining_installments <= 1 ? "default" : "secondary"}
                                 className={payment.remaining_installments <= 1 ? "bg-emerald-600" : ""}
                               >
                                 {payment.remaining_installments} de {payment.total_installments} cuotas
                               </Badge>
                               <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                <Button variant="ghost" size="icon" onClick={() => handleRegisterInstallment(payment.id)} title="Registrar cuota pagada" className="h-10 w-10 sm:h-8 sm:w-8 text-emerald-600">
+                                  <CheckCircle size={16} />
+                                </Button>
                                 <Button variant="ghost" size="icon" onClick={() => openDeferredDialog(payment)} className="h-10 w-10 sm:h-8 sm:w-8">
                                   <Pencil size={14} />
                                 </Button>

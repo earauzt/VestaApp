@@ -109,7 +109,11 @@ export default function Dashboard() {
     );
   }
 
-  const pendingCount = reconStats?.pending_review || 0;
+  // pending_review_total incluye tanto transacciones ya importadas en estado
+  // pending_review como candidatos de Gmail sin importar todavia — mismo numero
+  // que usan Movimientos y Alertas para "cosas pendientes", para no mostrar 3
+  // totales distintos del mismo concepto segun la pantalla.
+  const pendingCount = reconStats?.pending_review_total ?? reconStats?.pending_review ?? 0;
   const pendingAmount = reconStats?.total_pending_amount || 0;
   const totalDebt = debtSummary?.total_debt_with_deferred ?? debtSummary?.total_debt;
   const balancePositive = (stats?.balance || 0) >= 0;

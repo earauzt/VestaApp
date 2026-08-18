@@ -1039,9 +1039,12 @@ export default function CargarValidar() {
               <TabsTrigger value="revisar" className="gap-2" disabled={reviewBulkApproving} data-testid="tab-revisar">
                 <CheckSquare size={18} />
                 <span className="text-xs sm:text-sm">Por revisar</span>
-                {(gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length) > 0 && (
+                {/* stats.pending_review_total viene del backend (mismo numero que
+                    Dashboard y Alertas); si stats aun no cargo, se usa la suma local
+                    como fallback para no mostrar 0 mientras tanto. */}
+                {(stats?.pending_review_total ?? (gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length)) > 0 && (
                   <Badge variant="secondary" className="ml-1">
-                    {gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length}
+                    {stats?.pending_review_total ?? (gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length)}
                   </Badge>
                 )}
               </TabsTrigger>

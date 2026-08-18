@@ -40,6 +40,10 @@ const navItems = [
   { path: "/alertas", label: "Alertas", icon: Bell, roles: ["admin", "spouse", "accountant", "demo"] },
 ];
 
+// Uso real es casi 100% iPhone (ver PRD) — estos 4 son los de uso diario y van
+// siempre a un tap en la barra inferior; el resto vive detras de "Mas".
+const MOBILE_PRIMARY_PATHS = ["/dashboard", "/movimientos", "/mi-dinero", "/deudas"];
+
 export default function Layout({ children }) {
   const { user, logout } = useAuth();
   const location = useLocation();
@@ -60,6 +64,8 @@ export default function Layout({ children }) {
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
   const filteredNavItems = navItems.filter(item => item.roles.includes(user?.role));
+  const mobilePrimaryItems = filteredNavItems.filter(item => MOBILE_PRIMARY_PATHS.includes(item.path));
+  const hasMoreItems = filteredNavItems.length > mobilePrimaryItems.length;
 
   const getRoleLabel = (role) => {
     const labels = { admin: "Administrador", spouse: "Familiar", accountant: "Contadora" };
@@ -220,7 +226,7 @@ export default function Layout({ children }) {
 
       {/* Main content */}
       <main
-        className="flex-1 transition-all duration-200 pt-14 lg:pt-0"
+        className="flex-1 transition-all duration-200 pt-14 lg:pt-0 pb-16 lg:pb-0"
         style={{ marginLeft: isMobile ? 0 : (collapsed ? 72 : 256) }}
       >
         {/* Demo Mode Banner */}
@@ -234,6 +240,39 @@ export default function Layout({ children }) {
           {children}
         </div>
       </main>
+
+      {/* Mobile Bottom Tab Bar — acceso de un tap a lo que se usa a diario,
+          en vez de forzar sidebar/hamburguesa tambien en el uso movil. */}
+      <nav className="lg:hidden fixed bottom-0 left-0 right-0 h-16 bg-white border-t border-border z-50 flex items-stretch">
+        {mobilePrimaryItems.map((item) => {
+          const isActive = location.pathname === item.path;
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              data-testid={`bottom-nav-${item.path.slice(1)}`}
+              className={`flex-1 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium ${
+                isActive ? "text-primary" : "text-slate-400"
+              }`}
+            >
+              <Icon size={20} weight={isActive ? "fill" : "regular"} />
+              {item.label}
+            </Link>
+          );
+        })}
+        {hasMoreItems && (
+          <button
+            type="button"
+            onClick={() => setMobileOpen(true)}
+            data-testid="bottom-nav-more"
+            className="flex-1 flex flex-col items-center justify-center gap-0.5 text-[11px] font-medium text-slate-400"
+          >
+            <List size={20} />
+            Más
+          </button>
+        )}
+      </nav>
     </div>
   );
 }
