@@ -202,6 +202,24 @@ async def bulk_categorize_transactions(payload: dict, user: dict = Depends(get_c
     ).to_list(len(ids))
     establishments = {(t.get("establishment") or "").strip() for t in txs}
     establishments.discard("")
+
+    # Propagar la misma categoria a OTRAS transacciones PENDIENTES del mismo
+    # comercio (no solo recordar el vendor para el futuro) — al categorizar una
+    # ya deberian quedar categorizadas las demas del mismo establecimiento que
+    # siguen esperando revision, en vez de acumularse en "otros" una por una.
+    propagated = 0
+    if category != "otros":
+        for est in establishments:
+            prop_result = await db.transactions.update_many(
+                {
+                    "user_id": user["id"],
+                    "status": TransactionStatus.PENDING_REVIEW,
+                    "id": {"$nin": ids},
+                    "establishment": {"$regex": f"^{re.escape(est)}$", "$options": "i"},
+                },
+                {"$set": {**update_set, "auto_categorized": True, "matched_rule": "known_vendor"}},
+            )
+            propagated += prop_result.modified_count
     now_iso = datetime.now(timezone.utc).isoformat()
     vendors_upserted = 0
     for est in establishments:
@@ -231,6 +249,7 @@ async def bulk_categorize_transactions(payload: dict, user: dict = Depends(get_c
         "updated": result.modified_count,
         "matched": result.matched_count,
         "vendors_upserted": vendors_upserted,
+        "propagated": propagated,
     }
 
 

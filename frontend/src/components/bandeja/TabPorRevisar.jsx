@@ -103,27 +103,74 @@ export default function TabPorRevisar({
 
   const zeroCount = sortedReview.filter(isZeroValue).length;
 
+  // item.id es un id sintetico con prefijo ("gm-"/"st-") solo para key de React
+  // y seleccion en esta lista unificada; el id real en `transactions` (para
+  // estados/manuales) o `gmail_transactions` (para Gmail) es item.origin_id.
   const handleSave = async (data) => {
     try {
       if (modalMode === "bulk") {
+        // Solo estado_cuenta/manual ya son documentos reales en `transactions`
+        // y pueden categorizarse sin aprobar todavia. Los de Gmail se categorizan
+        // recien al aprobarlos (no existen como transaccion hasta ese momento).
+        const eligible = sortedReview.filter((it) => reviewSelectedIds.includes(it.id) && it.source !== "gmail");
+        const skippedGmail = reviewSelectedIds.length - eligible.length;
+        if (eligible.length > 0) {
+          const res = await axios.post(
+            `${API}/transactions/bulk-categorize`,
+            { ids: eligible.map((it) => it.origin_id), category: data.category, subcategory: data.subcategory || "", entity_tag_key: data.entity_tag_key || "" },
+            { headers: getAuthHeaders() }
+          );
+          const propagated = res.data?.propagated || 0;
+          toast.success(`${res.data?.updated ?? eligible.length} actualizadas${propagated > 0 ? ` · ${propagated} similares categorizadas` : ""}`);
+        }
+        if (skippedGmail > 0) {
+          toast.info(`${skippedGmail} de Gmail se categorizan al aprobarlas`);
+        }
+      } else if (activeItem && activeItem.source !== "gmail") {
         const res = await axios.post(
           `${API}/transactions/bulk-categorize`,
-          { ids: reviewSelectedIds, category: data.category, subcategory: data.subcategory || "", entity_tag_key: data.entity_tag_key || "" },
+          { ids: [activeItem.origin_id], category: data.category, subcategory: data.subcategory || "", entity_tag_key: data.entity_tag_key || "" },
           { headers: getAuthHeaders() }
         );
-        toast.success(`${res.data?.updated ?? reviewSelectedIds.length} transacciones actualizadas`);
-      } else if (activeItem) {
-        await axios.post(
-          `${API}/transactions/bulk-categorize`,
-          { ids: [activeItem.id], category: data.category, subcategory: data.subcategory || "", entity_tag_key: data.entity_tag_key || "" },
-          { headers: getAuthHeaders() }
-        );
-        toast.success("Transacción actualizada");
+        const propagated = res.data?.propagated || 0;
+        toast.success(`Transacción actualizada${propagated > 0 ? ` · ${propagated} similares categorizadas` : ""}`);
       }
       closeModal();
       if (onAfterUpdate) onAfterUpdate();
     } catch (e) {
       toast.error(e.response?.data?.detail || "No se pudo guardar");
+    }
+  };
+
+  // Aprobar directamente desde el modal de edicion — antes habia que cerrar el
+  // modal, marcar el checkbox de la fila y usar el boton de aprobar en lote
+  // incluso para una sola transaccion.
+  const handleApprove = async (data) => {
+    if (!activeItem) return;
+    const headers = getAuthHeaders();
+    const cat = data.category || activeItem.suggested_category;
+    const subcat = data.subcategory || "";
+    try {
+      if (activeItem.source === "gmail") {
+        const res = await axios.put(`${API}/gmail/transactions/${activeItem.origin_id}/approve`, {}, { headers });
+        const newTxId = res.data?.transaction_id;
+        if (newTxId && (cat || subcat)) {
+          await axios.put(
+            `${API}/transactions/${newTxId}`,
+            { category: cat, budget_category: cat, subcategory: subcat || undefined, amount: activeItem.amount, description: activeItem.comercio, date: activeItem.date, transaction_type: "expense" },
+            { headers }
+          ).catch(() => {});
+        }
+      } else {
+        const params = new URLSearchParams({ category: cat });
+        if (subcat) params.append("subcategory", subcat);
+        await axios.put(`${API}/reconciliation/approve/${activeItem.origin_id}?${params.toString()}`, {}, { headers });
+      }
+      toast.success("Transacción aprobada");
+      closeModal();
+      if (onAfterUpdate) onAfterUpdate();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "No se pudo aprobar");
     }
   };
 
@@ -299,6 +346,7 @@ export default function TabPorRevisar({
         transaction={modalMode === "single" ? activeItem : null}
         bulkCount={reviewSelectedIds.length}
         onSave={handleSave}
+        onApprove={handleApprove}
         onClose={closeModal}
       />
 

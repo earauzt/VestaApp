@@ -17,9 +17,11 @@ import { PERSONAL_CATEGORIES, SRI_CATEGORIES, ENTITY_TAGS } from "../../constant
  *   transaction: objeto individual (modo single) o null (modo bulk)
  *   bulkCount: number (solo en modo bulk)
  *   onSave(updatedData): en single recibe los campos editables; en bulk recibe {category, subcategory}
+ *   onApprove(updatedData): opcional — si se pasa y la transaccion esta pending_review,
+ *     muestra un boton "Guardar y aprobar" que guarda los cambios Y aprueba en un solo paso.
  *   onClose()
  */
-export default function TransactionEditModal({ open, transaction, bulkCount = 0, onSave, onClose }) {
+export default function TransactionEditModal({ open, transaction, bulkCount = 0, onSave, onApprove, onClose }) {
   const isBulk = !transaction;
   const [form, setForm] = useState({
     category: "",
@@ -35,8 +37,12 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
 
   useEffect(() => {
     if (transaction) {
+      // La bandeja unificada de "Por revisar" (TabPorRevisar) pasa un item con
+      // forma distinta (comercio/suggested_category) al de una transaccion real
+      // (establishment/category) — se aceptan ambos para que el formulario no
+      // se abra vacio cuando ya hay una categoria sugerida.
       setForm({
-        category: transaction.category || "",
+        category: transaction.category || transaction.suggested_category || "",
         subcategory: transaction.subcategory || "",
         entity_tag_key: transaction.entity_tag_key || "",
         sri_category: transaction.sri_category || "",
@@ -64,6 +70,14 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
     } else {
       onSave(form);
     }
+  };
+
+  // Los items de la bandeja unificada (TabPorRevisar) no traen `status` (son
+  // pendientes por definicion, al estar en esa lista); una transaccion real
+  // (Transactions.js) si lo trae, y solo debe poder aprobarse si sigue pendiente.
+  const canApprove = !isBulk && onApprove && transaction?.status !== "approved" && transaction?.status !== "rejected";
+  const handleApprove = () => {
+    onApprove(form);
   };
 
   return (
@@ -203,9 +217,27 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
 
         <DialogFooter className="sticky bottom-0 bg-white pt-3 border-t border-slate-200 mt-2">
           <Button variant="outline" onClick={onClose} data-testid="tem-cancel-btn">Cancelar</Button>
-          <Button onClick={handleSave} disabled={!form.category} data-testid="tem-save-btn" className="bg-primary hover:bg-primary/90 text-white">
-            {isBulk ? `Aplicar a ${bulkCount}` : "Guardar"}
-          </Button>
+          {!isBulk && (
+            <Button
+              onClick={handleSave}
+              disabled={!form.category}
+              variant={canApprove ? "outline" : "default"}
+              data-testid="tem-save-btn"
+              className={canApprove ? "" : "bg-primary hover:bg-primary/90 text-white"}
+            >
+              Guardar
+            </Button>
+          )}
+          {canApprove && (
+            <Button onClick={handleApprove} disabled={!form.category} data-testid="tem-approve-btn" className="bg-primary hover:bg-primary/90 text-white">
+              Aprobar
+            </Button>
+          )}
+          {isBulk && (
+            <Button onClick={handleSave} disabled={!form.category} data-testid="tem-save-btn" className="bg-primary hover:bg-primary/90 text-white">
+              {`Aplicar a ${bulkCount}`}
+            </Button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

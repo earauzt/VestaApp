@@ -193,11 +193,26 @@ export default function Transactions({ embedded = false } = {}) {
         { ids: [recatTx.id], category: data.category, subcategory: data.subcategory || "" },
         { headers: getAuthHeadersRef.current() }
       );
-      toast.success(`${res.data?.updated ?? 1} transacción actualizada`);
+      const propagated = res.data?.propagated || 0;
+      toast.success(`${res.data?.updated ?? 1} transacción actualizada${propagated > 0 ? ` · ${propagated} similares categorizadas` : ""}`);
       setRecatTx(null);
       fetchTransactions();
     } catch (e) {
       toast.error(e.response?.data?.detail || "No se pudo recategorizar");
+    }
+  };
+
+  const handleApproveRecat = async (data) => {
+    if (!recatTx) return;
+    try {
+      const params = new URLSearchParams({ category: data.category || recatTx.category || "otros" });
+      if (data.subcategory) params.append("subcategory", data.subcategory);
+      await axios.put(`${API}/reconciliation/approve/${recatTx.id}?${params.toString()}`, {}, { headers: getAuthHeadersRef.current() });
+      toast.success("Transacción aprobada");
+      setRecatTx(null);
+      fetchTransactions();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "No se pudo aprobar");
     }
   };
 
@@ -296,6 +311,17 @@ export default function Transactions({ embedded = false } = {}) {
 
   const handleDelete = (id) => {
     setDeleteTargetId(id);
+  };
+
+  const handleApproveDirect = async (transaction) => {
+    try {
+      const params = new URLSearchParams({ category: transaction.category || "otros" });
+      await axios.put(`${API}/reconciliation/approve/${transaction.id}?${params.toString()}`, {}, { headers: getAuthHeadersRef.current() });
+      toast.success("Transacción aprobada");
+      fetchTransactions();
+    } catch (e) {
+      toast.error(e.response?.data?.detail || "No se pudo aprobar");
+    }
   };
 
   const confirmDelete = async () => {
@@ -933,6 +959,11 @@ export default function Transactions({ embedded = false } = {}) {
                         <p className="text-sm font-medium text-slate-800 truncate" data-testid={`txname-${transaction.id}`}>
                           {displayName(transaction)}
                         </p>
+                        {transaction.status === "pending_review" && (
+                          <Badge variant="outline" className="text-xs gap-1 shrink-0 bg-amber-50 text-amber-700 border-amber-200" data-testid={`tx-pending-${transaction.id}`}>
+                            Pendiente
+                          </Badge>
+                        )}
                         {transaction.is_split && (
                           <Badge variant="outline" className="text-xs gap-1 shrink-0"><Scissors size={12} />Split</Badge>
                         )}
@@ -982,6 +1013,17 @@ export default function Transactions({ embedded = false } = {}) {
                     <span className={`text-sm font-semibold shrink-0 ${transaction.transaction_type === "income" ? "text-emerald-600" : "text-red-600"}`}>
                       {transaction.transaction_type === "income" ? "+" : "-"}{formatCurrency(transaction.amount)}
                     </span>
+                    {canEdit && transaction.status === "pending_review" && (
+                      <Button
+                        size="sm"
+                        onClick={() => handleApproveDirect(transaction)}
+                        className="h-8 shrink-0 bg-primary hover:bg-primary/90 text-white"
+                        title="Aprobar transacción"
+                        data-testid={`approve-${transaction.id}`}
+                      >
+                        Aprobar
+                      </Button>
+                    )}
                     {canEdit && transaction.status === "approved" && (
                       <Button
                         variant="ghost"
@@ -1054,6 +1096,7 @@ export default function Transactions({ embedded = false } = {}) {
         open={!!recatTx}
         transaction={recatTx}
         onSave={handleRecategorize}
+        onApprove={handleApproveRecat}
         onClose={() => setRecatTx(null)}
       />
 
