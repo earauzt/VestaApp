@@ -12,7 +12,7 @@
         --card-foreground: 150 10% 10%;
         --popover: 0 0% 100%;
         --popover-foreground: 150 10% 10%;
-        --primary: 145 50% 20%;
+        --primary: 167 73% 34%;
         --primary-foreground: 145 10% 98%;
         --secondary: 145 20% 90%;
         --secondary-foreground: 145 50% 20%;
@@ -24,13 +24,20 @@
         --destructive-foreground: 0 0% 98%;
         --border: 145 10% 90%;
         --input: 145 10% 90%;
-        --ring: 145 50% 20%;
+        --ring: 167 73% 34%;
         --chart-1: 145 50% 35%;
         --chart-2: 15 70% 65%;
         --chart-3: 200 60% 50%;
         --chart-4: 45 80% 55%;
         --chart-5: 280 50% 55%;
         --radius: 0.75rem;
+
+        /* Sidebar chrome — deliberately dark regardless of light/dark mode,
+           but as real tokens instead of hex scattered across Layout.js. */
+        --sidebar-bg: 167 32% 9%;
+        --sidebar-active-bg: 173 32% 15%;
+        --sidebar-text: 167 14% 49%;
+        --sidebar-active-text: 0 0% 100%;
     }
 
     .dark {
@@ -40,7 +47,7 @@
         --card-foreground: 145 10% 90%;
         --popover: 150 10% 8%;
         --popover-foreground: 145 10% 90%;
-        --primary: 145 40% 50%;
+        --primary: 167 60% 50%;
         --primary-foreground: 145 10% 5%;
         --secondary: 145 20% 15%;
         --secondary-foreground: 145 40% 50%;
@@ -52,7 +59,7 @@
         --destructive-foreground: 0 0% 98%;
         --border: 145 10% 15%;
         --input: 145 10% 15%;
-        --ring: 145 40% 50%;
+        --ring: 167 60% 50%;
         --chart-1: 145 40% 50%;
         --chart-2: 15 70% 65%;
         --chart-3: 200 60% 50%;

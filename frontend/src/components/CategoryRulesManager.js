@@ -57,6 +57,7 @@ export function CategoryRulesManager({ open, onOpenChange }) {
     if (open) {
       fetchRules();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const fetchRules = async () => {

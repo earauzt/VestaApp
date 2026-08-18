@@ -113,7 +113,7 @@ export default function AutoRuleModal({ open, onOpenChange, establishment, onCre
       <DialogContent className="sm:max-w-[460px]" data-testid="auto-rule-modal">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Sparkle size={20} weight="duotone" className="text-[#0D9E82]" />
+            <Sparkle size={20} weight="duotone" className="text-primary" />
             Crear regla automática
           </DialogTitle>
           <DialogDescription>

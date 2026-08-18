@@ -4,13 +4,13 @@ import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Checkbox } from "../components/ui/checkbox";
 import {
-  LoaderCircle,
   CheckCircle,
   Plus,
-  TriangleAlert,
   X,
-  Link as LinkIcon
-} from "lucide-react";
+  Link as LinkIcon,
+  CircleNotch,
+  Warning
+} from "@phosphor-icons/react";
 
 const CATEGORIES = {
   servicios_basicos: "Servicios Básicos",
@@ -47,7 +47,7 @@ function getStatusBadge(status, confidence) {
     case "no_match":
       return (
         <Badge className="bg-amber-100 text-amber-700 gap-1">
-          <TriangleAlert size={12} />
+          <Warning size={12} />
           Sin coincidencia
         </Badge>
       );
@@ -120,7 +120,7 @@ export function TransactionList({
                         </Badge>
                       ) : (
                         <Badge className="text-xs gap-1 bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-100">
-                          <TriangleAlert size={10} />
+                          <Warning size={10} />
                           Sugerido
                         </Badge>
                       )
@@ -171,7 +171,7 @@ export function TransactionList({
           >
             {confirming ? (
               <>
-                <LoaderCircle size={16} className="animate-spin" />
+                <CircleNotch size={16} className="animate-spin" />
                 Procesando...
               </>
             ) : (

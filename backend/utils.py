@@ -303,6 +303,22 @@ async def classify_with_ai(text: str, context: str = "expense") -> dict:
         return {"category": "otros", "subcategory": "Varios", "amount": 0, "description": text}
 
 
+def _try_repair_json(text: str, max_attempts: int = 25):
+    """Los estados de cuenta con muchas transacciones a veces vienen del modelo
+    con una coma faltante entre dos valores (comun en respuestas JSON largas de
+    LLMs). Si el error es justo eso, inserta la coma en la posicion indicada por
+    el propio parser y reintenta — repite por si hay mas de una."""
+    current = text
+    for _ in range(max_attempts):
+        try:
+            return json.loads(current)
+        except json.JSONDecodeError as e:
+            if "Expecting ',' delimiter" not in e.msg or e.pos <= 0:
+                return None
+            current = current[:e.pos] + "," + current[e.pos:]
+    return None
+
+
 async def process_image_with_ai(file_path: str, document_type: str = "receipt") -> dict:
     if not ai_client.is_configured():
         return {"error": "API key not configured"}
@@ -418,27 +434,53 @@ Responde UNICAMENTE con JSON valido, sin explicaciones adicionales."""
             user_prompt = "Extrae toda la informacion de este recibo/factura ecuatoriana"
 
         logger.info(f"Sending file to Claude for OCR processing: {file_path}")
+        # Un estado de cuenta puede traer decenas de transacciones (el default de
+        # ask_with_file, 4000 tokens, se queda corto y corta el JSON a mitad de
+        # camino — mismo patron de bug ya visto y corregido en el resto del
+        # ecosistema con clasificacion de compras). Los recibos sueltos si caben
+        # comodo en el default.
+        max_tokens = 16000 if document_type == "bank_statement" else 4000
         response = await ai_client.ask_with_file(
             system_message=system_prompt,
             user_text=user_prompt,
             file_path=file_path,
             mime_type=mime_type,
+            max_tokens=max_tokens,
         )
         logger.info(f"Claude response received, length: {len(response)}")
 
         json_match = re.search(r'\{[\s\S]*\}', response)
         if json_match:
+            candidate = json_match.group()
             try:
-                result = json.loads(json_match.group())
+                result = json.loads(candidate)
                 logger.info(f"Successfully parsed JSON - card_info: {bool(result.get('card_info'))}, transactions: {len(result.get('transactions', []))}")
                 return result
             except json.JSONDecodeError as e:
                 logger.error(f"JSON decode error: {e}")
+                repaired = _try_repair_json(candidate)
+                if repaired is not None:
+                    logger.info("JSON repaired after inserting missing comma(s)")
+                    return repaired
                 try:
-                    fixed = json_match.group().replace("'", '"')
+                    fixed = candidate.replace("'", '"')
                     return json.loads(fixed)
                 except Exception:
                     pass
+                # Ultimo recurso: si el estado de cuenta tiene demasiadas transacciones,
+                # la respuesta se puede cortar a mitad del array "transactions" (JSON
+                # invalido de ahi en adelante) aun con max_tokens alto. "card_info" va
+                # primero en el esquema y es un objeto plano sin anidamiento, asi que
+                # normalmente ya esta completo — lo rescatamos aunque el resto no sirva,
+                # que es lo que realmente actualiza la tarjeta y su fecha.
+                card_info_match = re.search(r'"card_info"\s*:\s*(\{[^{}]*\})', candidate)
+                if card_info_match:
+                    try:
+                        card_info = json.loads(card_info_match.group(1))
+                        logger.warning("Respuesta truncada: se rescato solo card_info, sin transactions")
+                        return {"card_info": card_info, "transactions": [], "deferred_purchases": [], "truncated": True}
+                    except Exception:
+                        pass
 
         logger.warning("No valid JSON found in Gemini response")
         return {"transactions": [], "card_info": None}

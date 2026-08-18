@@ -10,7 +10,7 @@ from database import db
 from models import (
     BudgetResponse, SRI_CATEGORIES, UserRole, IncomeEntry,
     BUDGET_CATEGORIES, INCOME_STRUCTURE, BUDGET_SUMMARY, BUDGET_GOALS,
-    PAYMENT_METHODS, INCOME_SOURCES, INCOME_CONCEPTS,
+    PAYMENT_METHODS, INCOME_SOURCES, INCOME_CONCEPTS, ENTITY_TAGS,
     get_budget_categories, get_income_structure, get_budget_summary,
     get_budget_goals
 )
@@ -203,6 +203,27 @@ async def get_budget_categories_endpoint(user: dict = Depends(get_current_user))
     budget_cats = get_budget_categories(user)
     budget_goals_data = get_budget_goals(user)
     return {"categories": budget_cats, "payment_methods": PAYMENT_METHODS, "goals": budget_goals_data, "income_sources": INCOME_SOURCES, "income_concepts": INCOME_CONCEPTS}
+
+
+@router.get("/entity-tags")
+async def get_entity_tags(user: dict = Depends(get_current_user)):
+    """Etiqueta de entidad/dueno (Personal, Pareja, Hogar, etc.) — ortogonal a
+    la categoria del gasto. Vive en la tabla vesta_entity_tags (editable sin
+    tocar codigo) una vez aplicada migrations/013_vesta_entity_tags.sql; hasta
+    entonces cae de vuelta al default en ENTITY_TAGS para no romper nada."""
+    try:
+        rows = await db.entity_tags.find({"is_active": True}, {"_id": 0}).to_list(100)
+        if rows:
+            rows.sort(key=lambda r: r.get("sort_order", 0))
+            return {"entity_tags": rows}
+    except Exception:
+        logger.info("vesta_entity_tags no existe todavia (migracion 013 pendiente) — usando default de models.py")
+    return {
+        "entity_tags": [
+            {"key": key, "name": cfg["name"], "sort_order": cfg["sort_order"]}
+            for key, cfg in sorted(ENTITY_TAGS.items(), key=lambda kv: kv[1]["sort_order"])
+        ]
+    }
 
 
 @router.get("/budget/personal")

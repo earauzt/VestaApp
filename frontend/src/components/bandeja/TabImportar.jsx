@@ -121,7 +121,7 @@ export default function TabImportar({
               {result.card_info && (
                 <div className="p-4 rounded-md bg-slate-50 border border-slate-200">
                   <div className="flex items-center gap-2 mb-3">
-                    <CreditCard size={20} className="text-[#0D9E82]" />
+                    <CreditCard size={20} className="text-primary" />
                     <span className="font-semibold text-slate-900">Tarjeta Actualizada</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-sm">

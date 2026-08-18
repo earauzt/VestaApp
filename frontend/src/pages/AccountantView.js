@@ -28,7 +28,6 @@ import {
   Legend
 } from "recharts";
 
-import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SRI_DEDUCTIBLE = ["alimentacion", "salud", "educacion", "vivienda", "vestimenta"];
@@ -41,6 +40,7 @@ export default function AccountantView() {
 
   useEffect(() => {
     fetchTaxSummary();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedYear]);
 
   const fetchTaxSummary = async () => {
@@ -187,7 +187,7 @@ export default function AccountantView() {
                       : 0}%
                   </p>
                 </div>
-                <div className="text-[#0D9E82]">
+                <div className="text-primary">
                   <ArrowUp size={24} weight="duotone" />
                 </div>
               </div>

@@ -59,6 +59,7 @@ COLLECTION_TABLE_MAP = {
     "deferred_payments": "vesta_deferred_payments",
     "sri_categorias": "vesta_sri_categorias",
     "profile": "vesta_profile",
+    "entity_tags": "vesta_entity_tags",
 }
 
 # Columnas jsonb por tabla (para saber cuando un update de notacion de punto

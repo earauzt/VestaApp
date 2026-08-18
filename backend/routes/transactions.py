@@ -174,18 +174,22 @@ async def fix_null_transaction_types(user: dict = Depends(get_current_user)):
 
 @router.post("/transactions/bulk-categorize")
 async def bulk_categorize_transactions(payload: dict, user: dict = Depends(get_current_user)):
-    """Actualiza categoría/subcategoría de varias transacciones en una sola llamada.
-    Body: {ids: [str], category: str, subcategory?: str}.
+    """Actualiza categoría/subcategoría (y opcionalmente entidad/dueño) de varias
+    transacciones en una sola llamada.
+    Body: {ids: [str], category: str, subcategory?: str, entity_tag_key?: str}.
     Adicionalmente upsert de known_vendors para cada establecimiento único."""
     ids = payload.get("ids") or []
     category = (payload.get("category") or "").strip()
     subcategory = (payload.get("subcategory") or "").strip()
+    entity_tag_key = (payload.get("entity_tag_key") or "").strip()
     if not ids or not category:
         raise HTTPException(status_code=400, detail="ids y category son requeridos")
 
     update_set = {"category": category}
     if subcategory:
         update_set["subcategory"] = subcategory
+    if entity_tag_key:
+        update_set["entity_tag_key"] = entity_tag_key
     result = await db.transactions.update_many(
         {"id": {"$in": ids}, "user_id": user["id"]},
         {"$set": update_set},

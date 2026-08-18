@@ -36,25 +36,29 @@
     "theme_strategy": "Archetype 1: Organic & Earthy (Trust, Growth, Calm)",
     "palette": {
       "light": {
-        "background": "210 20% 98%", 
+        "background": "210 20% 98%",
         "foreground": "150 10% 10%",
         "card": "0 0% 100%",
         "card_foreground": "150 10% 10%",
         "popover": "0 0% 100%",
         "popover_foreground": "150 10% 10%",
-        "primary": "145 50% 20%", 
+        "primary": "167 73% 34%",
         "primary_foreground": "145 10% 98%",
         "secondary": "145 20% 90%",
         "secondary_foreground": "145 50% 20%",
         "muted": "145 10% 94%",
         "muted_foreground": "145 10% 40%",
-        "accent": "15 70% 65%", 
+        "accent": "15 70% 65%",
         "accent_foreground": "0 0% 100%",
         "destructive": "0 84.2% 60.2%",
         "destructive_foreground": "0 0% 98%",
         "border": "145 10% 90%",
         "input": "145 10% 90%",
-        "ring": "145 50% 20%"
+        "ring": "167 73% 34%",
+        "sidebar_bg": "167 32% 9%",
+        "sidebar_active_bg": "173 32% 15%",
+        "sidebar_text": "167 14% 49%",
+        "sidebar_active_text": "0 0% 100%"
       },
       "dark": {
         "background": "150 10% 5%",
@@ -63,7 +67,7 @@
         "card_foreground": "145 10% 90%",
         "popover": "150 10% 8%",
         "popover_foreground": "145 10% 90%",
-        "primary": "145 40% 50%",
+        "primary": "167 60% 50%",
         "primary_foreground": "145 10% 5%",
         "secondary": "145 20% 15%",
         "secondary_foreground": "145 40% 50%",
@@ -75,7 +79,7 @@
         "destructive_foreground": "0 0% 98%",
         "border": "145 10% 15%",
         "input": "145 10% 15%",
-        "ring": "145 40% 50%"
+        "ring": "167 60% 50%"
       }
     },
     "semantic": {
@@ -120,7 +124,7 @@
     }
   },
   "assets": {
-    "icons": "phosphor-react",
+    "icons": "@phosphor-icons/react",
     "images": {
       "login_hero": "https://images.unsplash.com/photo-1767239650392-1f73d63b5652?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxoYXBweSUyMGZhbWlseSUyMGZpbmFuY2lhbCUyMGZyZWVkb218ZW58MHx8fHwxNzY5MzYzMDgwfDA&ixlib=rb-4.1.0&q=85",
       "dashboard_bg": "https://images.unsplash.com/photo-1615852993296-b42d4dbb5555?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjV8MHwxfHNlYXJjaHwyfHxtb2Rlcm4lMjBtaW5pbWFsaXN0JTIwaG9tZSUyMG9mZmljZSUyMGRlc2slMjBmaW5hbmNlfGVufDB8fHx8MTc2OTM2MzA3N3ww&ixlib=rb-4.1.0&q=85",
@@ -130,7 +134,7 @@
   "universal_guidelines": [
     "Avoid 'AI Slop': No generic gradients, no centered text blocks.",
     "Use 'Manrope' for all financial data/numbers.",
-    "Primary Color (Forest Green) is for Growth/Money. Use Terracotta for Alerts.",
+    "Primary Color (Vesta Teal, hsl(167 73% 34%)) is for Growth/Money/brand. Use Terracotta for Alerts.",
     "Dashboard Grid: Use 'Bento' style. Mix 1x1, 2x1, and 2x2 blocks.",
     "Glassmorphism: Use for sticky headers and floating action buttons.",
     "Data-TestID: All interactive elements must have data-testid attribute.",

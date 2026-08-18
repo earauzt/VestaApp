@@ -10,8 +10,7 @@ import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "../ui/alert-dialog";
-import { CheckCircle, WarningCircle } from "@phosphor-icons/react";
-import { Pencil, X } from "lucide-react";
+import { CheckCircle, WarningCircle, Pencil, X } from "@phosphor-icons/react";
 import TransactionEditModal from "../shared/TransactionEditModal";
 import { displayName } from "../../utils/displayName";
 
@@ -109,14 +108,14 @@ export default function TabPorRevisar({
       if (modalMode === "bulk") {
         const res = await axios.post(
           `${API}/transactions/bulk-categorize`,
-          { ids: reviewSelectedIds, category: data.category, subcategory: data.subcategory || "" },
+          { ids: reviewSelectedIds, category: data.category, subcategory: data.subcategory || "", entity_tag_key: data.entity_tag_key || "" },
           { headers: getAuthHeaders() }
         );
         toast.success(`${res.data?.updated ?? reviewSelectedIds.length} transacciones actualizadas`);
       } else if (activeItem) {
         await axios.post(
           `${API}/transactions/bulk-categorize`,
-          { ids: [activeItem.id], category: data.category, subcategory: data.subcategory || "" },
+          { ids: [activeItem.id], category: data.category, subcategory: data.subcategory || "", entity_tag_key: data.entity_tag_key || "" },
           { headers: getAuthHeaders() }
         );
         toast.success("Transacción actualizada");
@@ -192,7 +191,7 @@ export default function TabPorRevisar({
             onClick={handleReviewBulkApprove}
             disabled={reviewSelectedIds.length === 0 || reviewBulkApproving}
             data-testid="review-bulk-approve-btn"
-            className="w-full sm:w-auto bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
+            className="w-full sm:w-auto bg-primary hover:bg-primary/90 text-white"
           >
             {reviewBulkApproving
               ? `Aprobando... (${bulkProgress?.done ?? 0}/${bulkProgress?.total ?? reviewSelectedIds.length})`
@@ -238,7 +237,7 @@ export default function TabPorRevisar({
                 <label className="flex items-center justify-center p-2 -m-2 shrink-0 cursor-pointer" aria-label="Seleccionar movimiento">
                   <input
                     type="checkbox"
-                    className="h-5 w-5 accent-[#0D9E82] shrink-0"
+                    className="h-5 w-5 accent-primary shrink-0"
                     checked={reviewSelectedIds.includes(item.id)}
                     onChange={() => toggleReviewSelect(item.id)}
                     data-testid={`review-check-${item.id}`}

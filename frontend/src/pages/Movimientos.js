@@ -42,7 +42,7 @@ export default function Movimientos() {
           <CargarValidar />
         </TabsContent>
         <TabsContent value="todos" className="mt-0">
-          <Transactions />
+          <Transactions embedded />
         </TabsContent>
       </Tabs>
     </div>

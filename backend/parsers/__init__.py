@@ -349,6 +349,47 @@ def parse_pacificard_estado(sender: str, subject: str, html: str, text: str) -> 
     return r
 
 
+# ─── Diners Club estado de cuenta ────────────────────────────────
+# Llega de un dominio distinto al de las alertas de consumo
+# (servicios@dinersclub.com.ec): el resumen mensual lo envia
+# info@efacturacioninterdin.com / info@e-facturacioninterdin.com.
+
+def parse_diners_estado(sender: str, subject: str, html: str, text: str) -> dict:
+    if "facturacioninterdin.com" not in sender.lower():
+        return None
+    plain = strip_html(html) if html else text
+    r = _base_result("estado_de_cuenta", "Diners Club")
+    # Tarjeta N° DCDNXXXXXXXX7128 → últimos digitos visibles
+    m = re.search(r'Tarjeta\s*N[°ºo.]*\s*([A-Z]{0,4}X*\d{2,4})', plain or "", re.I)
+    if m:
+        digits = re.findall(r'\d', m.group(1))
+        r["tarjeta_ultimos4"] = "".join(digits[-3:]) if len(digits) >= 3 else None
+    # Fecha de corte: 3 AGO 2026
+    m = re.search(r'[Ff]echa\s+de\s+corte\D{0,20}(\d{1,2})\s+(\w{3})\s+(\d{4})', plain or "")
+    if m:
+        month = MONTH_MAP.get(m.group(2).upper(), "01")
+        r["fecha_corte"] = f"{m.group(3)}-{month}-{int(m.group(1)):02d}"
+    # TOTAL A PAGAR
+    m = re.search(r'TOTAL\s*A\s*PAGAR\D{0,10}([\d.,]+)', plain or "", re.I)
+    if m:
+        val = m.group(1).replace('.', '').replace(',', '.')
+        try:
+            r["monto"] = float(val)
+        except ValueError:
+            pass
+    # Monto mínimo
+    m = re.search(r'[Mm]onto\s*m[ií]nimo\D{0,10}([\d.,]+)', plain or "")
+    if m:
+        val = m.group(1).replace('.', '').replace(',', '.')
+        try:
+            r["pago_minimo"] = val
+        except ValueError:
+            pass
+    r["descripcion_corta"] = "Estado de cuenta Diners Club"
+    r["has_pdf_attachment"] = True
+    return r
+
+
 # ─── Banco del Pacífico estado de cuenta ─────────────────────────
 
 def parse_pacifico_estado(sender: str, subject: str, html: str, text: str) -> dict:
@@ -381,6 +422,7 @@ PARSERS = [
     parse_bolivariano_estado,
     parse_pacificard_estado,
     parse_pichincha_estado,
+    parse_diners_estado,
     parse_pacifico_estado,
     parse_pacificard_consumo,
     parse_diners_consumo,

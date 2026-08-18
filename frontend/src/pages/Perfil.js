@@ -28,9 +28,15 @@ import {
   XCircle,
   SpinnerGap,
   ArrowsClockwise,
-  SignOut
+  SignOut,
+  Storefront,
+  FileText,
+  Pencil,
+  Trash,
+  IdentificationCard,
+  UserPlus,
+  Copy
 } from "@phosphor-icons/react";
-import { Store, FileText, Edit2, Trash2, IdCard, UserPlus, Copy } from "lucide-react";
 import { PERSONAL_CATEGORIES } from "../constants/categories";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -232,7 +238,7 @@ export default function Perfil() {
       <Card className="bg-white border border-slate-200 shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-900">
-            <User size={20} className="text-[#0D9E82]" />
+            <User size={20} className="text-primary" />
             Información de la Cuenta
           </CardTitle>
         </CardHeader>
@@ -258,7 +264,7 @@ export default function Perfil() {
       <Card className="bg-white border border-slate-200 shadow-sm" data-testid="fiscal-data-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-900">
-            <IdCard size={20} className="text-[#0D9E82]" />
+            <IdentificationCard size={20} className="text-primary" />
             Datos fiscales
           </CardTitle>
           <CardDescription>Usados para cálculos SRI, facturas y reportes anuales</CardDescription>
@@ -313,7 +319,7 @@ export default function Perfil() {
             <Button
               onClick={handleSaveFiscal}
               disabled={savingFiscal}
-              className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
+              className="bg-primary hover:bg-primary/90 text-white"
               data-testid="fiscal-save-btn"
             >
               {savingFiscal ? "Guardando..." : "Guardar cambios"}
@@ -324,7 +330,7 @@ export default function Perfil() {
       <Card className="bg-white border border-slate-200 shadow-sm" data-testid="gmail-connection-card">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-900">
-            <EnvelopeSimple size={20} className="text-[#0D9E82]" />
+            <EnvelopeSimple size={20} className="text-primary" />
             Cuentas Conectadas
           </CardTitle>
           <CardDescription>Conecta servicios externos para importar transacciones automáticamente</CardDescription>
@@ -361,7 +367,7 @@ export default function Perfil() {
                   Sincronizar
                 </Button>
               ) : (
-                <Button size="sm" onClick={() => setShowConsentModal(true)} disabled={gmailConnecting} className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white" data-testid="profile-gmail-connect-btn">
+                <Button size="sm" onClick={() => setShowConsentModal(true)} disabled={gmailConnecting} className="gap-2 bg-primary hover:bg-primary/90 text-white" data-testid="profile-gmail-connect-btn">
                   {gmailConnecting ? (
                     <><SpinnerGap size={14} className="animate-spin" /> Conectando...</>
                   ) : (
@@ -378,7 +384,7 @@ export default function Perfil() {
       <Card className="bg-white border border-slate-200 shadow-sm" data-testid="rules-section">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-slate-900">
-            <FileText size={20} className="text-[#0D9E82]" />
+            <FileText size={20} className="text-primary" />
             Aprendizaje automático
           </CardTitle>
           <CardDescription>Comercios conocidos y reglas que usa Vesta para categorizar tus gastos</CardDescription>
@@ -387,7 +393,7 @@ export default function Perfil() {
           <Tabs value={rulesTab} onValueChange={setRulesTab}>
             <TabsList className="mb-4">
               <TabsTrigger value="comercios" data-testid="tab-comercios" className="gap-2">
-                <Store size={15} /> Comercios ({vendors.length})
+                <Storefront size={15} /> Comercios ({vendors.length})
               </TabsTrigger>
               <TabsTrigger value="reglas" data-testid="tab-reglas" className="gap-2">
                 <FileText size={15} /> Reglas activas ({rules.length})
@@ -424,7 +430,7 @@ export default function Perfil() {
                         aria-label="Editar comercio"
                         title="Editar"
                       >
-                        <Edit2 size={16} />
+                        <Pencil size={16} />
                       </Button>
                       <Button
                         variant="ghost"
@@ -435,7 +441,7 @@ export default function Perfil() {
                         aria-label="Eliminar comercio"
                         title="Eliminar"
                       >
-                        <Trash2 size={16} />
+                        <Trash size={16} />
                       </Button>
                     </div>
                   ))}
@@ -475,7 +481,7 @@ export default function Perfil() {
                         aria-label="Eliminar regla"
                         title="Eliminar"
                       >
-                        <Trash2 size={16} />
+                        <Trash size={16} />
                       </Button>
                     </div>
                   ))}
@@ -491,7 +497,7 @@ export default function Perfil() {
         <Card className="bg-white border border-slate-200 shadow-sm" data-testid="access-invite-card">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-slate-900">
-              <UserPlus size={20} className="text-[#0D9E82]" />
+              <UserPlus size={20} className="text-primary" />
               Accesos
             </CardTitle>
             <CardDescription>Invita a tu contadora para que revise tus datos fiscales</CardDescription>
@@ -509,7 +515,7 @@ export default function Perfil() {
               <Button
                 onClick={handleCreateInvite}
                 disabled={inviting}
-                className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white gap-2"
+                className="bg-primary hover:bg-primary/90 text-white gap-2"
                 data-testid="invite-create-btn"
               >
                 <UserPlus size={15} />
@@ -537,13 +543,13 @@ export default function Perfil() {
       )}
 
       {/* Logout */}
-      <Card className="bg-white border border-slate-200 border-l-4 border-l-[#DC2626] shadow-sm">
+      <Card className="bg-white border border-slate-200 border-l-4 border-l-red-600 shadow-sm">
         <CardContent className="p-4 flex items-center justify-between">
           <div>
-            <p className="font-medium text-[#DC2626]">Cerrar Sesión</p>
+            <p className="font-medium text-red-600">Cerrar Sesión</p>
             <p className="text-xs text-slate-500">Tu sesión se cerrará en este dispositivo</p>
           </div>
-          <Button onClick={logout} className="gap-2 bg-[#DC2626] hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm font-medium">
+          <Button onClick={logout} className="gap-2 bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm font-medium">
             <SignOut size={16} />
             Salir
           </Button>
@@ -576,7 +582,7 @@ export default function Perfil() {
           </div>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setShowConsentModal(false)} className="border-slate-200 text-slate-700 hover:bg-slate-50">Cancelar</Button>
-            <Button onClick={() => { setShowConsentModal(false); handleConnectGmail(); }} disabled={gmailConnecting} className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white">
+            <Button onClick={() => { setShowConsentModal(false); handleConnectGmail(); }} disabled={gmailConnecting} className="gap-2 bg-primary hover:bg-primary/90 text-white">
               {gmailConnecting ? <><SpinnerGap size={16} className="animate-spin" /> Conectando...</> : <><GoogleLogo size={18} weight="bold" /> Entendido, conectar</>}
             </Button>
           </DialogFooter>
@@ -627,7 +633,7 @@ export default function Perfil() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setEditVendor(null)} className="border-slate-200 text-slate-700 hover:bg-slate-50">Cancelar</Button>
-            <Button onClick={handleSaveVendor} className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white" data-testid="vendor-edit-save">Guardar</Button>
+            <Button onClick={handleSaveVendor} className="bg-primary hover:bg-primary/90 text-white" data-testid="vendor-edit-save">Guardar</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

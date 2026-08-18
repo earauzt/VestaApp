@@ -164,80 +164,117 @@ SUBSCRIPTION_SERVICES = [
 
 # ================= BUDGET CATEGORIES =================
 # SINGLE SOURCE OF TRUTH. Mirrors /app/frontend/src/constants/categories.js PERSONAL_CATEGORIES.
+#
+# "group"/"group_name" son metadata de presentacion (jerarquia grupo->categoria,
+# al estilo YNAB/Monarch) — NO cambian las 12 `key` de categoria que ya existen
+# en transacciones reales, asi que agregarlas es seguro y no requiere migracion.
+#
+# Los nombres de subcategoria que antes eran datos personales (nombres del
+# personal domestico, iniciales de los conyuges) se generizaron aqui. Eso NO
+# reescribe transacciones historicas (su `subcategory` guardado sigue siendo
+# el string que tenian) — solo cambia que opciones se ofrecen de aqui en
+# adelante. La identidad real ahora vive en la etiqueta de entidad (ver
+# migrations/001_entity_tags.sql), no en el nombre de la subcategoria.
 BUDGET_CATEGORIES = {
     "servicios_basicos": {
         "name": "Servicios Básicos",
+        "group": "vivienda_servicios", "group_name": "Vivienda y servicios",
         "subcategories": {"Alícuota B": 500, "Alícuota GT": 100, "Luz": 200, "Gas": 15, "Celular": 80, "Agua": 60, "Clubes": 275, "Internet": 50},
         "monthly_budget": 1280, "annual_budget": 15360, "type": "fixed",
         "payment_methods": ["transferencia", "tarjeta"], "is_recurring": True
     },
     "suscripciones": {
         "name": "Suscripciones",
+        "group": "suscripciones", "group_name": "Suscripciones",
         "subcategories": {"Netflix": 0, "Spotify": 0, "Amazon Prime": 0, "Disney+": 0, "YouTube Premium": 0, "iCloud": 0, "Otras": 0},
         "monthly_budget": 0, "annual_budget": 0, "type": "recurring",
         "payment_methods": ["tarjeta"], "is_recurring": True, "tags": ["recurrente", "suscripcion"]
     },
     "empleados": {
-        "name": "Empleados",
-        "subcategories": {"Ramona": 600, "Angélica": 550, "IESS": 150},
+        "name": "Personal Doméstico",
+        "group": "personal_domestico", "group_name": "Personal doméstico",
+        "subcategories": {"Personal doméstico 1": 600, "Personal doméstico 2": 550, "Aportes IESS": 150},
         "monthly_budget": 1300, "annual_budget": 15600, "type": "fixed",
         "payment_methods": ["transferencia", "efectivo"], "is_recurring": True
     },
     "colegio_actividades": {
         "name": "Colegio y Actividades",
+        "group": "salud_educacion_familia", "group_name": "Salud, educación y familia",
         "subcategories": {"Menor": 2000, "Fútbol": 150, "Telas Aros": 210},
         "monthly_budget": 2360, "annual_budget": 28320, "type": "fixed",
         "payment_methods": ["transferencia", "tarjeta", "efectivo"], "is_recurring": True
     },
     "seguros": {
         "name": "Seguros",
+        "group": "salud_educacion_familia", "group_name": "Salud, educación y familia",
         "subcategories": {"Salud": 900, "Carros": 250},
         "monthly_budget": 1150, "annual_budget": 13800, "type": "fixed",
         "payment_methods": ["tarjeta", "transferencia"], "is_recurring": True
     },
     "comida": {
         "name": "Comida",
+        "group": "alimentacion", "group_name": "Alimentación",
         "subcategories": {"Supermaxi": 800, "Mercado": 150},
         "monthly_budget": 950, "annual_budget": 11400, "type": "variable",
         "payment_methods": ["tarjeta", "efectivo"], "is_recurring": False
     },
     "restaurantes": {
         "name": "Restaurantes",
+        "group": "alimentacion", "group_name": "Alimentación",
         "subcategories": {"Comida afuera": 350, "Delivery": 200},
         "monthly_budget": 550, "annual_budget": 6600, "type": "variable",
         "payment_methods": ["tarjeta", "efectivo"], "is_recurring": False
     },
     "carros": {
         "name": "Carros",
+        "group": "transporte", "group_name": "Transporte",
         "subcategories": {"Gasolina 1": 360, "Gasolina 2": 105, "Mantenimiento": 100},
         "monthly_budget": 565, "annual_budget": 6780, "type": "variable",
         "payment_methods": ["tarjeta", "efectivo"], "is_recurring": False
     },
     "usa": {
         "name": "USA",
-        "subcategories": {"Mamá (Venmo)": 600, "TMobile": 150, "Universidad": 400},
+        "group": "internacional_otros", "group_name": "Internacional y otros",
+        "subcategories": {"Remesas familiares": 600, "TMobile": 150, "Universidad": 400},
         "monthly_budget": 1150, "annual_budget": 13800, "type": "fixed",
         "payment_methods": ["venmo", "transferencia"], "is_recurring": True, "is_international": True
     },
     "viajes_entretenimiento": {
         "name": "Viajes y Entretenimiento",
+        "group": "ocio_viajes_personal", "group_name": "Ocio, viajes y personal",
         "subcategories": {"Hoteles": 3000, "Pasajes": 3000, "Comida": 2000, "Entretenimiento": 2000, "Ropa": 2000, "Tech": 1500, "Transporte": 1000, "Tours": 1000, "Otros": 1000},
         "monthly_budget": 0, "annual_budget": 16500, "type": "variable",
         "payment_methods": ["tarjeta", "efectivo"], "is_recurring": False,
         "notes": "Pasajes en Enero $500, Diciembre $3000. Navidad $7000 en Diciembre"
     },
     "gastos_libres": {
-        "name": "Gastos Libres",
-        "subcategories": {"EA (Emilio)": 500, "KP (Esposa)": 800, "Otros": 0},
+        "name": "Gastos Personales",
+        "group": "ocio_viajes_personal", "group_name": "Ocio, viajes y personal",
+        "subcategories": {"Gasto personal 1": 500, "Gasto personal 2": 800, "Otros": 0},
         "monthly_budget": 1300, "annual_budget": 15600, "type": "discretionary",
         "payment_methods": ["tarjeta", "efectivo"], "is_recurring": True
     },
     "otros": {
         "name": "Otros",
+        "group": "internacional_otros", "group_name": "Internacional y otros",
         "subcategories": {"General": 0},
         "monthly_budget": 0, "annual_budget": 0, "type": "discretionary",
         "payment_methods": ["tarjeta", "efectivo"], "is_recurring": False
     }
+}
+
+# Etiqueta de entidad/dueno — ortogonal a BUDGET_CATEGORIES. Reemplaza los
+# nombres propios/iniciales que antes vivian como subcategorias (ver
+# "empleados" y "gastos_libres" arriba). Espejo del seed en
+# migrations/013_vesta_entity_tags.sql (tabla vesta_entity_tags, editable sin
+# tocar codigo una vez aplicada la migracion).
+ENTITY_TAGS = {
+    "personal": {"name": "Personal", "sort_order": 1},
+    "pareja": {"name": "Pareja", "sort_order": 2},
+    "hogar": {"name": "Hogar / compartido", "sort_order": 3},
+    "domestico": {"name": "Personal doméstico", "sort_order": 4},
+    "internacional": {"name": "Internacional / familia", "sort_order": 5},
+    "negocio": {"name": "Negocio", "sort_order": 6},
 }
 
 INCOME_STRUCTURE = {
@@ -367,7 +404,9 @@ GMAIL_SCOPES = [
 ]
 BANK_DOMAINS = [
     "pichincha.com", "bancoguayaquil.com", "pacifico.fin.ec",
-    "produbanco.com", "internacional.fin.ec", "bolivariano.com", "diners.com.ec"
+    "produbanco.com", "internacional.fin.ec", "bolivariano.com", "diners.com.ec",
+    # Dominios reales de los estados de cuenta (distintos de los de las alertas de consumo):
+    "pacificard.ec", "facturacioninterdin.com"
 ]
 BANK_SENDERS = [
     "notificaciones@infopacificard.com.ec",
@@ -480,6 +519,9 @@ class TransactionBase(BaseModel):
     beneficiario: Optional[str] = None  # yo | conyuge | hijo | padre_madre
     aplica_iva: bool = True
     subtotal_sin_iva: Optional[float] = None
+    # Etiqueta de entidad/dueno (ortogonal a category) — ver migrations/013_vesta_entity_tags.sql
+    # y ENTITY_TAGS mas abajo. Nullable: transacciones existentes quedan sin asignar.
+    entity_tag_key: Optional[str] = None
 
 class TransactionCreate(TransactionBase):
     pass

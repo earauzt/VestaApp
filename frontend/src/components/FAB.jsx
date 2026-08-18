@@ -1,6 +1,6 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Camera, Image, Pencil, X, Plus, Receipt, ShoppingCart, Utensils, Car, HeartPulse, Zap, Shirt } from "lucide-react";
+import { Camera, Image, Pencil, X, Plus, Receipt, ShoppingCart, ForkKnife, Car, Heartbeat, Lightning, TShirt } from "@phosphor-icons/react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Label } from "./ui/label";
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import axios from "axios";
-import { PERSONAL_CATEGORIES } from "../constants/categories";
+import { PERSONAL_CATEGORIES, ENTITY_TAGS } from "../constants/categories";
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -17,11 +17,11 @@ const API = process.env.REACT_APP_BACKEND_URL;
 const QUICK_CATEGORY_KEYS = ["comida", "restaurantes", "carros", "servicios_basicos", "suscripciones", "otros"];
 const QUICK_CATEGORY_ICONS = {
   comida: ShoppingCart,
-  restaurantes: Utensils,
+  restaurantes: ForkKnife,
   carros: Car,
-  servicios_basicos: Zap,
-  suscripciones: Shirt,
-  salud: HeartPulse,
+  servicios_basicos: Lightning,
+  suscripciones: TShirt,
+  salud: Heartbeat,
   otros: Receipt,
 };
 const QUICK_CATEGORIES = QUICK_CATEGORY_KEYS.map((key) => ({
@@ -29,6 +29,7 @@ const QUICK_CATEGORIES = QUICK_CATEGORY_KEYS.map((key) => ({
   label: PERSONAL_CATEGORIES[key]?.name || key,
   Icon: QUICK_CATEGORY_ICONS[key] || Receipt,
 }));
+
 
 export default function FAB() {
   const { getAuthHeaders, user } = useAuth();
@@ -42,7 +43,20 @@ export default function FAB() {
     amount: "",
     category: "",
     description: "",
+    entityTag: "",
   });
+  const [entityTags, setEntityTags] = useState(ENTITY_TAGS);
+
+  useEffect(() => {
+    let cancelled = false;
+    axios.get(`${API}/api/entity-tags`, { headers: getAuthHeaders() })
+      .then((res) => {
+        if (!cancelled && res.data?.entity_tags?.length) setEntityTags(res.data.entity_tags);
+      })
+      .catch(() => {}); // se queda con DEFAULT_ENTITY_TAGS si falla
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // No mostrar FAB en ciertas páginas o si no hay usuario
   if (!user) return null;
@@ -87,7 +101,7 @@ export default function FAB() {
       });
 
       if (response.data.transactions_created > 0 || response.data.transaction) {
-        toast.success(`✅ ${response.data.transactions_created || 1} transacción(es) creada(s)`);
+        toast.success(`${response.data.transactions_created || 1} transacción(es) creada(s)`);
       } else {
         // OCR falló - mostrar formulario manual
         toast.warning("No se pudo procesar automáticamente");
@@ -126,13 +140,14 @@ export default function FAB() {
         payment_method: "efectivo",
         status: "pending_review",
         source_type: "manual_quick",
+        ...(quickForm.entityTag ? { entity_tag_key: quickForm.entityTag } : {}),
       };
 
       await axios.post(`${API}/api/transactions`, payload, { headers: getAuthHeaders() });
-      
-      toast.success("✅ Gasto registrado");
+
+      toast.success("Gasto registrado");
       setShowQuickForm(false);
-      setQuickForm({ amount: "", category: "", description: "" });
+      setQuickForm({ amount: "", category: "", description: "", entityTag: "" });
     } catch (error) {
       toast.error("Error al guardar gasto");
     }
@@ -183,7 +198,7 @@ export default function FAB() {
                 className="flex items-center gap-3 bg-white shadow-lg rounded-full pl-4 pr-3 py-2 hover:bg-zinc-50 transition-colors"
               >
                 <span className="text-sm font-medium whitespace-nowrap">Tomar Foto</span>
-                <div className="w-10 h-10 rounded-full bg-[#0D9E82] flex items-center justify-center text-white">
+                <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center text-white">
                   <Camera size={20} />
                 </div>
               </motion.button>
@@ -231,7 +246,7 @@ export default function FAB() {
           className={`w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all ${
             isOpen
               ? "bg-zinc-700"
-              : "bg-[#0D9E82] hover:bg-[#0B8A70]"
+              : "bg-primary hover:bg-primary/90"
           } ${isUploading ? "animate-pulse" : ""}`}
         >
           {isUploading ? (
@@ -249,7 +264,7 @@ export default function FAB() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Receipt size={24} className="text-[#0D9E82]" />
+              <Receipt size={24} className="text-primary" />
               Gasto Rápido
             </DialogTitle>
           </DialogHeader>
@@ -285,10 +300,27 @@ export default function FAB() {
                   {QUICK_CATEGORIES.map((cat) => (
                     <SelectItem key={cat.value} value={cat.value}>
                       <span className="flex items-center gap-2">
-                        <cat.Icon size={15} className="text-[#0D9E82]" />
+                        <cat.Icon size={15} className="text-primary" />
                         {cat.label}
                       </span>
                     </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label>¿De quién es este gasto? (opcional)</Label>
+              <Select
+                value={quickForm.entityTag}
+                onValueChange={(v) => setQuickForm({ ...quickForm, entityTag: v })}
+              >
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Sin asignar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {entityTags.map((tag) => (
+                    <SelectItem key={tag.key} value={tag.key}>{tag.name}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -312,7 +344,7 @@ export default function FAB() {
             </Button>
             <Button 
               onClick={handleQuickSubmit}
-              className="bg-[#0D9E82] hover:bg-[#0B8A70]"
+              className="bg-primary hover:bg-primary/90"
             >
               Guardar Gasto
             </Button>

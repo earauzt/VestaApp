@@ -35,7 +35,6 @@ import {
   Airplane
 } from "@phosphor-icons/react";
 
-import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function PresupuestoEditable({ embedded = false } = {}) {
@@ -68,6 +67,7 @@ export default function PresupuestoEditable({ embedded = false } = {}) {
 
   useEffect(() => {
     fetchBudgetConfig();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchBudgetConfig = async () => {
@@ -299,12 +299,12 @@ export default function PresupuestoEditable({ embedded = false } = {}) {
           <div className="flex items-center justify-between pt-3 mt-2 border-t border-slate-100">
             <div>
               <p className="text-xs text-slate-400">Ahorro mensual ({savingsGoal.percentage}%)</p>
-              <p className="text-sm font-semibold text-[#0D9E82]">{formatCurrency(savingsGoal.monthly)}</p>
+              <p className="text-sm font-semibold text-primary">{formatCurrency(savingsGoal.monthly)}</p>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 text-xs text-slate-500 hover:text-[#0D9E82]"
+              className="h-8 text-xs text-slate-500 hover:text-primary"
               onClick={() => setActiveTab("metas")}
             >
               <Pencil size={13} className="mr-1" /> Editar
@@ -444,7 +444,7 @@ export default function PresupuestoEditable({ embedded = false } = {}) {
             <Card className="bento-card">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <PiggyBank size={24} className="text-[#0D9E82]" />
+                  <PiggyBank size={24} className="text-primary" />
                   Meta de Ahorro
                 </CardTitle>
               </CardHeader>

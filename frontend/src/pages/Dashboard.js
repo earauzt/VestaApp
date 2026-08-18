@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
-import { Clock as LucideClock } from "lucide-react";
+import { Clock, CreditCard, Bell } from "@phosphor-icons/react";
 import { toast } from "sonner";
 
 import { useAuth } from "../context/AuthContext";
@@ -13,36 +13,33 @@ import AutoRuleModal from "../components/AutoRuleModal";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Budget references used to filter categorías mostradas en la sección 2.
-// Las categorías con budget > 0 siempre aparecen (aunque el gasto del mes sea 0).
-const DEFAULT_FLUJO_CATEGORIES = {
-  servicios_basicos: { name: "Servicios Básicos", budget: 1280 },
-  empleados: { name: "Empleados", budget: 1300 },
-  colegio_actividades: { name: "Colegio y Actividades", budget: 2360 },
-  seguros: { name: "Seguros", budget: 1150 },
-  comida: { name: "Comida", budget: 950 },
-  restaurantes: { name: "Restaurantes", budget: 550 },
-  carros: { name: "Carros", budget: 565 },
-  usa: { name: "USA (Mamá, TMobile, Universidad)", budget: 1150 },
-  gastos_libres: { name: "Gastos Libres (Otros)", budget: 1300 },
+// Mismos umbrales que Deudas.js (getUtilizationColor) — una sola definicion
+// de "que utilizacion de credito es sana" en toda la app.
+const utilizationColor = (rate) => {
+  if (rate < 30) return "text-emerald-600";
+  if (rate < 50) return "text-amber-600";
+  return "text-red-600";
 };
 
-const DEMO_FLUJO_CATEGORIES = {
-  servicios_basicos: { name: "Servicios Básicos", budget: 145 },
-  comida: { name: "Alimentación", budget: 350 },
-  restaurantes: { name: "Restaurantes", budget: 200 },
-  transporte: { name: "Transporte", budget: 120 },
-  entretenimiento: { name: "Entretenimiento", budget: 100 },
-  otros: { name: "Otros Gastos", budget: 100 },
-};
+// Color por categoria (Apple Wallet / Copilot): reutiliza los 5 tokens --chart-*
+// que ya existian en index.css sin uso real, en vez de un unico verde uniforme.
+const CATEGORY_COLORS = [
+  { dot: "bg-chart-1", bar: "[&>div]:bg-chart-1" },
+  { dot: "bg-chart-2", bar: "[&>div]:bg-chart-2" },
+  { dot: "bg-chart-3", bar: "[&>div]:bg-chart-3" },
+  { dot: "bg-chart-4", bar: "[&>div]:bg-chart-4" },
+  { dot: "bg-chart-5", bar: "[&>div]:bg-chart-5" },
+];
 
 export default function Dashboard() {
   const { getAuthHeaders, user } = useAuth();
   const navigate = useNavigate();
 
   const [stats, setStats] = useState(null);
-  const [categoryData, setCategoryData] = useState([]);
-  const [porRevisarCount, setPorRevisarCount] = useState(0);
+  const [categoriesConfig, setCategoriesConfig] = useState({});
+  const [reconStats, setReconStats] = useState(null);
+  const [debtSummary, setDebtSummary] = useState(null);
+  const [alertasUrgentes, setAlertasUrgentes] = useState([]);
   const [period, setPeriod] = useState("month");
   const [loading, setLoading] = useState(true);
 
@@ -53,47 +50,47 @@ export default function Dashboard() {
   useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
 
   const fetchData = useCallback(async () => {
-    try {
-      const headers = getAuthHeadersRef.current();
-      const [statsRes, txRes] = await Promise.all([
-        axios.get(`${API}/dashboard/stats?period=${period}`, { headers }),
-        axios.get(`${API}/transactions?limit=5000`, { headers })
-          .catch(() => ({ data: [] })),
-      ]);
+    const headers = getAuthHeadersRef.current();
+    // Cada tarjeta del dashboard depende de un endpoint distinto — si uno falla
+    // (ej. el usuario no tiene tarjetas todavia) el resto del panorama se sigue viendo.
+    const [statsRes, catsRes, reconRes, debtRes, notifRes] = await Promise.allSettled([
+      axios.get(`${API}/dashboard/stats?period=${period}`, { headers }),
+      axios.get(`${API}/budget/categories`, { headers }),
+      axios.get(`${API}/reconciliation/stats`, { headers }),
+      axios.get(`${API}/debt/summary`, { headers }),
+      axios.get(`${API}/notificaciones`, { headers }),
+    ]);
 
-      setStats(statsRes.data);
-
-      const allTxRaw = txRes.data?.transactions
-        || txRes.data?.items
-        || (Array.isArray(txRes.data) ? txRes.data : []);
-      setPorRevisarCount(
-        allTxRaw.filter(t => t.status === "pending" || t.status === "pending_review").length
-      );
-
-      const byCategory = statsRes.data?.by_category || {};
-      const categoriesSrc = user?.email?.includes("demo")
-        ? DEMO_FLUJO_CATEGORIES
-        : DEFAULT_FLUJO_CATEGORIES;
-      const transformed = Object.entries(categoriesSrc).map(([key, config]) => ({
-        key,
-        name: config.name,
-        value: byCategory[key] || 0,
-        budget: config.budget,
-      })).filter(d => d.value > 0);
-      setCategoryData(transformed);
-    } catch {
-      toast.error("Error al cargar datos del dashboard");
-    } finally {
-      setLoading(false);
+    if (statsRes.status === "fulfilled") {
+      setStats(statsRes.value.data);
+    } else {
+      toast.error("Error al cargar el resumen del mes");
     }
-  }, [period, user?.email]);
+    setCategoriesConfig(catsRes.status === "fulfilled" ? (catsRes.value.data.categories || {}) : {});
+    setReconStats(reconRes.status === "fulfilled" ? reconRes.value.data : null);
+    setDebtSummary(debtRes.status === "fulfilled" ? debtRes.value.data : null);
+    setAlertasUrgentes(
+      notifRes.status === "fulfilled"
+        ? (notifRes.value.data.notificaciones || []).filter(n => n.prioridad === "high")
+        : []
+    );
+    setLoading(false);
+  }, [period]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
-  const sortedCategoryData = useMemo(
-    () => [...categoryData].sort((a, b) => (b.value || 0) - (a.value || 0)),
-    [categoryData]
-  );
+  const sortedCategoryData = useMemo(() => {
+    const byCategory = stats?.by_category || {};
+    return Object.entries(categoriesConfig)
+      .map(([key, config]) => ({
+        key,
+        name: config.name || key,
+        value: byCategory[key] || 0,
+        budget: config.monthly_budget || 0,
+      }))
+      .filter(d => d.value > 0)
+      .sort((a, b) => b.value - a.value);
+  }, [categoriesConfig, stats]);
 
   const formatCurrency = (value) => new Intl.NumberFormat("es-EC", {
     style: "currency",
@@ -107,6 +104,11 @@ export default function Dashboard() {
       </div>
     );
   }
+
+  const pendingCount = reconStats?.pending_review || 0;
+  const pendingAmount = reconStats?.total_pending_amount || 0;
+  const totalDebt = debtSummary?.total_debt_with_deferred ?? debtSummary?.total_debt;
+  const balancePositive = (stats?.balance || 0) >= 0;
 
   return (
     <div className="space-y-6 lg:space-y-8" data-testid="dashboard-page">
@@ -130,31 +132,122 @@ export default function Dashboard() {
         </Select>
       </div>
 
+      {/* Alertas urgentes — lo primero que se ve si algo necesita atencion ya */}
+      {alertasUrgentes.length > 0 && (
+        <Card
+          className="border-red-200 bg-red-50/60 cursor-pointer hover:bg-red-50 transition-colors"
+          onClick={() => navigate("/alertas")}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate("/alertas"); } }}
+          data-testid="alertas-urgentes-card"
+        >
+          <CardContent className="p-4 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="shrink-0 h-10 w-10 rounded-full bg-red-100 flex items-center justify-center">
+                <Bell size={18} className="text-red-600" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-semibold text-red-900 truncate">{alertasUrgentes[0].titulo}</p>
+                <p className="text-xs text-red-700/80">
+                  {alertasUrgentes.length > 1 ? `+${alertasUrgentes.length - 1} alerta${alertasUrgentes.length - 1 === 1 ? "" : "s"} más urgente${alertasUrgentes.length - 1 === 1 ? "" : "s"}` : alertasUrgentes[0].texto}
+                </p>
+              </div>
+            </div>
+            <Badge variant="outline" className="border-red-200 text-red-700 shrink-0 bg-white">
+              Ver →
+            </Badge>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Sección 1 — Balance hero */}
       <Card className="bento-card" data-testid="balance-hero-card">
         <CardContent className="p-6 sm:p-8">
-          <p className="text-xs text-slate-400 uppercase tracking-wide">Balance del mes</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-wide">Balance del mes</p>
           <p
             className={`text-4xl sm:text-5xl font-bold tracking-tight mt-1 ${
-              stats?.balance >= 0 ? "text-slate-800" : "text-red-600"
+              balancePositive ? "text-emerald-700" : "text-red-600"
             }`}
             data-testid="dashboard-balance-hero"
           >
             {formatCurrency(stats?.balance)}
           </p>
-          <p className="text-sm text-slate-500 mt-3" data-testid="dashboard-income-expenses-line">
+          <p className="text-sm text-muted-foreground mt-3" data-testid="dashboard-income-expenses-line">
             <span className="text-emerald-600 font-medium">+{formatCurrency(stats?.total_income)}</span>
-            <span className="px-2 text-slate-300">·</span>
-            <span className="text-slate-700 font-medium">{formatCurrency(stats?.monthly_total || stats?.total_expenses)}</span>
-            <span className="ml-1.5 text-slate-400">gastos</span>
+            <span className="px-2 text-muted-foreground/50">·</span>
+            <span className="text-foreground font-medium">{formatCurrency(stats?.monthly_total || stats?.total_expenses)}</span>
+            <span className="ml-1.5 text-muted-foreground">gastos</span>
           </p>
-          <p className="text-xs text-slate-400 mt-2" data-testid="dashboard-daily-average">
+          <p className="text-xs text-muted-foreground mt-2" data-testid="dashboard-daily-average">
             Promedio diario {formatCurrency(stats?.daily_average)}
           </p>
         </CardContent>
       </Card>
 
-      {/* Sección 2 — Gastos este mes por categoría */}
+      {/* Sección 2 — Deuda + Por revisar, lado a lado: los dos numeros que junto
+          al balance completan "cual es mi estado financiero ahora mismo". */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {debtSummary && totalDebt > 0 && (
+          <Card
+            className="bento-card cursor-pointer hover:bg-muted transition-colors"
+            onClick={() => navigate("/deudas")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate("/deudas"); } }}
+            data-testid="dashboard-debt-card"
+          >
+            <CardContent className="p-5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="shrink-0 h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <CreditCard size={18} className="text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-foreground">{formatCurrency(totalDebt)}</p>
+                  <p className="text-xs text-muted-foreground">
+                    Deuda total (tarjetas + diferidos)
+                    {debtSummary.utilization_rate != null && (
+                      <span className={`ml-1 font-medium ${utilizationColor(debtSummary.utilization_rate)}`}>
+                        · {debtSummary.utilization_rate}% utilización
+                      </span>
+                    )}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {pendingCount > 0 && (
+          <Card
+            className="bento-card cursor-pointer hover:bg-muted transition-colors focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none"
+            onClick={() => navigate("/movimientos?tab=por-revisar")}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate("/movimientos?tab=por-revisar"); } }}
+            data-testid="por-revisar-card"
+          >
+            <CardContent className="p-5 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="shrink-0 h-10 w-10 rounded-full bg-muted flex items-center justify-center">
+                  <Clock size={18} className="text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-base font-semibold text-foreground" data-testid="por-revisar-count">
+                    {pendingCount} {pendingCount === 1 ? "movimiento" : "movimientos"} por revisar
+                  </p>
+                  <p className="text-xs text-muted-foreground">{formatCurrency(pendingAmount)} pendientes de aprobar</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="border-border text-muted-foreground shrink-0">
+                Ver →
+              </Badge>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+
+      {/* Sección 3 — Gastos este mes por categoría */}
       {(() => {
         const totalSpent = sortedCategoryData.reduce((s, c) => s + (c.value || 0), 0);
         const rows = sortedCategoryData.slice(0, 8);
@@ -168,23 +261,29 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              {rows.map((cat) => {
+              {rows.map((cat, idx) => {
                 const pct = totalSpent > 0 ? Math.round((cat.value / totalSpent) * 100) : 0;
+                const overBudget = cat.budget > 0 && cat.value > cat.budget;
+                const catColor = CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
                 return (
                   <div
                     key={cat.key}
                     className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 items-center"
                     data-testid={`category-row-${cat.key}`}
                   >
-                    <span className="text-sm font-medium text-slate-800 truncate">{cat.name}</span>
-                    <span className="text-sm font-mono text-slate-600 tabular-nums">
+                    <span className="text-sm font-medium text-foreground truncate flex items-center gap-2">
+                      <span className={`h-2 w-2 rounded-full shrink-0 ${overBudget ? "bg-red-500" : catColor.dot}`} />
+                      {cat.name}
+                    </span>
+                    <span className={`text-sm font-mono tabular-nums ${overBudget ? "text-red-600 font-semibold" : "text-muted-foreground"}`}>
                       {formatCurrency(cat.value)}
+                      {cat.budget > 0 && <span className="text-muted-foreground/60"> / {formatCurrency(cat.budget)}</span>}
                     </span>
                     <Progress
                       value={pct}
-                      className="h-2 [&>div]:bg-[#0D9E82] col-start-1"
+                      className={`h-2 col-start-1 ${overBudget ? "[&>div]:bg-red-500" : catColor.bar}`}
                     />
-                    <span className="text-xs text-slate-500 tabular-nums col-start-2">
+                    <span className="text-xs text-muted-foreground tabular-nums col-start-2">
                       {pct}%
                     </span>
                   </div>
@@ -194,40 +293,6 @@ export default function Dashboard() {
           </Card>
         );
       })()}
-
-      {/* Sección 3 — Movimientos por revisar */}
-      {porRevisarCount > 0 && (
-        <Card
-          className="bento-card cursor-pointer hover:bg-slate-50 transition-colors focus-visible:ring-2 focus-visible:ring-[#0D9E82] focus-visible:outline-none"
-          onClick={() => navigate("/movimientos?tab=por-revisar")}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") {
-              e.preventDefault();
-              navigate("/movimientos?tab=por-revisar");
-            }
-          }}
-          data-testid="por-revisar-card"
-        >
-          <CardContent className="p-5 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3 min-w-0">
-              <div className="shrink-0 h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center">
-                <LucideClock size={18} className="text-[#0D9E82]" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-base font-semibold text-slate-900" data-testid="por-revisar-count">
-                  {porRevisarCount} {porRevisarCount === 1 ? "movimiento" : "movimientos"} por revisar
-                </p>
-                <p className="text-xs text-slate-500">Abre Movimientos para aprobarlos</p>
-              </div>
-            </div>
-            <Badge variant="outline" className="border-slate-200 text-slate-600 shrink-0">
-              Ver →
-            </Badge>
-          </CardContent>
-        </Card>
-      )}
 
       <AutoRuleModal
         open={ruleModalOpen}

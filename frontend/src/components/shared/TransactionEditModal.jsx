@@ -5,7 +5,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Switch } from "../ui/switch";
-import { PERSONAL_CATEGORIES, SRI_CATEGORIES } from "../../constants/categories";
+import { PERSONAL_CATEGORIES, SRI_CATEGORIES, ENTITY_TAGS } from "../../constants/categories";
 
 /**
  * Modal unificado para editar/recategorizar transacciones.
@@ -24,6 +24,7 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
   const [form, setForm] = useState({
     category: "",
     subcategory: "",
+    entity_tag_key: "",
     sri_category: "",
     sri_subcategory: "",
     establishment: "",
@@ -37,6 +38,7 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
       setForm({
         category: transaction.category || "",
         subcategory: transaction.subcategory || "",
+        entity_tag_key: transaction.entity_tag_key || "",
         sri_category: transaction.sri_category || "",
         sri_subcategory: transaction.sri_subcategory || "",
         establishment: transaction.establishment || transaction.comercio || "",
@@ -46,7 +48,7 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
       });
     } else if (open) {
       setForm({
-        category: "", subcategory: "", sri_category: "", sri_subcategory: "",
+        category: "", subcategory: "", entity_tag_key: "", sri_category: "", sri_subcategory: "",
         establishment: "", is_business_use: false, beneficiario: "", applies_iva: false,
       });
     }
@@ -54,7 +56,11 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
 
   const handleSave = () => {
     if (isBulk) {
-      onSave({ category: form.category, subcategory: form.subcategory });
+      onSave({
+        category: form.category,
+        subcategory: form.subcategory,
+        ...(form.entity_tag_key ? { entity_tag_key: form.entity_tag_key } : {}),
+      });
     } else {
       onSave(form);
     }
@@ -96,6 +102,18 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
                 </SelectContent>
               </Select>
             </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label>¿De quién es este gasto?</Label>
+            <Select value={form.entity_tag_key} onValueChange={(v) => setForm({ ...form, entity_tag_key: v })}>
+              <SelectTrigger data-testid="tem-entity-tag-select"><SelectValue placeholder="Sin asignar" /></SelectTrigger>
+              <SelectContent className="z-[250]">
+                {ENTITY_TAGS.map((tag) => (
+                  <SelectItem key={tag.key} value={tag.key}>{tag.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {!isBulk && (
@@ -174,7 +192,7 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
 
         <DialogFooter className="sticky bottom-0 bg-white pt-3 border-t border-slate-200 mt-2">
           <Button variant="outline" onClick={onClose} data-testid="tem-cancel-btn">Cancelar</Button>
-          <Button onClick={handleSave} disabled={!form.category} data-testid="tem-save-btn" className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white">
+          <Button onClick={handleSave} disabled={!form.category} data-testid="tem-save-btn" className="bg-primary hover:bg-primary/90 text-white">
             {isBulk ? `Aplicar a ${bulkCount}` : "Guardar"}
           </Button>
         </DialogFooter>

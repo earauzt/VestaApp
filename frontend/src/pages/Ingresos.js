@@ -41,18 +41,17 @@ import {
   Warning,
   User,
   Receipt,
-  CalendarCheck
+  CalendarCheck,
+  Lightbulb
 } from "@phosphor-icons/react";
-import { Lightbulb as LILightbulb } from "lucide-react";
-import { components, typography } from "../styles/design-system";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Income sources with icons
 const DISTRIBUTION_CONFIG = {
-  Personal: { icon: CurrencyDollar, color: "text-[#0D9E82]", bgColor: "bg-slate-100 dark:bg-slate-800" },
-  APX: { icon: Briefcase, color: "text-[#0D9E82]", bgColor: "bg-slate-50 dark:bg-slate-800" },
-  USA: { icon: Globe, color: "text-[#0D9E82]", bgColor: "bg-slate-100 dark:bg-slate-800" }
+  Personal: { icon: CurrencyDollar, color: "text-primary", bgColor: "bg-slate-100 dark:bg-slate-800" },
+  APX: { icon: Briefcase, color: "text-primary", bgColor: "bg-slate-50 dark:bg-slate-800" },
+  USA: { icon: Globe, color: "text-primary", bgColor: "bg-slate-100 dark:bg-slate-800" }
 };
 
 const INCOME_CONCEPTS = ["Salario", "Bonus", "Dividendos", "Arriendo", "Honorarios", "Otros"];
@@ -70,7 +69,7 @@ const STATUS_CONFIG = {
   cancelled: { label: "Cancelado", color: "bg-red-100 text-red-800", icon: Warning },
   overdue: { label: "Vencido", color: "bg-red-100 text-red-800", icon: Warning },
   paid: { label: "Pagado", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle },
-  partial: { label: "Parcial", color: "bg-slate-50 text-[#0D9E82]", icon: Clock }
+  partial: { label: "Parcial", color: "bg-slate-50 text-primary", icon: Clock }
 };
 
 export default function Ingresos({ embedded = false } = {}) {
@@ -782,7 +781,7 @@ export default function Ingresos({ embedded = false } = {}) {
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-3">
                               <div className="p-2 rounded-full bg-slate-50 dark:bg-slate-800">
-                                <User size={20} className="text-[#0D9E82]" weight="bold" />
+                                <User size={20} className="text-primary" weight="bold" />
                               </div>
                               <div>
                                 <p className="font-medium">{item.client_name}</p>
@@ -797,7 +796,7 @@ export default function Ingresos({ embedded = false } = {}) {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className="font-mono font-bold text-lg text-[#0D9E82]">
+                              <p className="font-mono font-bold text-lg text-primary">
                                 {formatCurrency(remaining)}
                               </p>
                               <p className="text-xs text-muted-foreground">
@@ -914,7 +913,7 @@ export default function Ingresos({ embedded = false } = {}) {
                     </Button>
                     <button
                       type="button"
-                      className="absolute top-1 right-1 p-0.5 text-slate-400 hover:text-[#0D9E82]"
+                      className="absolute top-1 right-1 p-0.5 text-slate-400 hover:text-primary"
                       onClick={(e) => { e.stopPropagation(); setEditingSourceKey(key); }}
                       aria-label={`Editar etiqueta ${key}`}
                       data-testid={`source-name-edit-${key}`}
@@ -1184,7 +1183,7 @@ export default function Ingresos({ embedded = false } = {}) {
               onChange={(date) => setPaymentDate(date)}
             />
             <p className="text-sm text-muted-foreground flex items-start gap-2">
-              <LILightbulb size={14} className="text-amber-600 mt-0.5 shrink-0" />
+              <Lightbulb size={14} className="text-amber-600 mt-0.5 shrink-0" />
               Este pago se registrará también como ingreso con la fecha seleccionada.
             </p>
             <DialogFooter>

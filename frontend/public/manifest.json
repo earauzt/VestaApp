@@ -1,0 +1,22 @@
+{
+    "short_name": "Vesta",
+    "name": "Vesta",
+    "icons": [
+        {
+            "src": "logo192.svg",
+            "type": "image/svg+xml",
+            "sizes": "192x192",
+            "purpose": "any"
+        },
+        {
+            "src": "logo512.svg",
+            "type": "image/svg+xml",
+            "sizes": "512x512",
+            "purpose": "any"
+        }
+    ],
+    "start_url": "/dashboard",
+    "display": "standalone",
+    "theme_color": "#17967b",
+    "background_color": "#f9fafb"
+}

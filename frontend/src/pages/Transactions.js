@@ -32,12 +32,9 @@ import {
   Gear,
   CheckCircle,
   Eye,
-  Sparkle
+  Sparkle,
+  Check
 } from "@phosphor-icons/react";
-import {
-  Check as LICheck,
-} from "lucide-react";
-import { components, typography } from "../styles/design-system";
 import { SRI_CATEGORIES, INCOME_SOURCES } from "../constants/categories";
 import { displayName } from "../utils/displayName";
 import TransactionEditModal from "../components/shared/TransactionEditModal";
@@ -56,7 +53,7 @@ import {
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 // Unified category pill style. The name itself is the differentiator, not the color.
-const CATEGORY_PILL = "bg-slate-100 text-[#0D9E82] dark:bg-slate-800 dark:text-[#0D9E82]";
+const CATEGORY_PILL = "bg-slate-100 text-primary dark:bg-slate-800 dark:text-primary";
 const CATEGORY_COLORS = new Proxy({}, { get: () => CATEGORY_PILL });
 
 // Fallback categories (will be replaced by backend data)
@@ -70,7 +67,7 @@ const FALLBACK_CATEGORIES = {
 
 // SRI_CATEGORIES and INCOME_SOURCES centralizados en /constants/categories.js
 
-export default function Transactions() {
+export default function Transactions({ embedded = false } = {}) {
   const { getAuthHeaders, user } = useAuth();
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
@@ -486,10 +483,14 @@ export default function Transactions() {
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Transacciones</h1>
-          <p className="text-muted-foreground">Gestiona tus ingresos y gastos: edita, divide, adjunta facturas y crea reglas automáticas.</p>
-        </div>
+        {embedded ? (
+          <h2 className="text-lg font-semibold">Todas las transacciones</h2>
+        ) : (
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold tracking-tight">Transacciones</h1>
+            <p className="text-muted-foreground">Gestiona tus ingresos y gastos: edita, divide, adjunta facturas y crea reglas automáticas.</p>
+          </div>
+        )}
         <div className="flex items-center gap-2 flex-wrap">
           {/* Export Button */}
           <ExportButtons year={currentYear} />
@@ -671,7 +672,7 @@ export default function Transactions() {
                         </div>
                         {formData.sri_category && SRI_CATEGORIES[formData.sri_category]?.deductible && (
                           <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-2 flex items-center gap-1">
-                            <LICheck size={12} /> Este gasto es deducible para el SRI
+                            <Check size={12} /> Este gasto es deducible para el SRI
                           </p>
                         )}
                       </div>
@@ -694,7 +695,7 @@ export default function Transactions() {
                         <input
                           id="uso-empresarial-toggle"
                           type="checkbox"
-                          className="h-5 w-5 accent-[#0D9E82]"
+                          className="h-5 w-5 accent-primary"
                           checked={formData.uso_empresarial}
                           onChange={(e) => setFormData({ ...formData, uso_empresarial: e.target.checked })}
                           data-testid="uso-empresarial-toggle"
@@ -728,7 +729,7 @@ export default function Transactions() {
                         <input
                           id="aplica-iva-toggle"
                           type="checkbox"
-                          className="h-5 w-5 accent-[#0D9E82]"
+                          className="h-5 w-5 accent-primary"
                           checked={formData.aplica_iva}
                           onChange={(e) => setFormData({ ...formData, aplica_iva: e.target.checked })}
                           data-testid="aplica-iva-toggle"
@@ -838,7 +839,7 @@ export default function Transactions() {
 
       {/* Bulk categorization toolbar */}
       {bulkSelectedIds.length > 0 && (
-        <Card className="bento-card border-[#0D9E82] bg-[#0D9E82]/5" data-testid="bulk-toolbar">
+        <Card className="bento-card border-primary bg-primary/5" data-testid="bulk-toolbar">
           <CardContent className="p-3 sm:p-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
             <span className="text-sm font-medium text-slate-700">
               {bulkSelectedIds.length} seleccionada{bulkSelectedIds.length !== 1 ? "s" : ""}
@@ -866,7 +867,7 @@ export default function Transactions() {
             <Button
               onClick={handleBulkApply}
               disabled={!bulkCategory || bulkApplying}
-              className="bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
+              className="bg-primary hover:bg-primary/90 text-white"
               data-testid="bulk-apply-btn"
             >
               {bulkApplying ? "Aplicando..." : `Aplicar a ${bulkSelectedIds.length} transacciones`}
@@ -905,7 +906,7 @@ export default function Transactions() {
                   >
                     <input
                       type="checkbox"
-                      className="h-4 w-4 accent-[#0D9E82] cursor-pointer shrink-0"
+                      className="h-4 w-4 accent-primary cursor-pointer shrink-0"
                       checked={bulkSelectedIds.includes(transaction.id)}
                       onChange={() => toggleBulkSelect(transaction.id)}
                       onClick={(e) => e.stopPropagation()}
@@ -921,7 +922,7 @@ export default function Transactions() {
                           <Badge variant="outline" className="text-xs gap-1 shrink-0"><Scissors size={12} />Split</Badge>
                         )}
                         {transaction.linked_goal_name && (
-                          <Badge variant="outline" className="text-xs gap-1 bg-slate-100 text-[#0D9E82] border-slate-200 shrink-0" data-testid="linked-goal-badge">
+                          <Badge variant="outline" className="text-xs gap-1 bg-slate-100 text-primary border-slate-200 shrink-0" data-testid="linked-goal-badge">
                             <Target size={12} />{transaction.linked_goal_name}
                           </Badge>
                         )}

@@ -887,7 +887,7 @@ export default function CargarValidar() {
               {/* Sección para Contadora - Categorías SRI */}
               <div className="border-t pt-4 mt-4">
                 <Label className="flex items-center gap-2 mb-3 text-base font-semibold">
-                  <FileText size={18} className="text-[#0D9E82]" /> Clasificación SRI (Contadora)
+                  <FileText size={18} className="text-primary" /> Clasificación SRI (Contadora)
                 </Label>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 rounded-md bg-slate-50 border border-slate-200">
                   <div className="space-y-2">
@@ -1104,7 +1104,7 @@ export default function CargarValidar() {
           <div className="mt-4 pt-4 border-t border-slate-100 flex justify-end">
             <Link
               to="/transactions"
-              className="text-sm text-[#0D9E82] hover:underline inline-flex items-center gap-1"
+              className="text-sm text-primary hover:underline inline-flex items-center gap-1"
               data-testid="ver-todas-transacciones"
             >
               Ver todas las transacciones →

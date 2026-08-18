@@ -206,8 +206,20 @@ async def _upsert_card_from_statement(user_id: str, card_info: dict, response_da
                 break
 
     if existing_card:
-        update_data = {"current_balance": card_info.get("current_balance", existing_card.get("current_balance", 0)), "minimum_payment": card_info.get("minimum_payment", existing_card.get("minimum_payment", 0)), "credit_limit": card_info.get("credit_limit") if card_info.get("credit_limit") is not None else existing_card.get("credit_limit", 0), "available_credit": card_info.get("available_credit"), "statement_date": card_info.get("statement_date"), "due_date": card_info.get("due_date"), "saldo_diferido": card_info.get("deferred_balance") if card_info.get("deferred_balance") is not None else existing_card.get("saldo_diferido"), "pago_total": card_info.get("pago_total") if card_info.get("pago_total") is not None else existing_card.get("pago_total"), "updated_at": datetime.now(timezone.utc).isoformat()}
-        if card_info.get("apr"):
+        # No pisar el saldo con un estado de cuenta mas viejo que el que ya tenemos
+        # guardado (ej. al reprocesar varios correos atrasados fuera de orden
+        # cronologico) — solo actualiza el saldo/fechas si el nuevo statement_date
+        # es igual o posterior al que ya esta en la tarjeta.
+        new_stmt_date = card_info.get("statement_date")
+        existing_stmt_date = existing_card.get("statement_date")
+        is_newer_or_unknown = (not existing_stmt_date) or (not new_stmt_date) or (new_stmt_date >= existing_stmt_date)
+        if is_newer_or_unknown:
+            update_data = {"current_balance": card_info.get("current_balance", existing_card.get("current_balance", 0)), "minimum_payment": card_info.get("minimum_payment", existing_card.get("minimum_payment", 0)), "credit_limit": card_info.get("credit_limit") if card_info.get("credit_limit") is not None else existing_card.get("credit_limit", 0), "available_credit": card_info.get("available_credit"), "statement_date": new_stmt_date or existing_stmt_date, "due_date": card_info.get("due_date"), "saldo_diferido": card_info.get("deferred_balance") if card_info.get("deferred_balance") is not None else existing_card.get("saldo_diferido"), "pago_total": card_info.get("pago_total") if card_info.get("pago_total") is not None else existing_card.get("pago_total"), "updated_at": datetime.now(timezone.utc).isoformat()}
+        else:
+            # Estado de cuenta viejo: solo refrescamos el timestamp de "revisado",
+            # sin tocar saldo/fechas que ya estan mas actualizados.
+            update_data = {"updated_at": datetime.now(timezone.utc).isoformat()}
+        if card_info.get("apr") and is_newer_or_unknown:
             update_data["apr"] = card_info["apr"]
         await db.credit_cards.update_one({"id": existing_card["id"]}, {"$set": update_data})
         response_data["card_updated"] = True

@@ -35,7 +35,6 @@ import {
   User
 } from "@phosphor-icons/react";
 
-import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const PAYMENT_METHODS = [

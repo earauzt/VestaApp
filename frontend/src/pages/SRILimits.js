@@ -17,10 +17,10 @@ import {
   Calculator,
   Receipt,
   Percent,
-  CurrencyDollar
+  CurrencyDollar,
+  Check,
+  X
 } from "@phosphor-icons/react";
-import { Check as LICheck, X as LIX } from "lucide-react";
-import { components, typography } from "../styles/design-system";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -117,7 +117,7 @@ export default function SRILimits() {
       <div className={`space-y-6 transition-opacity ${refreshing ? "opacity-50" : ""}`}>
       {/* Contribuyente Info */}
       {data?.contribuyente && (
-        <Card className="bento-card bg-white border-slate-200 border-l-4 border-l-[#0D9E82]">
+        <Card className="bento-card bg-white border-slate-200 border-l-4 border-l-primary">
           <CardContent className="p-4">
             <div className="flex items-start gap-4">
               <div className="p-3 rounded-xl bg-primary/10 text-primary">
@@ -373,7 +373,7 @@ export default function SRILimits() {
       <Card className="bento-card bg-white border border-slate-200">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Info size={20} className="text-[#0D9E82]" />
+            <Info size={20} className="text-primary" />
             Información Importante SRI
           </CardTitle>
         </CardHeader>
@@ -382,23 +382,23 @@ export default function SRILimits() {
             <div>
               <h4 className="font-medium mb-2">Gastos Deducibles</h4>
               <ul className="space-y-1 text-muted-foreground">
-                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Alimentación (supermercados, restaurantes en Ecuador)</li>
-                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Salud (consultas, medicinas, seguros)</li>
-                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Educación (colegios, universidades, cursos)</li>
-                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Vivienda (arriendo, servicios básicos)</li>
-                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Vestimenta (ropa y calzado en Ecuador)</li>
-                <li className="flex gap-2"><LICheck size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Turismo Nacional</li>
+                <li className="flex gap-2"><Check size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Alimentación (supermercados, restaurantes en Ecuador)</li>
+                <li className="flex gap-2"><Check size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Salud (consultas, medicinas, seguros)</li>
+                <li className="flex gap-2"><Check size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Educación (colegios, universidades, cursos)</li>
+                <li className="flex gap-2"><Check size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Vivienda (arriendo, servicios básicos)</li>
+                <li className="flex gap-2"><Check size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Vestimenta (ropa y calzado en Ecuador)</li>
+                <li className="flex gap-2"><Check size={14} className="text-[#16A34A] mt-0.5 shrink-0" /> Turismo Nacional</li>
               </ul>
             </div>
             <div>
               <h4 className="font-medium mb-2">NO Deducibles</h4>
               <ul className="space-y-1 text-muted-foreground">
-                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Gastos en el exterior (viajes internacionales)</li>
-                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Compras con tarjeta extranjera</li>
-                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Transporte personal (combustible, mantenimiento)</li>
-                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Entretenimiento general</li>
-                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Gastos sin factura válida</li>
-                <li className="flex gap-2"><LIX size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> IVA e ICE incluido en facturas</li>
+                <li className="flex gap-2"><X size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Gastos en el exterior (viajes internacionales)</li>
+                <li className="flex gap-2"><X size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Compras con tarjeta extranjera</li>
+                <li className="flex gap-2"><X size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Transporte personal (combustible, mantenimiento)</li>
+                <li className="flex gap-2"><X size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Entretenimiento general</li>
+                <li className="flex gap-2"><X size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> Gastos sin factura válida</li>
+                <li className="flex gap-2"><X size={14} className="text-[#DC2626] mt-0.5 shrink-0" /> IVA e ICE incluido en facturas</li>
               </ul>
             </div>
           </div>

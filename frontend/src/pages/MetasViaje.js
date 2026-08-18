@@ -35,35 +35,34 @@ import {
   Plus,
   Pencil,
   Trash,
-  Plane,
+  Airplane,
   PiggyBank,
   Target,
   CheckCircle,
   Clock,
-  DollarSign,
-  Settings,
+  CurrencyDollar,
+  Gear,
   Receipt,
-  ChevronRight,
+  CaretRight,
   Link as LinkIcon,
-  Search,
-  Loader2,
-  MoreHorizontal,
-  Hotel as LIHotel,
-  Utensils as LIUtensils,
-  Drama as LIDrama,
-  Shirt as LIShirt,
-  Smartphone as LISmart,
-  Car as LICar,
-  Map as LIMap,
-  Package as LIPackage,
-  GraduationCap as LIGrad,
-  Home as LIHome,
-  Shield as LIShield,
-  PartyPopper as LIParty,
-  TrendingUp as LITrend,
-  Star as LIStar,
-} from "lucide-react";
-import { components, typography } from "../styles/design-system";
+  MagnifyingGlass,
+  CircleNotch,
+  DotsThree,
+  Buildings,
+  ForkKnife,
+  MaskHappy,
+  TShirt,
+  DeviceMobile,
+  Car,
+  MapTrifold,
+  Package,
+  GraduationCap,
+  House,
+  Shield,
+  Confetti,
+  TrendUp,
+  Star,
+} from "@phosphor-icons/react";
 
 function useDebouncedCallback(callback, delay) {
   const timerRef = useRef(null);
@@ -78,29 +77,29 @@ const IconRender = ({ Comp, size = 16, className = "" }) => Comp ? <Comp size={s
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const SUBCATEGORY_ICONS = {
-  "Hoteles": LIHotel,
-  "Pasajes": Plane,
-  "Comida": LIUtensils,
-  "Entretenimiento": LIDrama,
-  "Ropa": LIShirt,
-  "Tech": LISmart,
-  "Transporte": LICar,
-  "Tours": LIMap,
-  "Otros": LIPackage
+  "Hoteles": Buildings,
+  "Pasajes": Airplane,
+  "Comida": ForkKnife,
+  "Entretenimiento": MaskHappy,
+  "Ropa": TShirt,
+  "Tech": DeviceMobile,
+  "Transporte": Car,
+  "Tours": MapTrifold,
+  "Otros": Package
 };
 
 const GOAL_TYPES = [
-  { value: "viaje", label: "Viaje", Icon: Plane },
-  { value: "educacion", label: "Educación", Icon: LIGrad },
-  { value: "hogar", label: "Hogar", Icon: LIHome },
-  { value: "emergencia", label: "Emergencia", Icon: LIShield },
-  { value: "celebracion", label: "Celebración", Icon: LIParty },
-  { value: "inversion", label: "Inversión", Icon: LITrend },
-  { value: "otro", label: "Otro", Icon: LIStar }
+  { value: "viaje", label: "Viaje", Icon: Airplane },
+  { value: "educacion", label: "Educación", Icon: GraduationCap },
+  { value: "hogar", label: "Hogar", Icon: House },
+  { value: "emergencia", label: "Emergencia", Icon: Shield },
+  { value: "celebracion", label: "Celebración", Icon: Confetti },
+  { value: "inversion", label: "Inversión", Icon: TrendUp },
+  { value: "otro", label: "Otro", Icon: Star }
 ];
 
 const STATUS_CONFIG = {
-  active: { label: "Activa", color: "bg-slate-50 text-[#0D9E82]", icon: Target },
+  active: { label: "Activa", color: "bg-slate-50 text-primary", icon: Target },
   completed: { label: "Completada", color: "bg-emerald-100 text-emerald-800", icon: CheckCircle },
   cancelled: { label: "Cancelada", color: "bg-red-100 text-red-800", icon: Clock }
 };
@@ -388,7 +387,7 @@ export default function MetasViaje() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight flex items-center gap-3">
-            <Plane size={32} className="text-[#0D9E82]" />
+            <Airplane size={32} className="text-primary" />
             Viajes
           </h1>
           <p className="text-muted-foreground">Gestiona tu fondo de viajes y entretenimiento</p>
@@ -397,7 +396,7 @@ export default function MetasViaje() {
           <div className="flex gap-2">
             <Button 
               onClick={() => setFundDepositDialogOpen(true)}
-              className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white"
+              className="gap-2 bg-primary hover:bg-primary/90 text-white"
             >
               <PiggyBank size={18} />
               Registrar Ahorro
@@ -425,7 +424,7 @@ export default function MetasViaje() {
                   <Button 
                     variant="link" 
                     size="sm" 
-                    className="text-xs h-auto p-0 text-[#0D9E82]"
+                    className="text-xs h-auto p-0 text-primary"
                     onClick={() => {
                       setNewAnnualBudget(travelFund.annual_budget.toString());
                       setFundSettingsDialogOpen(true);
@@ -445,8 +444,8 @@ export default function MetasViaje() {
                 <p className="text-2xl font-bold text-red-600">{formatCurrency(totalSpent)}</p>
               </div>
               <div className="text-center p-3 rounded-xl bg-slate-50/50">
-                <p className="text-xs text-[#0D9E82] mb-1">Disponible</p>
-                <p className="text-2xl font-bold text-[#0D9E82]">{formatCurrency(Math.max(0, available))}</p>
+                <p className="text-xs text-primary mb-1">Disponible</p>
+                <p className="text-2xl font-bold text-primary">{formatCurrency(Math.max(0, available))}</p>
               </div>
             </div>
             
@@ -458,8 +457,8 @@ export default function MetasViaje() {
               </div>
               <Progress value={travelFund.savings_progress || 0} className="h-3" />
               {travelFund.monthly_suggested_saving > 0 && (
-                <p className="text-sm text-[#0D9E82] flex items-start gap-2">
-                  <LITrend size={14} className="mt-0.5 shrink-0" />
+                <p className="text-sm text-primary flex items-start gap-2">
+                  <TrendUp size={14} className="mt-0.5 shrink-0" />
                   <span>Ahorra <strong>{formatCurrency(travelFund.monthly_suggested_saving)}</strong>/mes para completar tu meta</span>
                 </p>
               )}
@@ -480,7 +479,7 @@ export default function MetasViaje() {
             Por Categoría
           </TabsTrigger>
           <TabsTrigger value="transactions" className="gap-2">
-            <DollarSign size={16} />
+            <CurrencyDollar size={16} />
             Transacciones
           </TabsTrigger>
         </TabsList>
@@ -490,7 +489,7 @@ export default function MetasViaje() {
           {activeGoals.length === 0 ? (
             <Card className="bento-card">
               <CardContent className="text-center py-12">
-                <Plane size={48} className="mx-auto mb-4 text-muted-foreground opacity-50" />
+                <Airplane size={48} className="mx-auto mb-4 text-muted-foreground opacity-50" />
                 <p className="text-muted-foreground mb-4">No tienes destinos de viaje activos</p>
                 {canEdit && (
                   <Button onClick={() => { resetForm(); setDialogOpen(true); }} className="gap-2">
@@ -519,7 +518,7 @@ export default function MetasViaje() {
                         <div className="flex items-center gap-4">
                           {/* Icon */}
                           <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center shrink-0 text-slate-600">
-                            <IconRender Comp={GOAL_TYPES.find(t => t.value === (goal.tipo || "viaje"))?.Icon || LIStar} size={22} />
+                            <IconRender Comp={GOAL_TYPES.find(t => t.value === (goal.tipo || "viaje"))?.Icon || Star} size={22} />
                           </div>
                           
                           {/* Info */}
@@ -538,7 +537,7 @@ export default function MetasViaje() {
                             </div>
                             <Progress value={Math.min(progress, 100)} className="h-2 mb-1" />
                             <div className="flex justify-between text-xs">
-                              <span className="font-semibold text-[#0D9E82]">
+                              <span className="font-semibold text-primary">
                                 {formatCurrency(goal.saved_amount || 0)}
                               </span>
                               <span className="text-muted-foreground">
@@ -572,7 +571,7 @@ export default function MetasViaje() {
                                     aria-label="Más acciones"
                                     data-testid={`goal-actions-${goal.id}`}
                                   >
-                                    <MoreHorizontal size={18} />
+                                    <DotsThree size={18} />
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
@@ -636,7 +635,7 @@ export default function MetasViaje() {
                       <CardContent className="p-4">
                         <div className="flex items-center gap-3 mb-3">
                           <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-                            <IconRender Comp={SUBCATEGORY_ICONS[cat.subcategory] || LIPackage} size={18} />
+                            <IconRender Comp={SUBCATEGORY_ICONS[cat.subcategory] || Package} size={18} />
                           </div>
                           <div className="flex-1">
                             <h3 className="font-semibold">{cat.subcategory}</h3>
@@ -705,7 +704,7 @@ export default function MetasViaje() {
                     >
                       <div className="flex items-center gap-3 flex-1 min-w-0">
                         <div className="w-8 h-8 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center shrink-0">
-                          <IconRender Comp={SUBCATEGORY_ICONS[tx.subcategory] || LIPackage} size={15} />
+                          <IconRender Comp={SUBCATEGORY_ICONS[tx.subcategory] || Package} size={15} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <p className="font-medium truncate">{tx.description}</p>
@@ -719,7 +718,7 @@ export default function MetasViaje() {
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="font-bold text-red-600">{formatCurrency(tx.amount)}</span>
-                        <ChevronRight size={16} className="text-muted-foreground" />
+                        <CaretRight size={16} className="text-muted-foreground" />
                       </div>
                     </motion.div>
                   ))}
@@ -735,7 +734,7 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-[425px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <IconRender Comp={GOAL_TYPES.find(t => t.value === formData.tipo)?.Icon || LIStar} size={18} className="text-[#0D9E82]" />
+              <IconRender Comp={GOAL_TYPES.find(t => t.value === formData.tipo)?.Icon || Star} size={18} className="text-primary" />
               {editingGoal ? "Editar Meta" : "Nueva Meta"}
             </DialogTitle>
           </DialogHeader>
@@ -750,7 +749,7 @@ export default function MetasViaje() {
                     type="button"
                     className={`flex flex-col items-center gap-1 p-2 rounded-md border text-xs transition-colors ${
                       formData.tipo === type.value 
-                        ? "border-[#0D9E82] bg-slate-50 ring-1 ring-[#0D9E82] text-[#0D9E82]" 
+                        ? "border-primary bg-slate-50 ring-1 ring-primary text-primary"
                         : "border-slate-200 hover:border-slate-300 text-slate-600"
                     }`}
                     onClick={() => setFormData({ ...formData, tipo: type.value })}
@@ -864,7 +863,7 @@ export default function MetasViaje() {
                 Cancelar
               </Button>
               <Button onClick={handleAddSavings} className="gap-2" data-testid="confirm-savings-btn">
-                <DollarSign size={16} />
+                <CurrencyDollar size={16} />
                 Agregar
               </Button>
             </DialogFooter>
@@ -927,8 +926,8 @@ export default function MetasViaje() {
               <Button variant="outline" onClick={() => setFundDepositDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleFundDeposit} className="gap-2 bg-[#0D9E82] hover:bg-[#0B8A70] text-white" data-testid="confirm-fund-deposit-btn">
-                <DollarSign size={16} />
+              <Button onClick={handleFundDeposit} className="gap-2 bg-primary hover:bg-primary/90 text-white" data-testid="confirm-fund-deposit-btn">
+                <CurrencyDollar size={16} />
                 Registrar
               </Button>
             </DialogFooter>
@@ -941,7 +940,7 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Settings size={24} className="text-slate-500" />
+              <Gear size={24} className="text-slate-500" />
               Editar Meta Anual
             </DialogTitle>
             <DialogDescription>
@@ -987,7 +986,7 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-[450px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Receipt size={24} className="text-[#0D9E82]" />
+              <Receipt size={24} className="text-primary" />
               Detalle de Transacción
             </DialogTitle>
           </DialogHeader>
@@ -996,7 +995,7 @@ export default function MetasViaje() {
               <div className="p-4 rounded-lg bg-muted/30">
                 <div className="flex items-center justify-between mb-3">
                   <div className="w-10 h-10 rounded-md bg-slate-100 text-slate-600 flex items-center justify-center">
-                    <IconRender Comp={SUBCATEGORY_ICONS[selectedTransaction.subcategory] || LIPackage} size={22} />
+                    <IconRender Comp={SUBCATEGORY_ICONS[selectedTransaction.subcategory] || Package} size={22} />
                   </div>
                   <span className="text-2xl font-bold text-red-600">
                     {formatCurrency(selectedTransaction.amount)}
@@ -1020,8 +1019,8 @@ export default function MetasViaje() {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Estado</p>
-                    <Badge variant={selectedTransaction.status === "approved" ? "default" : "secondary"}>
-                      {selectedTransaction.status === "approved" ? "Aprobada" : "Pendiente"}
+                    <Badge variant={selectedTransaction.status === "approved" ? "default" : selectedTransaction.status === "rejected" ? "destructive" : "secondary"}>
+                      {selectedTransaction.status === "approved" ? "Aprobada" : selectedTransaction.status === "rejected" ? "Rechazada" : "Pendiente"}
                     </Badge>
                   </div>
                 </div>
@@ -1048,13 +1047,13 @@ export default function MetasViaje() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <LinkIcon size={20} className="text-[#0D9E82]" />
+              <LinkIcon size={20} className="text-primary" />
               Vincular Gasto a Meta
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="relative">
-              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <MagnifyingGlass size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               <Input
                 placeholder="Buscar transacción..."
                 className="pl-9 pr-9"
@@ -1063,7 +1062,7 @@ export default function MetasViaje() {
                 data-testid="link-tx-search"
               />
               {searchingTx && (
-                <Loader2 size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground animate-spin" />
+                <CircleNotch size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground animate-spin" />
               )}
             </div>
             <div className="max-h-60 overflow-y-auto space-y-1">

@@ -2,7 +2,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import { CreditCard, Landmark, X } from "lucide-react";
+import { CreditCard, Bank, X } from "@phosphor-icons/react";
 import { BANKS } from "./ReconciliationHeader";
 
 export function MatchingPanel({
@@ -42,7 +42,7 @@ export function MatchingPanel({
                         {statement.statement_type === "credit_card" ? (
                           <CreditCard size={20} className="text-primary" />
                         ) : (
-                          <Landmark size={20} className="text-primary" />
+                          <Bank size={20} className="text-primary" />
                         )}
                         <div>
                           <p className="font-medium">{statement.file_name}</p>

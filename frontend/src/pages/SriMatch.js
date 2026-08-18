@@ -6,8 +6,7 @@ import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { toast } from "sonner";
 import { format } from "date-fns";
-import { FileText, CheckCircle, LinkSimple, Receipt, Eye } from "@phosphor-icons/react";
-import { RefreshCw } from "lucide-react";
+import { FileText, CheckCircle, LinkSimple, Receipt, Eye, ArrowClockwise } from "@phosphor-icons/react";
 import TransactionEditModal from "../components/shared/TransactionEditModal";
 import { PERSONAL_CATEGORIES } from "../constants/categories";
 
@@ -105,7 +104,7 @@ export default function SriMatch() {
     return (
       <div className="p-6">
         <div className="flex items-center justify-center py-24 text-muted-foreground">
-          <RefreshCw className="animate-spin" size={20} />
+          <ArrowClockwise className="animate-spin" size={20} />
         </div>
       </div>
     );
@@ -126,7 +125,7 @@ export default function SriMatch() {
           data-testid="process-pdfs-btn"
           title="Busca en tu correo de Gmail los PDFs de facturas nuevas y los agrega a esta lista"
         >
-          <RefreshCw size={16} className={processingPdfs ? "animate-spin" : ""} />
+          <ArrowClockwise size={16} className={processingPdfs ? "animate-spin" : ""} />
           Buscar facturas nuevas en Gmail
         </Button>
       </div>

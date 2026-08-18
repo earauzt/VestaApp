@@ -44,7 +44,6 @@ import {
   Fire
 } from "@phosphor-icons/react";
 
-import { components, typography } from "../styles/design-system";
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 const BANKS = [
@@ -103,6 +102,7 @@ export default function Deudas() {
 
   useEffect(() => {
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -358,8 +358,8 @@ export default function Deudas() {
               <div className="flex items-center gap-3">
                 <TrendDown size={20} className="text-red-600 shrink-0" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Deuda Total</p>
-                  <p className="text-lg font-bold text-red-600">{formatCurrency(summary.total_debt)}</p>
+                  <p className="text-xs text-muted-foreground">Deuda Total (tarjetas + diferidos)</p>
+                  <p className="text-lg font-bold text-red-600">{formatCurrency(summary.total_debt_with_deferred ?? summary.total_debt)}</p>
                 </div>
               </div>
             </CardContent>
@@ -394,10 +394,10 @@ export default function Deudas() {
           <Card className="bento-card">
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <Calculator size={20} className="text-[#0D9E82] shrink-0" />
+                <Calculator size={20} className="text-primary shrink-0" />
                 <div>
                   <p className="text-xs text-muted-foreground">Pago Mínimo Total</p>
-                  <p className="text-lg font-bold text-[#0D9E82]">{formatCurrency(summary.total_minimum_payment)}</p>
+                  <p className="text-lg font-bold text-primary">{formatCurrency(summary.total_minimum_payment)}</p>
                 </div>
               </div>
             </CardContent>
@@ -478,16 +478,16 @@ export default function Deudas() {
                                 <span>{formatCurrency(card.current_balance)} / {formatCurrency(card.credit_limit)}</span>
                               </div>
                               {(card.saldo_diferido || card.pago_total) && (
-                                <div className="grid grid-cols-2 gap-2 text-xs bg-[#F8FAF9] border border-[#E2EAE8] rounded-md p-2 mt-2">
+                                <div className="grid grid-cols-2 gap-2 text-xs bg-muted border border-border rounded-md p-2 mt-2">
                                   <div>
                                     <span className="text-slate-500 block">Saldo diferido</span>
-                                    <span className="text-[#0F1D1A] font-medium" data-testid={`card-saldo-diferido-${card.id}`}>
+                                    <span className="text-foreground font-medium" data-testid={`card-saldo-diferido-${card.id}`}>
                                       {card.saldo_diferido != null ? formatCurrency(card.saldo_diferido) : "—"}
                                     </span>
                                   </div>
                                   <div>
                                     <span className="text-slate-500 block">Pago total</span>
-                                    <span className="text-[#0F1D1A] font-medium" data-testid={`card-pago-total-${card.id}`}>
+                                    <span className="text-foreground font-medium" data-testid={`card-pago-total-${card.id}`}>
                                       {card.pago_total != null ? formatCurrency(card.pago_total) : "—"}
                                     </span>
                                   </div>

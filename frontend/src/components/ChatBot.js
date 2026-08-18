@@ -34,9 +34,10 @@ export default function ChatBot() {
       // Add welcome message
       setMessages([{
         role: "assistant",
-        content: `¡Hola ${user?.name?.split(" ")[0] || ""}! 👋\n\nSoy tu asistente financiero. Puedo ayudarte con:\n\n• Analizar tus gastos del mes\n• Comparar con tu presupuesto\n• Dar consejos de ahorro\n• Explicar temas tributarios del SRI\n\n¿En qué puedo ayudarte hoy?`
+        content: `¡Hola ${user?.name?.split(" ")[0] || ""}!\n\nSoy tu asistente financiero. Puedo ayudarte con:\n\n• Analizar tus gastos del mes\n• Comparar con tu presupuesto\n• Dar consejos de ahorro\n• Explicar temas tributarios del SRI\n\n¿En qué puedo ayudarte hoy?`
       }]);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, user]);
 
   useEffect(() => {

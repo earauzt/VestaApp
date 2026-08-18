@@ -22,7 +22,7 @@ from models import GMAIL_SCOPES, BANK_DOMAINS, BANK_SENDERS, DISCARD_SUBJECTS, S
 from utils import (
     get_current_user, GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET,
     GOOGLE_REDIRECT_URI, extract_text_from_pdf,
-    process_bank_statement_text, lookup_known_vendor
+    process_bank_statement_text, process_image_with_ai, lookup_known_vendor
 )
 from routes.documents import _upsert_card_from_statement, _save_deferred_purchases
 from routes.sri_match import try_sri_match
@@ -257,36 +257,40 @@ async def _download_gmail_pdf_attachment(service, gmail_id: str, user_id: str, t
 
             if tipo in ("estado_de_cuenta", "resumen_mensual"):
                 try:
-                    extracted_text = extract_text_from_pdf(filepath)
-                    if extracted_text and len(extracted_text) > 50:
-                        ai_result = await process_bank_statement_text(extracted_text)
-                        transactions = ai_result.get("transactions", [])
-                        card_info = ai_result.get("card_info", {})
-                        deferred_purchases = ai_result.get("deferred_purchases", [])
-                        tx_count = 0
-                        for t in transactions:
-                            amount = t.get("amount") or t.get("monto", 0)
-                            if not amount or amount == 0:
-                                continue
-                            tx_doc = {"id": str(uuid.uuid4()), "user_id": user_id, "amount": abs(float(amount)), "description": t.get("description") or t.get("descripcion", ""), "establishment": t.get("establishment") or t.get("comercio", ""), "vendor": t.get("establishment") or t.get("comercio", ""), "date": t.get("date") or t.get("fecha") or fecha, "personal_category": t.get("category") or "otros", "category": t.get("category") or "otros", "source": "gmail_pdf", "gmail_doc_id": doc_id, "status": "pending_review", "created_at": datetime.now(timezone.utc).isoformat()}
-                            await db.transactions.insert_one(tx_doc)
-                            tx_count += 1
-                        # Upsert credit card info (closes the gap where Gmail flow didn't update credit_cards)
-                        response_data_stub = {}
-                        try:
-                            if card_info.get("current_balance") is not None:
-                                await _upsert_card_from_statement(user_id, card_info, response_data_stub, raw_text=extracted_text)
-                            if deferred_purchases:
-                                await _save_deferred_purchases(user_id, deferred_purchases, card_info, response_data_stub, filename)
-                        except Exception as e:
-                            logger.error(f"Error updating card from Gmail statement: {e}")
-                        doc_record["procesado"] = True
-                        doc_record["transactions_count"] = tx_count
-                        doc_record["card_info"] = card_info
-                        doc_record["card_updated"] = response_data_stub.get("card_updated", False)
-                        doc_record["deferred_payments_created"] = response_data_stub.get("deferred_payments_created", 0)
-                        result["extracted_transactions"] = tx_count
-                        logger.info(f"Gmail PDF processed: {tx_count} transactions from {filepath}")
+                    # process_image_with_ai intenta primero extraer texto del PDF y,
+                    # si el PDF es escaneado/imagen (ej. los estados de Pacificard,
+                    # que no traen capa de texto), cae automaticamente a OCR por
+                    # vision — antes este flujo solo probaba extract_text_from_pdf
+                    # y se rendia en silencio con esos PDFs, dejando la tarjeta sin
+                    # actualizar y sin fecha de "ultima actualizacion".
+                    ai_result = await process_image_with_ai(filepath, document_type="bank_statement")
+                    transactions = ai_result.get("transactions", []) or []
+                    card_info = ai_result.get("card_info") or {}
+                    deferred_purchases = ai_result.get("deferred_purchases", []) or []
+                    tx_count = 0
+                    for t in transactions:
+                        amount = t.get("amount") or t.get("monto", 0)
+                        if not amount or amount == 0:
+                            continue
+                        tx_doc = {"id": str(uuid.uuid4()), "user_id": user_id, "amount": abs(float(amount)), "description": t.get("description") or t.get("descripcion", ""), "establishment": t.get("establishment") or t.get("comercio", ""), "vendor": t.get("establishment") or t.get("comercio", ""), "date": t.get("date") or t.get("fecha") or fecha, "personal_category": t.get("category") or "otros", "category": t.get("category") or "otros", "source": "gmail_pdf", "gmail_doc_id": doc_id, "status": "pending_review", "created_at": datetime.now(timezone.utc).isoformat()}
+                        await db.transactions.insert_one(tx_doc)
+                        tx_count += 1
+                    # Upsert credit card info (closes the gap where Gmail flow didn't update credit_cards)
+                    response_data_stub = {}
+                    try:
+                        if card_info.get("current_balance") is not None:
+                            await _upsert_card_from_statement(user_id, card_info, response_data_stub)
+                        if deferred_purchases:
+                            await _save_deferred_purchases(user_id, deferred_purchases, card_info, response_data_stub, filename)
+                    except Exception as e:
+                        logger.error(f"Error updating card from Gmail statement: {e}")
+                    doc_record["procesado"] = True
+                    doc_record["transactions_count"] = tx_count
+                    doc_record["card_info"] = card_info
+                    doc_record["card_updated"] = response_data_stub.get("card_updated", False)
+                    doc_record["deferred_payments_created"] = response_data_stub.get("deferred_payments_created", 0)
+                    result["extracted_transactions"] = tx_count
+                    logger.info(f"Gmail PDF processed: {tx_count} transactions from {filepath}")
                 except Exception as e:
                     logger.error(f"Error processing Gmail PDF text: {e}")
 
@@ -368,13 +372,38 @@ async def gmail_status(user: dict = Depends(get_current_user)):
     return {"connected": False}
 
 
+async def _try_auto_approve_recurring(user: dict, doc: dict) -> bool:
+    """Si el comercio ya es un vendor conocido (times_used >= 3), aprueba y
+    categoriza el consumo automaticamente en vez de dejarlo pendiente de revision.
+    Comparte el mismo umbral que el fallback GPT (SESION 13 Task 2) — antes solo
+    aplicaba ahi, dejando sin auto-aprobar los consumos de bancos con parser
+    dedicado (Pacificard/Diners/Pichincha), que son la mayoria del volumen."""
+    if doc.get("tipo") != "consumo" or not doc.get("comercio"):
+        return False
+    try:
+        vendor_row = await db.known_vendors.find_one(
+            {"user_id": user["id"], "establishment": {"$regex": f"^{re.escape(doc['comercio'].strip())}$", "$options": "i"}},
+            {"_id": 0}
+        )
+        if vendor_row and (vendor_row.get("times_used") or 0) >= 3:
+            doc["estado"] = "auto_aprobado"
+            doc["auto_aprobado"] = True
+            return True
+    except Exception as e:
+        logger.warning(f"auto-approve check failed for {doc.get('gmail_id')}: {e}")
+    return False
+
+
 @router.post("/gmail/sync")
-async def gmail_sync(user: dict = Depends(get_current_user)):
+async def gmail_sync(force_full: bool = False, user: dict = Depends(get_current_user)):
     creds = await _get_gmail_credentials(user["id"])
     service = build('gmail', 'v1', credentials=creds)
     # Leer ultimo_sync del token para sync incremental. Si no existe, cap a 90 días.
+    # force_full=true ignora ultimo_sync y vuelve a barrer los 90 dias — util despues
+    # de agregar/corregir reglas de deteccion (bancos nuevos, parsers), para que la
+    # regla nueva alcance tambien a correos que ya estaban en el buzon.
     token_doc = await db.gmail_tokens.find_one({"user_id": user["id"]}, {"_id": 0, "ultimo_sync": 1}) or {}
-    ultimo_sync_dt = token_doc.get("ultimo_sync")
+    ultimo_sync_dt = None if force_full else token_doc.get("ultimo_sync")
     if isinstance(ultimo_sync_dt, str):
         try:
             ultimo_sync_dt = datetime.fromisoformat(ultimo_sync_dt.replace("Z", "+00:00"))
@@ -398,6 +427,7 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
         "OR intermail@bancopacifico.ec OR banco@pichincha.com "
         "OR documentoselectronicos@pichincha.com OR estadodecuenta@pacificard.ec "
         "OR estadoscuenta@bancodelpacifico.com.ec "
+        "OR efacturacioninterdin.com OR e-facturacioninterdin.com "
         "OR email.apple.com OR netflix.com "
         "OR spotify.com OR google.com OR amazon.com OR adobe.com "
         "OR noreply@contifico.com OR noreply@www.contifico.com "
@@ -576,10 +606,17 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
                 "extracted_transactions": pdf_result.get("extracted_transactions", 0),
                 "procesado_at": datetime.now(timezone.utc).isoformat()
             }
+            auto_ok = await _try_auto_approve_recurring(user, doc)
             if await _content_duplicate_exists(user["id"], doc.get("monto"), doc.get("comercio"), doc.get("fecha_transaccion")):
                 duplicados_omitidos += 1
                 continue
             await db.gmail_transactions.insert_one(doc)
+            if auto_ok:
+                try:
+                    doc_clean = {k: v for k, v in doc.items() if k != "_id"}
+                    await _approve_and_insert(user, doc_clean)
+                except Exception as e:
+                    logger.warning(f"auto-approve insert failed for {gmail_id}: {e}")
             doc.pop("_id", None)
             nuevos.append(doc)
             procesados += 1
@@ -609,20 +646,7 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
             pdf_result = await _download_gmail_pdf_attachment(service, gmail_id, user["id"], tipo=tipo, banco=banco_name, fecha=classification.get("fecha") or date_str, numero_factura=numero_factura)
 
         doc = {"user_id": user["id"], "gmail_id": gmail_id, "remitente": sender, "subject": subject, "fecha_email": date_str, "tipo": tipo, "monto": classification.get("monto"), "comercio": classification.get("comercio"), "fecha_transaccion": classification.get("fecha"), "tarjeta_ultimos4": classification.get("tarjeta_ultimos4"), "banco": classification.get("banco"), "descripcion_corta": classification.get("descripcion_corta", subject[:60]), "nivel_urgencia": classification.get("nivel_urgencia", "ninguna"), "estado": "pendiente", "personal_category": vendor_category, "sri_category": vendor_sri, "numero_factura": numero_factura, "ruc_emisor": ruc_emisor, "es_deducible": es_deducible, "es_suscripcion": False, "proxima_renovacion": None, "pdf_filepath": pdf_result.get("filepath"), "pdf_doc_id": pdf_result.get("doc_id"), "extracted_transactions": pdf_result.get("extracted_transactions", 0), "procesado_at": datetime.now(timezone.utc).isoformat()}
-        # Auto-aprobación recurrentes (SESIÓN 13 Task 2): comercio en known_vendors con times_used >= 3
-        auto_ok = False
-        if tipo == "consumo" and classification.get("comercio"):
-            try:
-                vendor_row = await db.known_vendors.find_one(
-                    {"user_id": user["id"], "establishment": {"$regex": f"^{re.escape(classification['comercio'].strip())}$", "$options": "i"}},
-                    {"_id": 0}
-                )
-                if vendor_row and (vendor_row.get("times_used") or 0) >= 3:
-                    doc["estado"] = "auto_aprobado"
-                    doc["auto_aprobado"] = True
-                    auto_ok = True
-            except Exception as e:
-                logger.warning(f"auto-approve check failed for {gmail_id}: {e}")
+        auto_ok = await _try_auto_approve_recurring(user, doc)
         if await _content_duplicate_exists(user["id"], doc.get("monto"), doc.get("comercio"), doc.get("fecha_transaccion")):
             duplicados_omitidos += 1
             continue
@@ -639,6 +663,36 @@ async def gmail_sync(user: dict = Depends(get_current_user)):
 
     await db.gmail_tokens.update_one({"user_id": user["id"]}, {"$set": {"ultimo_sync": now.isoformat()}})
     return {"status": "success", "total": len(messages), "procesados": procesados, "descartados": descartados, "duplicados_omitidos": duplicados_omitidos, "ya_procesados": len(messages) - procesados - descartados - duplicados_omitidos, "transacciones": nuevos}
+
+
+@router.post("/gmail/reprocess-misclassified")
+async def reprocess_misclassified(user: dict = Depends(get_current_user)):
+    """Operacion unica: borra los gmail_transactions marcados 'descartado' cuyo
+    remitente coincide con un dominio bancario agregado despues de que ese correo
+    ya habia sido sincronizado (ej. estados de cuenta de Pacificard/Diners que
+    antes se descartaban por no estar en BANK_DOMAINS/BANK_SENDERS). El siguiente
+    /gmail/sync (idealmente con force_full=true) los vuelve a traer y esta vez
+    los clasifica bien."""
+    newly_recognized = ["pacificard.ec", "facturacioninterdin.com"]
+    # Nota: mongo_shim no soporta $regex dentro de un $or (cae a un filtro "is null"
+    # y no matchea nada), asi que se consulta cada dominio por separado.
+    stale = []
+    seen_ids = set()
+    for domain in newly_recognized:
+        rows = await db.gmail_transactions.find(
+            {"user_id": user["id"], "estado": "descartado", "remitente": {"$regex": domain, "$options": "i"}},
+            {"_id": 0, "gmail_id": 1, "remitente": 1, "subject": 1}
+        ).to_list(200)
+        for r in rows:
+            if r["gmail_id"] not in seen_ids:
+                seen_ids.add(r["gmail_id"])
+                stale.append(r)
+    removed = 0
+    for doc in stale:
+        res = await db.gmail_transactions.delete_one({"user_id": user["id"], "gmail_id": doc["gmail_id"]})
+        if res.deleted_count:
+            removed += 1
+    return {"removed": removed, "samples": stale[:10]}
 
 
 @router.post("/gmail/dedup-cleanup")
@@ -948,11 +1002,16 @@ async def reprocess_gmail_document(doc_id: str, user: dict = Depends(get_current
     filepath = doc.get("filepath")
     if not filepath or not os.path.exists(filepath):
         raise HTTPException(status_code=404, detail="Archivo PDF no encontrado")
-    extracted_text = extract_text_from_pdf(filepath)
-    if not extracted_text or len(extracted_text) < 50:
-        raise HTTPException(status_code=400, detail="No se pudo extraer texto del PDF")
-    ai_result = await process_bank_statement_text(extracted_text)
-    transactions = ai_result.get("transactions", [])
+    # process_image_with_ai cubre tanto PDFs con texto como escaneados/imagen
+    # (Pacificard) via OCR por vision — antes esta ruta solo probaba texto y
+    # fallaba silenciosamente con estados de cuenta escaneados, y tampoco
+    # actualizaba la tarjeta ni las compras diferidas.
+    ai_result = await process_image_with_ai(filepath, document_type="bank_statement")
+    transactions = ai_result.get("transactions", []) or []
+    card_info = ai_result.get("card_info") or {}
+    deferred_purchases = ai_result.get("deferred_purchases", []) or []
+    if not transactions and not card_info:
+        raise HTTPException(status_code=400, detail="No se pudo extraer informacion del PDF")
     tx_count = 0
     for t in transactions:
         amount = t.get("amount") or t.get("monto", 0)
@@ -961,8 +1020,20 @@ async def reprocess_gmail_document(doc_id: str, user: dict = Depends(get_current
         tx_doc = {"id": str(uuid.uuid4()), "user_id": user["id"], "amount": abs(float(amount)), "description": t.get("description") or t.get("descripcion", ""), "establishment": t.get("establishment") or t.get("comercio", ""), "vendor": t.get("establishment") or t.get("comercio", ""), "date": t.get("date") or t.get("fecha", ""), "personal_category": t.get("category") or "otros", "category": t.get("category") or "otros", "source": "gmail_pdf", "gmail_doc_id": doc_id, "status": "pending_review", "created_at": datetime.now(timezone.utc).isoformat()}
         await db.transactions.insert_one(tx_doc)
         tx_count += 1
-    await db.gmail_documents.update_one({"id": doc_id}, {"$set": {"procesado": True, "transactions_count": tx_count}})
-    return {"status": "success", "transactions_extracted": tx_count}
+    response_data_stub = {}
+    try:
+        if card_info.get("current_balance") is not None:
+            await _upsert_card_from_statement(user["id"], card_info, response_data_stub)
+        if deferred_purchases:
+            await _save_deferred_purchases(user["id"], deferred_purchases, card_info, response_data_stub, doc.get("filename", ""))
+    except Exception as e:
+        logger.error(f"Error updating card on reprocess: {e}")
+    await db.gmail_documents.update_one({"id": doc_id}, {"$set": {
+        "procesado": True, "transactions_count": tx_count, "card_info": card_info,
+        "card_updated": response_data_stub.get("card_updated", False),
+        "deferred_payments_created": response_data_stub.get("deferred_payments_created", 0),
+    }})
+    return {"status": "success", "transactions_extracted": tx_count, "card_updated": response_data_stub.get("card_updated", False)}
 
 
 async def _parse_factura_pdf(filepath: str, remitente: str = "") -> dict:

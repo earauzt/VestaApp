@@ -18,12 +18,12 @@ import Layout from "./components/Layout";
 function NotFound() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 px-4 text-center">
-      <h1 className="text-4xl font-bold text-[#0D9E82]">404</h1>
+      <h1 className="text-4xl font-bold text-primary">404</h1>
       <p className="text-lg font-medium text-foreground">Página no encontrada</p>
       <p className="text-sm text-muted-foreground max-w-sm">
         La página que buscas no existe o fue movida.
       </p>
-      <Link to="/dashboard" className="text-sm font-medium text-[#0D9E82] hover:underline">
+      <Link to="/dashboard" className="text-sm font-medium text-primary hover:underline">
         Volver al dashboard
       </Link>
     </div>
