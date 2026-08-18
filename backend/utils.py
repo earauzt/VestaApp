@@ -145,6 +145,17 @@ async def dedup_or_merge(user_id: str, doc: dict, source_label: str) -> dict:
                 if doc.get(field) and doc[field] != existing.get(field):
                     update[field] = doc[field]
 
+        # BUG REAL: si el nuevo doc viene de aprobar (status=approved, ej. desde
+        # _approve_and_insert en gmail.py) pero ya existia una transaccion
+        # duplicada pending_review (ej. creada antes por el flujo de PDF), el
+        # merge nunca promovia el status — la aprobacion reportaba exito pero
+        # la transaccion se quedaba pendiente para siempre en la UI.
+        if doc.get("status") == "approved" and existing.get("status") != "approved":
+            update["status"] = "approved"
+            for field in ["reviewed_by", "reviewed_at", "budget_category", "auto_categorized", "matched_rule", "personal_category"]:
+                if doc.get(field) is not None:
+                    update[field] = doc[field]
+
         if not existing.get("fingerprint"):
             update["fingerprint"] = fp
         update["is_cross_canal_dup"] = True

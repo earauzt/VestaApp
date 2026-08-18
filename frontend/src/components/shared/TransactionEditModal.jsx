@@ -34,8 +34,13 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
     beneficiario: "",
     applies_iva: false,
   });
+  // Sin esto, en una conexion lenta/inestable (movil con poca señal) el boton
+  // no daba ninguna señal de que el tap habia registrado — parecia "no hacer
+  // nada" aunque la llamada siguiera en curso, y era facil tocarlo de nuevo.
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
+    setSubmitting(false);
     if (transaction) {
       // La bandeja unificada de "Por revisar" (TabPorRevisar) pasa un item con
       // forma distinta (comercio/suggested_category) al de una transaccion real
@@ -60,15 +65,20 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
     }
   }, [transaction, open]);
 
-  const handleSave = () => {
-    if (isBulk) {
-      onSave({
-        category: form.category,
-        subcategory: form.subcategory,
-        ...(form.entity_tag_key ? { entity_tag_key: form.entity_tag_key } : {}),
-      });
-    } else {
-      onSave(form);
+  const handleSave = async () => {
+    setSubmitting(true);
+    try {
+      if (isBulk) {
+        await onSave({
+          category: form.category,
+          subcategory: form.subcategory,
+          ...(form.entity_tag_key ? { entity_tag_key: form.entity_tag_key } : {}),
+        });
+      } else {
+        await onSave(form);
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -76,8 +86,13 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
   // pendientes por definicion, al estar en esa lista); una transaccion real
   // (Transactions.js) si lo trae, y solo debe poder aprobarse si sigue pendiente.
   const canApprove = !isBulk && onApprove && transaction?.status !== "approved" && transaction?.status !== "rejected";
-  const handleApprove = () => {
-    onApprove(form);
+  const handleApprove = async () => {
+    setSubmitting(true);
+    try {
+      await onApprove(form);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -216,26 +231,26 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
         </div>
 
         <DialogFooter className="sticky bottom-0 bg-white pt-3 border-t border-slate-200 mt-2">
-          <Button variant="outline" onClick={onClose} data-testid="tem-cancel-btn">Cancelar</Button>
+          <Button variant="outline" onClick={onClose} disabled={submitting} data-testid="tem-cancel-btn">Cancelar</Button>
           {!isBulk && (
             <Button
               onClick={handleSave}
-              disabled={!form.category}
+              disabled={!form.category || submitting}
               variant={canApprove ? "outline" : "default"}
               data-testid="tem-save-btn"
               className={canApprove ? "" : "bg-primary hover:bg-primary/90 text-white"}
             >
-              Guardar
+              {submitting ? "Guardando..." : "Guardar"}
             </Button>
           )}
           {canApprove && (
-            <Button onClick={handleApprove} disabled={!form.category} data-testid="tem-approve-btn" className="bg-primary hover:bg-primary/90 text-white">
-              Aprobar
+            <Button onClick={handleApprove} disabled={!form.category || submitting} data-testid="tem-approve-btn" className="bg-primary hover:bg-primary/90 text-white">
+              {submitting ? "Aprobando..." : "Aprobar"}
             </Button>
           )}
           {isBulk && (
-            <Button onClick={handleSave} disabled={!form.category} data-testid="tem-save-btn" className="bg-primary hover:bg-primary/90 text-white">
-              {`Aplicar a ${bulkCount}`}
+            <Button onClick={handleSave} disabled={!form.category || submitting} data-testid="tem-save-btn" className="bg-primary hover:bg-primary/90 text-white">
+              {submitting ? "Aplicando..." : `Aplicar a ${bulkCount}`}
             </Button>
           )}
         </DialogFooter>
