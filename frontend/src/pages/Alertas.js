@@ -5,7 +5,17 @@ import { useAuth } from "../context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
 import { Button } from "../components/ui/button";
-import { Bell } from "@phosphor-icons/react";
+import { Bell, CreditCard, Clock, ChartBar, EnvelopeSimple, Target, ArrowsClockwise } from "@phosphor-icons/react";
+
+// El backend manda una clave semantica en `icono` (ver routes/dashboard.py) — nunca un emoji.
+const ALERT_ICONS = {
+  "credit-card": CreditCard,
+  "clock": Clock,
+  "chart": ChartBar,
+  "mail": EnvelopeSimple,
+  "target": Target,
+  "repeat": ArrowsClockwise,
+};
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -87,7 +97,10 @@ export default function Alertas() {
               <CardContent className="p-4 flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="shrink-0 h-10 w-10 rounded-full bg-slate-100 flex items-center justify-center text-lg">
-                    {n.icono ? n.icono : <Bell size={20} className="text-slate-500" />}
+                    {(() => {
+                      const AlertIcon = ALERT_ICONS[n.icono] || Bell;
+                      return <AlertIcon size={20} className="text-slate-500" />;
+                    })()}
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-slate-900 truncate">{n.titulo}</p>

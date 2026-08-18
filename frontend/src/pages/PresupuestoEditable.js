@@ -330,8 +330,18 @@ export default function PresupuestoEditable({ embedded = false } = {}) {
             </Button>
           </div>
 
-          <div className="grid gap-4">
-            {budgetConfig?.categories && Object.entries(budgetConfig.categories).map(([key, category]) => (
+          <div className="grid gap-6">
+            {budgetConfig?.categories && Object.entries(
+              Object.entries(budgetConfig.categories).reduce((groups, [key, category]) => {
+                const groupName = category.group_name || "Otras categorías";
+                (groups[groupName] = groups[groupName] || []).push([key, category]);
+                return groups;
+              }, {})
+            ).map(([groupName, entries]) => (
+              <div key={groupName} className="space-y-3">
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">{groupName}</h3>
+                <div className="grid gap-4">
+                  {entries.map(([key, category]) => (
               <motion.div
                 key={key}
                 initial={{ opacity: 0 }}
@@ -432,6 +442,9 @@ export default function PresupuestoEditable({ embedded = false } = {}) {
                   </CardContent>
                 </Card>
               </motion.div>
+                  ))}
+                </div>
+              </div>
             ))}
           </div>
         </TabsContent>

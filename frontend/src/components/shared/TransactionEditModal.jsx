@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "../ui/select";
 import { Switch } from "../ui/switch";
 import { PERSONAL_CATEGORIES, SRI_CATEGORIES, ENTITY_TAGS } from "../../constants/categories";
 
@@ -85,8 +85,19 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
               <Select value={form.category} onValueChange={(v) => setForm({ ...form, category: v, subcategory: "" })}>
                 <SelectTrigger data-testid="tem-category-select"><SelectValue placeholder="Seleccionar" /></SelectTrigger>
                 <SelectContent className="z-[250]">
-                  {Object.entries(PERSONAL_CATEGORIES).map(([k, c]) => (
-                    <SelectItem key={k} value={k}>{c.name}</SelectItem>
+                  {Object.entries(
+                    Object.entries(PERSONAL_CATEGORIES).reduce((groups, [k, c]) => {
+                      const g = c.groupName || "Otras categorías";
+                      (groups[g] = groups[g] || []).push([k, c]);
+                      return groups;
+                    }, {})
+                  ).map(([groupName, entries]) => (
+                    <SelectGroup key={groupName}>
+                      <SelectLabel>{groupName}</SelectLabel>
+                      {entries.map(([k, c]) => (
+                        <SelectItem key={k} value={k}>{c.name}</SelectItem>
+                      ))}
+                    </SelectGroup>
                   ))}
                 </SelectContent>
               </Select>

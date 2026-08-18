@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card"
 import { Button } from "../components/ui/button";
 import { Input } from "../components/ui/input";
 import { Label } from "../components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "../components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "../components/ui/dialog";
 import { Badge } from "../components/ui/badge";
 import { DateInput } from "../components/ui/date-input";
@@ -78,7 +78,10 @@ export default function Transactions({ embedded = false } = {}) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterCategory, setFilterCategory] = useState("all");
+  // Deep-link desde el Dashboard: /movimientos?tab=todos&category=comida
+  const [filterCategory, setFilterCategory] = useState(
+    () => new URLSearchParams(window.location.search).get("category") || "all"
+  );
   const [filterType, setFilterType] = useState("all");
   const [filterPeriod, setFilterPeriod] = useState("all"); // all, this_month, last_month, this_year
   
@@ -151,6 +154,7 @@ export default function Transactions({ embedded = false } = {}) {
           
           transformedCats[key] = {
             name: cat.name,
+            groupName: cat.group_name,
             subcategories: subcatArray.length > 0 ? subcatArray : ["General"]
           };
         });
@@ -818,8 +822,19 @@ export default function Transactions({ embedded = false } = {}) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas las categorías</SelectItem>
-                {Object.entries(categories).map(([key, cat]) => (
-                  <SelectItem key={key} value={key}>{cat.name}</SelectItem>
+                {Object.entries(
+                  Object.entries(categories).reduce((groups, [key, cat]) => {
+                    const g = cat.groupName || "Otras categorías";
+                    (groups[g] = groups[g] || []).push([key, cat]);
+                    return groups;
+                  }, {})
+                ).map(([groupName, entries]) => (
+                  <SelectGroup key={groupName}>
+                    <SelectLabel>{groupName}</SelectLabel>
+                    {entries.map(([key, cat]) => (
+                      <SelectItem key={key} value={key}>{cat.name}</SelectItem>
+                    ))}
+                  </SelectGroup>
                 ))}
               </SelectContent>
             </Select>
@@ -981,6 +996,19 @@ export default function Transactions({ embedded = false } = {}) {
                       </Button>
                     )}
                     {canEdit && (
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8 shrink-0"
+                        onClick={() => handleEdit(transaction)}
+                        title="Editar transacción"
+                        aria-label="Editar transacción"
+                        data-testid={`edit-${transaction.id}`}
+                      >
+                        <Pencil size={16} />
+                      </Button>
+                    )}
+                    {canEdit && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" data-testid={`actions-${transaction.id}`}>
@@ -988,9 +1016,6 @@ export default function Transactions({ embedded = false } = {}) {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end">
-                          <DropdownMenuItem onClick={() => handleEdit(transaction)} className="gap-2">
-                            <Pencil size={16} />Editar
-                          </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => setRecatTx(transaction)} className="gap-2" data-testid={`recat-${transaction.id}`}>
                             <Target size={16} />Recategorizar
                           </DropdownMenuItem>

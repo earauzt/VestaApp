@@ -12,14 +12,18 @@ export default function Movimientos() {
   const location = useLocation();
   const navigate = useNavigate();
   const params = new URLSearchParams(location.search);
-  const initial = params.get("tab") === "todos" ? "todos" : "por-revisar";
+  // Un deep-link con ?category= (ej. desde el Dashboard) siempre quiere decir
+  // "muéstrame el ledger filtrado", aunque no traiga tab=todos explícito.
+  const initial = (params.get("tab") === "todos" || params.has("category")) ? "todos" : "por-revisar";
   const [tab, setTab] = useState(initial);
 
   useEffect(() => {
-    const current = new URLSearchParams(location.search).get("tab");
+    const current = new URLSearchParams(location.search);
     const target = tab === "todos" ? "todos" : "por-revisar";
-    if (current !== target) {
-      navigate(`${location.pathname}?tab=${target}`, { replace: true });
+    if (current.get("tab") !== target) {
+      // Preserva cualquier otro query param (ej. category) al fijar tab=.
+      current.set("tab", target);
+      navigate(`${location.pathname}?${current.toString()}`, { replace: true });
     }
   }, [tab, location.pathname, location.search, navigate]);
 

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import { Clock, CreditCard, Bell } from "@phosphor-icons/react";
 import { toast } from "sonner";
+import { BarChart, Bar, XAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 
 import { useAuth } from "../context/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "../components/ui/card";
@@ -36,6 +37,7 @@ export default function Dashboard() {
   const navigate = useNavigate();
 
   const [stats, setStats] = useState(null);
+  const [chartData, setChartData] = useState([]);
   const [categoriesConfig, setCategoriesConfig] = useState({});
   const [reconStats, setReconStats] = useState(null);
   const [debtSummary, setDebtSummary] = useState(null);
@@ -53,8 +55,9 @@ export default function Dashboard() {
     const headers = getAuthHeadersRef.current();
     // Cada tarjeta del dashboard depende de un endpoint distinto — si uno falla
     // (ej. el usuario no tiene tarjetas todavia) el resto del panorama se sigue viendo.
-    const [statsRes, catsRes, reconRes, debtRes, notifRes] = await Promise.allSettled([
+    const [statsRes, chartRes, catsRes, reconRes, debtRes, notifRes] = await Promise.allSettled([
       axios.get(`${API}/dashboard/stats?period=${period}`, { headers }),
+      axios.get(`${API}/dashboard/chart-data?period=${period}`, { headers }),
       axios.get(`${API}/budget/categories`, { headers }),
       axios.get(`${API}/reconciliation/stats`, { headers }),
       axios.get(`${API}/debt/summary`, { headers }),
@@ -66,6 +69,7 @@ export default function Dashboard() {
     } else {
       toast.error("Error al cargar el resumen del mes");
     }
+    setChartData(chartRes.status === "fulfilled" ? (chartRes.value.data.data || []) : []);
     setCategoriesConfig(catsRes.status === "fulfilled" ? (catsRes.value.data.categories || {}) : {});
     setReconStats(reconRes.status === "fulfilled" ? reconRes.value.data : null);
     setDebtSummary(debtRes.status === "fulfilled" ? debtRes.value.data : null);
@@ -182,6 +186,35 @@ export default function Dashboard() {
           <p className="text-xs text-muted-foreground mt-2" data-testid="dashboard-daily-average">
             Promedio diario {formatCurrency(stats?.daily_average)}
           </p>
+
+          {chartData.length > 1 && (
+            <div className="mt-5 -mx-2" data-testid="dashboard-spend-chart">
+              <ResponsiveContainer width="100%" height={90}>
+                <BarChart data={chartData} margin={{ top: 4, right: 8, left: 8, bottom: 0 }}>
+                  <XAxis
+                    dataKey="date"
+                    tickFormatter={(d) => {
+                      const parsed = new Date(`${d}T00:00:00`);
+                      return Number.isNaN(parsed.getTime()) ? d : parsed.toLocaleDateString("es-EC", { weekday: "short" }).slice(0, 1).toUpperCase();
+                    }}
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                  />
+                  <Tooltip
+                    formatter={(value) => formatCurrency(value)}
+                    labelFormatter={(d) => new Date(`${d}T00:00:00`).toLocaleDateString("es-EC", { day: "numeric", month: "short" })}
+                    contentStyle={{ fontSize: 12, borderRadius: 8, border: "1px solid hsl(var(--border))" }}
+                  />
+                  <Bar dataKey="expenses" radius={[4, 4, 2, 2]} maxBarSize={18}>
+                    {chartData.map((_, i) => (
+                      <Cell key={i} fill="hsl(var(--primary))" />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -268,7 +301,11 @@ export default function Dashboard() {
                 return (
                   <div
                     key={cat.key}
-                    className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 items-center"
+                    className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-1 items-center cursor-pointer rounded-md -mx-2 px-2 py-1 hover:bg-muted transition-colors"
+                    onClick={() => navigate(`/movimientos?tab=todos&category=${cat.key}`)}
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/movimientos?tab=todos&category=${cat.key}`); } }}
                     data-testid={`category-row-${cat.key}`}
                   >
                     <span className="text-sm font-medium text-foreground truncate flex items-center gap-2">

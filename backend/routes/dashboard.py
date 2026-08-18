@@ -266,7 +266,7 @@ async def get_notificaciones(user: dict = Depends(get_current_user)):
                 items.append({
                     "id": f"card-{c.get('id')}",
                     "tipo": "pago_proximo",
-                    "icono": "💳",
+                    "icono": "credit-card",
                     "titulo": f"Pago tarjeta {c.get('name', '')}",
                     "texto": f"Vence en {d} día{'s' if d != 1 else ''} · Mínimo ${c.get('minimum_payment', 0):.2f} / Total ${c.get('current_balance', 0):.2f}",
                     "accion_url": "/deudas",
@@ -283,7 +283,7 @@ async def get_notificaciones(user: dict = Depends(get_current_user)):
             items.append({
                 "id": f"sched-{s.get('id')}",
                 "tipo": "pago_proximo",
-                "icono": "⏰",
+                "icono": "clock",
                 "titulo": f"Pago: {s.get('name', '')}",
                 "texto": f"Vence en {d} día{'s' if d != 1 else ''} · ${s.get('amount', 0):.2f}",
                 "accion_url": "/flujo",
@@ -309,7 +309,7 @@ async def get_notificaciones(user: dict = Depends(get_current_user)):
             items.append({
                 "id": f"cat-{key}-{start_of_month}",
                 "tipo": "limite_categoria",
-                "icono": "📊",
+                "icono": "chart",
                 "titulo": f"{cfg.get('name', key)} al {pct}%",
                 "texto": f"${spent:.2f} de ${budget:.2f} presupuestado",
                 "accion_url": "/budget",
@@ -324,7 +324,7 @@ async def get_notificaciones(user: dict = Depends(get_current_user)):
         items.append({
             "id": f"gmail-{today.strftime('%Y-%m-%d')}",
             "tipo": "gmail_nuevos",
-            "icono": "📧",
+            "icono": "mail",
             "titulo": f"{gmail_pending} email{'s' if gmail_pending != 1 else ''} pendiente{'s' if gmail_pending != 1 else ''}",
             "texto": "Revisa y aprueba movimientos detectados desde Gmail",
             "accion_url": "/cargar",
@@ -348,7 +348,7 @@ async def get_notificaciones(user: dict = Depends(get_current_user)):
             items.append({
                 "id": f"filter-{est}",
                 "tipo": "sugerir_filtro",
-                "icono": "🎯",
+                "icono": "target",
                 "titulo": f"Crear regla para '{est.title()}'",
                 "texto": f"Aparece {count} veces este mes — automatiza su categorización",
                 "accion_url": "/transactions",
@@ -382,7 +382,7 @@ async def esta_semana(user: dict = Depends(get_current_user)):
                 items.append({
                     "id": f"card-{c.get('id')}",
                     "tipo": "card_payment",
-                    "icono": "💳",
+                    "icono": "credit-card",
                     "titulo": f"Tarjeta {c.get('name', '')}",
                     "texto": f"Mínimo ${c.get('minimum_payment', 0):.2f} · Total ${c.get('current_balance', 0):.2f}",
                     "days_until": d,
@@ -398,7 +398,7 @@ async def esta_semana(user: dict = Depends(get_current_user)):
         items.append({
             "id": f"def-{d_pay.get('id')}",
             "tipo": "deferred",
-            "icono": "🔁",
+            "icono": "repeat",
             "titulo": f"Cuota {d_pay.get('description', '')[:40]}",
             "texto": f"${d_pay.get('monthly_payment', 0):.2f} · {d_pay.get('remaining_installments', 0)} cuota(s) restantes",
             "days_until": 30,  # cuota mensual, baja urgencia
@@ -423,7 +423,7 @@ async def esta_semana(user: dict = Depends(get_current_user)):
             items.append({
                 "id": f"cat-{key}",
                 "tipo": "category_limit",
-                "icono": "📊",
+                "icono": "chart",
                 "titulo": f"{cfg.get('name', key)} al {pct}%",
                 "texto": f"${spent:.2f} de ${budget:.2f}",
                 "days_until": 999,
