@@ -242,7 +242,7 @@ export default function Dashboard() {
                 <div className="min-w-0">
                   <p className="text-base font-semibold text-foreground">{formatCurrency(totalDebt)}</p>
                   <p className="text-xs text-muted-foreground">
-                    Deuda total (tarjetas + diferidos)
+                    Deuda total (tarjetas)
                     {debtSummary.utilization_rate != null && (
                       <span className={`ml-1 font-medium ${utilizationColor(debtSummary.utilization_rate)}`}>
                         · {debtSummary.utilization_rate}% utilización

@@ -378,8 +378,13 @@ export default function Deudas() {
               <div className="flex items-center gap-3">
                 <TrendDown size={20} className="text-red-600 shrink-0" />
                 <div>
-                  <p className="text-xs text-muted-foreground">Deuda Total (tarjetas + diferidos)</p>
-                  <p className="text-lg font-bold text-red-600">{formatCurrency(summary.total_debt_with_deferred ?? summary.total_debt)}</p>
+                  <p className="text-xs text-muted-foreground">Deuda Total (tarjetas)</p>
+                  <p className="text-lg font-bold text-red-600">{formatCurrency(summary.total_debt)}</p>
+                  {summary.total_deferred_real > 0 && (
+                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                      De los cuales {formatCurrency(summary.total_deferred_real)} en cuotas diferidas
+                    </p>
+                  )}
                 </div>
               </div>
             </CardContent>

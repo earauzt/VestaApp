@@ -69,13 +69,19 @@ async def get_debt_summary(user: dict = Depends(get_current_user)):
     total_minimum = sum((c.get("minimum_payment") or 0) for c in cards)
     weighted_apr = sum((c.get("current_balance") or 0) * (c.get("apr") or 0) for c in cards) / total_debt if total_debt > 0 else 0
     cards_by_apr = sorted(cards, key=lambda x: x.get("apr") or 0, reverse=True)
-    # total_debt = solo tarjetas (asi se usa para utilization_rate contra el limite).
-    # Los diferidos son un pasivo aparte que no cuenta contra un limite de credito,
-    # pero si son parte de la deuda real de la familia -> se exponen sumados por separado
-    # para que Deudas.js y el Dashboard puedan mostrar un total honesto.
-    deferred = await db.deferred_payments.find({"user_id": user["id"], "remaining_installments": {"$gt": 0}}, {"_id": 0}).to_list(100)
-    total_deferred = sum((d.get("monthly_payment") or 0) * (d.get("remaining_installments") or 0) for d in deferred)
-    return {"total_debt": total_debt, "total_credit_limit": total_limit, "total_available_credit": total_limit - total_debt, "total_minimum_payment": total_minimum, "weighted_average_apr": round(weighted_apr, 2), "utilization_rate": round((total_debt / total_limit * 100) if total_limit > 0 else 0, 1), "cards_count": len(cards), "cards": cards, "highest_apr_card": cards_by_apr[0] if cards_by_apr else None, "total_deferred": total_deferred, "total_debt_with_deferred": total_debt + total_deferred}
+    # IMPORTANTE: current_balance por tarjeta ("Deuda Total a la fecha corte", ver
+    # prompts de extraccion en utils.py) YA INCLUYE el saldo diferido de esa tarjeta
+    # como sub-componente — no son pasivos separados. Sumar la coleccion vieja de
+    # `deferred_payments` (compras diferidas individuales, semilla desactualizada)
+    # encima de total_debt duplicaba ese monto (~$20.8k de doble conteo, verificado
+    # contra 9 estados de cuenta reales de Diners/Pacificard/Pichincha ago-2026:
+    # ninguno reporto compras diferidas nuevas via IA, y el saldo_diferido agregado
+    # que SI se extrae en cada estado ya vive dentro de current_balance).
+    # total_deferred_real = solo informativo (cuanto de total_debt es diferido),
+    # calculado desde el saldo_diferido de cada tarjeta (extraido de estados reales),
+    # NO desde la coleccion `deferred_payments` que no se ha actualizado con datos reales.
+    total_deferred_real = sum((c.get("saldo_diferido") or 0) for c in cards)
+    return {"total_debt": total_debt, "total_credit_limit": total_limit, "total_available_credit": total_limit - total_debt, "total_minimum_payment": total_minimum, "weighted_average_apr": round(weighted_apr, 2), "utilization_rate": round((total_debt / total_limit * 100) if total_limit > 0 else 0, 1), "cards_count": len(cards), "cards": cards, "highest_apr_card": cards_by_apr[0] if cards_by_apr else None, "total_deferred_real": total_deferred_real, "total_debt_with_deferred": total_debt}
 
 
 @router.post("/debt/snowball-plan")
