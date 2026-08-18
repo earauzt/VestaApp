@@ -377,6 +377,44 @@ async def get_duplicate_pairs(user: dict = Depends(check_role([UserRole.ADMIN, U
     return {"pairs": pairs}
 
 
+async def _learn_vendor_and_propagate(user_id: str, tx: dict, final_category: Optional[str], final_subcategory: Optional[str], final_sri_category: Optional[str], is_deductible: bool) -> bool:
+    """Al aprobar una transaccion con una categoria real (no 'otros'), recuerda el
+    comercio en known_vendors Y re-categoriza (sin aprobar) otras transacciones
+    PENDIENTES del mismo comercio, para que dejen de acumularse en 'Otros' esperando
+    revision manual una por una. No aprende de categoria 'otros' para no ensuciar
+    known_vendors con comercios que nunca se categorizaron de verdad."""
+    establishment = (tx.get("establishment") or tx.get("description") or "").strip()
+    if not establishment or not final_category or final_category == "otros":
+        return False
+    normalized_name = establishment.lower()
+    existing_vendor = await db.known_vendors.find_one({"user_id": user_id, "establishment": {"$regex": f"^{re.escape(normalized_name)}$", "$options": "i"}})
+    if existing_vendor:
+        await db.known_vendors.update_one(
+            {"id": existing_vendor["id"]},
+            {"$set": {"personal_category": final_category, "sri_category": final_sri_category, "subcategory": final_subcategory, "is_deductible": is_deductible, "last_used": datetime.now(timezone.utc).isoformat()}, "$inc": {"times_used": 1}}
+        )
+    else:
+        await db.known_vendors.insert_one({
+            "id": str(uuid.uuid4()), "user_id": user_id, "establishment": establishment,
+            "personal_category": final_category, "sri_category": final_sri_category, "subcategory": final_subcategory,
+            "is_deductible": is_deductible, "times_used": 1,
+            "last_used": datetime.now(timezone.utc).isoformat(), "created_at": datetime.now(timezone.utc).isoformat()
+        })
+
+    siblings = await db.transactions.find({
+        "user_id": user_id,
+        "status": TransactionStatus.PENDING_REVIEW,
+        "establishment": {"$regex": f"^{re.escape(normalized_name)}$", "$options": "i"},
+        "id": {"$ne": tx.get("id")},
+    }, {"_id": 0}).to_list(500)
+    for sib in siblings:
+        await db.transactions.update_one(
+            {"id": sib["id"]},
+            {"$set": {"category": final_category, "personal_category": final_category, "subcategory": final_subcategory, "sri_category": final_sri_category, "is_deductible": is_deductible, "auto_categorized": True, "matched_rule": "known_vendor"}}
+        )
+    return True
+
+
 @router.put("/reconciliation/approve/{transaction_id}")
 async def approve_transaction(transaction_id: str, category: Optional[str] = None, subcategory: Optional[str] = None, sri_category: Optional[str] = None, learn_vendor: bool = True, user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))):
     tx = await db.transactions.find_one({"id": transaction_id}, {"_id": 0})
@@ -399,17 +437,9 @@ async def approve_transaction(transaction_id: str, category: Optional[str] = Non
         raise HTTPException(status_code=404, detail="Transaccion no encontrada")
 
     vendor_learned = False
-    establishment = tx.get("establishment") or tx.get("description", "")
-    if learn_vendor and establishment and final_category:
-        normalized_name = establishment.strip().lower()
-        existing_vendor = await db.known_vendors.find_one({"user_id": user["id"], "establishment": {"$regex": f"^{re.escape(normalized_name)}$", "$options": "i"}})
-        if existing_vendor:
-            await db.known_vendors.update_one({"id": existing_vendor["id"]}, {"$set": {"personal_category": final_category, "sri_category": final_sri_category, "subcategory": final_subcategory, "is_deductible": update_data.get("is_deductible", existing_vendor.get("is_deductible", False)), "last_used": datetime.now(timezone.utc).isoformat()}, "$inc": {"times_used": 1}})
-            vendor_learned = True
-        else:
-            vendor_data = {"id": str(uuid.uuid4()), "user_id": user["id"], "establishment": establishment.strip(), "personal_category": final_category, "sri_category": final_sri_category, "subcategory": final_subcategory, "is_deductible": update_data.get("is_deductible", False), "times_used": 1, "last_used": datetime.now(timezone.utc).isoformat(), "created_at": datetime.now(timezone.utc).isoformat()}
-            await db.known_vendors.insert_one(vendor_data)
-            vendor_learned = True
+    if learn_vendor:
+        is_deductible = update_data.get("is_deductible", tx.get("is_deductible", False))
+        vendor_learned = await _learn_vendor_and_propagate(user["id"], tx, final_category, final_subcategory, final_sri_category, is_deductible)
     return {"message": "Transaccion aprobada", "status": TransactionStatus.APPROVED, "vendor_learned": vendor_learned}
 
 
@@ -452,14 +482,20 @@ async def bulk_approve_transactions(body: Dict[str, Any], user: dict = Depends(g
         raise HTTPException(status_code=400, detail="No se proporcionaron IDs de transacciones")
     approved = 0
     failed = 0
+    vendors_learned = 0
     for id_str in transaction_ids:
         try:
             filter_query = {"id": id_str}
             if user["role"] not in ["admin", "accountant"]:
                 filter_query["user_id"] = user["id"]
+            tx = await db.transactions.find_one(filter_query, {"_id": 0})
             result = await db.transactions.update_one(filter_query, {"$set": {"status": TransactionStatus.APPROVED, "reviewed_by": user["id"], "reviewed_at": datetime.now(timezone.utc).isoformat()}})
             if result.modified_count > 0:
                 approved += 1
+                if tx:
+                    learned = await _learn_vendor_and_propagate(tx.get("user_id", user["id"]), tx, tx.get("category"), tx.get("subcategory"), tx.get("sri_category"), tx.get("is_deductible", False))
+                    if learned:
+                        vendors_learned += 1
                 continue
             from bson import ObjectId
             try:
@@ -477,7 +513,7 @@ async def bulk_approve_transactions(body: Dict[str, Any], user: dict = Depends(g
         except Exception as e:
             logger.warning(f"Bulk approve failed for {id_str}: {e}")
             failed += 1
-    return {"approved": approved, "failed": failed, "total": len(transaction_ids)}
+    return {"approved": approved, "failed": failed, "total": len(transaction_ids), "vendors_learned": vendors_learned}
 
 
 @router.get("/reconciliation/stats")
