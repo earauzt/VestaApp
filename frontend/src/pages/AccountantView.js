@@ -126,23 +126,24 @@ export default function AccountantView() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
+          className="min-w-0"
         >
-          <Card className="bento-card">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
+          <Card className="bento-card overflow-hidden">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-3 min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-muted-foreground mb-1">Total Gastos {selectedYear}</p>
-                  <p className="stat-number text-foreground">
+                  <p className="text-xl sm:text-2xl font-bold font-mono tracking-tight text-foreground break-words">
                     {formatCurrency(taxSummary?.total_expenses)}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-muted text-muted-foreground">
-                  <FileText size={24} weight="duotone" />
+                <div className="p-2 sm:p-3 rounded-xl bg-muted text-muted-foreground shrink-0">
+                  <FileText size={22} weight="duotone" />
                 </div>
               </div>
             </CardContent>
@@ -153,18 +154,19 @@ export default function AccountantView() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.1 }}
+          className="min-w-0"
         >
-          <Card className="bento-card border-primary/50">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
+          <Card className="bento-card border-primary/50 overflow-hidden">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-3 min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-muted-foreground mb-1">Gastos Deducibles SRI</p>
-                  <p className="stat-number text-primary">
+                  <p className="text-xl sm:text-2xl font-bold font-mono tracking-tight text-primary break-words">
                     {formatCurrency(taxSummary?.deductible_expenses)}
                   </p>
                 </div>
-                <div className="p-3 rounded-xl bg-primary/10 text-primary">
-                  <Scales size={24} weight="duotone" />
+                <div className="p-2 sm:p-3 rounded-xl bg-primary/10 text-primary shrink-0">
+                  <Scales size={22} weight="duotone" />
                 </div>
               </div>
             </CardContent>
@@ -175,20 +177,21 @@ export default function AccountantView() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3, delay: 0.2 }}
+          className="min-w-0"
         >
-          <Card className="bento-card">
-            <CardContent className="p-6">
-              <div className="flex items-start justify-between">
-                <div>
+          <Card className="bento-card overflow-hidden">
+            <CardContent className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-3 min-w-0">
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-muted-foreground mb-1">% Deducible</p>
-                  <p className="stat-number text-emerald-600">
+                  <p className="text-xl sm:text-2xl font-bold font-mono tracking-tight text-emerald-600 break-words">
                     {taxSummary?.total_expenses > 0 
                       ? ((taxSummary?.deductible_expenses / taxSummary?.total_expenses) * 100).toFixed(1)
                       : 0}%
                   </p>
                 </div>
-                <div className="text-primary">
-                  <ArrowUp size={24} weight="duotone" />
+                <div className="text-primary shrink-0">
+                  <ArrowUp size={22} weight="duotone" />
                 </div>
               </div>
             </CardContent>

@@ -269,12 +269,14 @@ BUDGET_CATEGORIES = {
 # migrations/013_vesta_entity_tags.sql (tabla vesta_entity_tags, editable sin
 # tocar codigo una vez aplicada la migracion).
 ENTITY_TAGS = {
-    "personal": {"name": "Personal", "sort_order": 1},
-    "pareja": {"name": "Pareja", "sort_order": 2},
-    "hogar": {"name": "Hogar / compartido", "sort_order": 3},
-    "domestico": {"name": "Personal doméstico", "sort_order": 4},
-    "internacional": {"name": "Internacional / familia", "sort_order": 5},
-    "negocio": {"name": "Negocio", "sort_order": 6},
+    "titular": {"name": "Titular", "sort_order": 1},
+    "adicional_kp": {"name": "Adicional (KP)", "sort_order": 2},
+    "personal": {"name": "Personal", "sort_order": 3},
+    "pareja": {"name": "Pareja", "sort_order": 4},
+    "hogar": {"name": "Hogar / compartido", "sort_order": 5},
+    "domestico": {"name": "Personal doméstico", "sort_order": 6},
+    "internacional": {"name": "Internacional / familia", "sort_order": 7},
+    "negocio": {"name": "Negocio", "sort_order": 8},
 }
 
 INCOME_STRUCTURE = {

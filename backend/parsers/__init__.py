@@ -74,6 +74,35 @@ def _base_result(tipo: str, banco: str) -> dict:
     }
 
 
+_EMAIL_NOISE = re.compile(
+    r"phishing|no solicite|este correo|estimado(?:a)? cliente|si usted no|www\.|https?://",
+    re.I,
+)
+
+
+def _clean_comercio(value):
+    if not value:
+        return None
+    text = re.sub(r"\s+", " ", str(value)).strip().strip("?*")
+    if text in {"?", "-", "N/A", "n/a"}:
+        return None
+    if len(text) > 80 or _EMAIL_NOISE.search(text):
+        text = re.split(r"(?:Estimado|Este correo|Si usted|www\.|https?://)", text, maxsplit=1, flags=re.I)[0].strip()
+    if len(text) > 60:
+        text = text[:57].rstrip() + "..."
+    return text or None
+
+
+def _consumo_desc(banco: str, comercio, monto) -> str:
+    if comercio and monto is not None:
+        return f"Consumo {banco}: {comercio} ${monto}"
+    if comercio:
+        return f"Consumo {banco}: {comercio}"
+    if monto is not None:
+        return f"Consumo {banco} ${monto}"
+    return f"Consumo {banco}"
+
+
 # ─── PacifiCard consumo ──────────────────────────────────────────
 
 def parse_pacificard_consumo(sender: str, subject: str, html: str, text: str) -> dict:
@@ -104,7 +133,8 @@ def parse_pacificard_consumo(sender: str, subject: str, html: str, text: str) ->
     if m:
         r["tarjeta_ultimos4"] = m.group(1)[-3:]
     if r["comercio"] or r["monto"]:
-        r["descripcion_corta"] = f"Consumo Pacificard: {r['comercio'] or '?'} ${r['monto'] or '?'}"
+        r["comercio"] = _clean_comercio(r.get("comercio"))
+        r["descripcion_corta"] = _consumo_desc("Pacificard", r.get("comercio"), r.get("monto"))
         return r
     return None
 
@@ -146,7 +176,8 @@ def parse_diners_consumo(sender: str, subject: str, html: str, text: str) -> dic
         if m:
             r["comercio"] = m.group(1).strip()
     if r["comercio"] or r["monto"]:
-        r["descripcion_corta"] = f"Consumo Diners: {r['comercio'] or '?'} ${r['monto'] or '?'}"
+        r["comercio"] = _clean_comercio(r.get("comercio"))
+        r["descripcion_corta"] = _consumo_desc("Diners", r.get("comercio"), r.get("monto"))
         return r
     return None
 
@@ -183,7 +214,8 @@ def parse_pichincha_consumo(sender: str, subject: str, html: str, text: str) -> 
     if m:
         r["fecha"] = m.group(1)
     if r["comercio"] or r["monto"]:
-        r["descripcion_corta"] = f"Consumo Pichincha: {r['comercio'] or '?'} ${r['monto'] or '?'}"
+        r["comercio"] = _clean_comercio(r.get("comercio"))
+        r["descripcion_corta"] = _consumo_desc("Pichincha", r.get("comercio"), r.get("monto"))
         return r
     return None
 
@@ -219,7 +251,8 @@ def parse_bolivariano_consumo(sender: str, subject: str, html: str, text: str) -
     if m:
         r["fecha"] = m.group(1)
     if r["comercio"] or r["monto"]:
-        r["descripcion_corta"] = f"Consumo Bolivariano: {r['comercio'] or '?'} ${r['monto'] or '?'}"
+        r["comercio"] = _clean_comercio(r.get("comercio"))
+        r["descripcion_corta"] = _consumo_desc("Bolivariano", r.get("comercio"), r.get("monto"))
         return r
     return None
 

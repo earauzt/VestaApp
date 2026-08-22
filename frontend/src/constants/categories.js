@@ -144,6 +144,8 @@ export const INCOME_SOURCES = ["Personal", "APX", "USA"];
 // GET /api/entity-tags usan la respuesta real; este array es el fallback
 // cuando no hay red o la migracion aun no corrio.
 export const ENTITY_TAGS = [
+  { key: "titular", name: "Titular" },
+  { key: "adicional_kp", name: "Adicional (KP)" },
   { key: "personal", name: "Personal" },
   { key: "pareja", name: "Pareja" },
   { key: "hogar", name: "Hogar / compartido" },

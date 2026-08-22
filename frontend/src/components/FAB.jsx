@@ -51,7 +51,14 @@ export default function FAB() {
     let cancelled = false;
     axios.get(`${API}/api/entity-tags`, { headers: getAuthHeaders() })
       .then((res) => {
-        if (!cancelled && res.data?.entity_tags?.length) setEntityTags(res.data.entity_tags);
+        if (!cancelled && res.data?.entity_tags?.length) {
+          const fromApi = res.data.entity_tags;
+          const keys = new Set(fromApi.map((t) => t.key));
+          const missing = ENTITY_TAGS.filter(
+            (t) => (t.key === "titular" || t.key === "adicional_kp") && !keys.has(t.key)
+          );
+          setEntityTags([...missing, ...fromApi]);
+        }
       })
       .catch(() => {}); // se queda con DEFAULT_ENTITY_TAGS si falla
     return () => { cancelled = true; };
@@ -179,7 +186,10 @@ export default function FAB() {
       />
 
       {/* FAB Button */}
-      <div className="fixed bottom-20 right-6 z-[60]">
+      <div
+        className="fixed z-[60] bottom-20 right-4 lg:bottom-6 lg:right-6 pointer-events-auto"
+        data-testid="fab-root"
+      >
         <AnimatePresence>
           {isOpen && (
             <motion.div

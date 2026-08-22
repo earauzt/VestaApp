@@ -36,6 +36,7 @@ import {
   CaretDown,
   CaretUp
 } from "@phosphor-icons/react";
+import { isBudgetSaveEnabled } from "../utils/deferredProgress";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -263,11 +264,13 @@ export default function PresupuestoEditable({ embedded = false } = {}) {
           </div>
         )}
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => setShowResetConfirm(true)} disabled={!isDirty} className="gap-2">
-            <ArrowCounterClockwise size={18} />
-            Descartar cambios
-          </Button>
-          <Button onClick={handleSaveBudget} disabled={saving} className="gap-2">
+          {isDirty && (
+            <Button variant="outline" onClick={() => setShowResetConfirm(true)} className="gap-2">
+              <ArrowCounterClockwise size={18} />
+              Descartar cambios
+            </Button>
+          )}
+          <Button onClick={handleSaveBudget} disabled={!isBudgetSaveEnabled(isDirty, saving)} className="gap-2">
             <FloppyDisk size={18} />
             {saving ? "Guardando..." : "Guardar Todo"}
           </Button>

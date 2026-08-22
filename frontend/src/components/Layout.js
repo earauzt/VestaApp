@@ -191,7 +191,10 @@ export default function Layout({ children }) {
   );
 
   return (
-    <div className="min-h-screen bg-background">
+    <div
+      className="min-h-screen bg-background"
+      style={{ ["--sidebar-width"]: isMobile ? "0px" : (collapsed ? "72px" : "256px") }}
+    >
       {/* Mobile Header */}
       <header className="lg:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-border z-50 flex items-center justify-between px-4">
         <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
@@ -226,7 +229,7 @@ export default function Layout({ children }) {
 
       {/* Main content */}
       <main
-        className="flex-1 transition-all duration-200 pt-14 lg:pt-0 pb-16 lg:pb-0"
+        className="flex-1 transition-all duration-200 pt-14 lg:pt-0 pb-28 lg:pb-8"
         style={{ marginLeft: isMobile ? 0 : (collapsed ? 72 : 256) }}
       >
         {/* Demo Mode Banner */}
@@ -236,7 +239,7 @@ export default function Layout({ children }) {
             <span><strong>Modo Demostración</strong> — Estás viendo datos ficticios de ejemplo.</span>
           </div>
         )}
-        <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
+        <div className="p-4 sm:p-6 lg:p-8 pr-20 lg:pr-24 max-w-7xl mx-auto">
           {children}
         </div>
       </main>

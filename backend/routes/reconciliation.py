@@ -360,9 +360,14 @@ async def get_bank_accounts(user: dict = Depends(get_current_user)):
 
 @router.get("/reconciliation/pending")
 async def get_pending_reconciliation(user: dict = Depends(check_role([UserRole.ADMIN, UserRole.ACCOUNTANT]))):
-    transactions = await db.transactions.find({"status": {"$in": [TransactionStatus.PENDING_REVIEW, TransactionStatus.DUPLICATE_SUSPECT]}}, {"_id": 0}).sort("created_at", -1).to_list(500)
-    pending_review = [t for t in transactions if t.get("status") == TransactionStatus.PENDING_REVIEW]
-    duplicate_suspects = [t for t in transactions if t.get("status") == TransactionStatus.DUPLICATE_SUSPECT]
+    # Consultas separadas: un tope mixto de 500 comía cupo con duplicate_suspect
+    # y la bandeja mostraba menos pending_review que /stats (610 vs 213 vs 249).
+    pending_review = await db.transactions.find(
+        {"status": TransactionStatus.PENDING_REVIEW}, {"_id": 0}
+    ).sort("created_at", -1).to_list(2000)
+    duplicate_suspects = await db.transactions.find(
+        {"status": TransactionStatus.DUPLICATE_SUSPECT}, {"_id": 0}
+    ).sort("created_at", -1).to_list(500)
     return {"pending_review": pending_review, "duplicate_suspects": duplicate_suspects, "stats": {"total_pending": len(pending_review), "total_duplicates": len(duplicate_suspects), "pending_amount": sum(t.get("amount", 0) for t in pending_review), "duplicate_amount": sum(t.get("amount", 0) for t in duplicate_suspects)}}
 
 
@@ -544,7 +549,10 @@ async def get_reconciliation_stats(user: dict = Depends(check_role([UserRole.ADM
     # Dashboard/Movimientos/Alertas muestren el MISMO numero de "pendientes" en vez
     # de cada uno calcular su propia combinacion y terminar mostrando 3 totales
     # distintos para el mismo concepto.
-    stats["gmail_no_importados"] = await db.gmail_transactions.count_documents({"estado": "pendiente"})
+    stats["gmail_no_importados"] = await db.gmail_transactions.count_documents({
+        "user_id": user["id"], "estado": "pendiente"
+    })
+    # Un solo número de "por revisar": txs pending_review + gmail aún no importados.
     stats["pending_review_total"] = stats["pending_review"] + stats["gmail_no_importados"]
     return stats
 
