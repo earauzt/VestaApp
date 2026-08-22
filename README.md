@@ -42,29 +42,32 @@ Vercel, no una clave de Vesta.
 ## Deploy frontend (Vercel project `vesta`)
 
 Producción: https://vesta-beige-nine.vercel.app
-(también https://vesta-emilio.vercel.app si ese dominio sigue apuntando al mismo proyecto).
 
-El app CRA+craco vive en `frontend/`. `react-scripts` está en
-`frontend/package.json`; el script de build es `craco build` (alias `@/`).
-Node debe ser **20.x** (CRA 5 no es el default 24.x de Vercel).
+El dashboard de `vesta` está mal para este repo: corre `react-scripts build`
+en la **raíz** (no hay `package.json` ahí) bajo Node 24. Production tiene
+que construir **`frontend/`** con `npm run build` o `yarn run build`
+(ambos ejecutan `craco build`), en **Node 20.x**.
 
-Hay `vercel.json` en la raíz del repo (por si Root Directory queda vacío) y
-en `frontend/` (cuando Root Directory es `frontend`). Ambos instalan
-`frontend/` y corren `npm run build`, y dejan `react-scripts` en el PATH
-por si el dashboard todavía tiene el preset CRA `react-scripts build`.
+`packageManager` dice yarn@1.22.22, pero no hay `yarn.lock`; el lock es
+`frontend/package-lock.json`. El install de Vercel debe ser **npm**.
 
-### Ajustes del dashboard (obligatorios si el override de `vercel.json` no aplica)
+### Dashboard — setear exactamente (proyecto `vesta`)
 
-En el proyecto **vesta** → Settings → Build and Deployment:
+Settings → Build and Deployment:
 
 - **Root Directory:** `frontend`
-- **Framework Preset:** Other (no Create React App)
 - **Build Command:** `CI=false npm run build`
 - **Install Command:** `npm ci --legacy-peer-deps`
 - **Output Directory:** `build`
 - **Node.js Version:** `20.x`
+- **Framework Preset:** Other (no Create React App / no `react-scripts build`)
 
-Si Root Directory se deja vacío (raíz del monorepo), entonces:
+`CI=false yarn run build` es el mismo script (`craco build`). No usar
+`react-scripts build`.
+
+Si Root Directory se deja vacío, el `vercel.json` de la raíz instala
+`frontend/` y corre `CI=false npm --prefix frontend run build`
+(output `frontend/build`, Node 20). En ese caso el dashboard debe ser:
 
 - **Root Directory:** _(vacío)_
 - **Build Command:** `CI=false npm --prefix frontend run build`
@@ -72,16 +75,12 @@ Si Root Directory se deja vacío (raíz del monorepo), entonces:
 - **Output Directory:** `frontend/build`
 - **Node.js Version:** `20.x`
 
-La opción recomendada es **Root Directory = `frontend`** y
+Lo correcto es **Root Directory = `frontend`** y
 **Build Command = `CI=false npm run build`**.
-
-Build local de producción (misma carpeta que Vercel debe usar):
 
 ```bash
 cd frontend && npm ci && npm run build
 ```
-
-(`frontend/.npmrc` ya pone `legacy-peer-deps=true`.)
 
 ## Desarrollo
 
