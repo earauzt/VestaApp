@@ -35,7 +35,7 @@ import {
   Sparkle,
   Check
 } from "@phosphor-icons/react";
-import { SRI_CATEGORIES, INCOME_SOURCES, PERSONAL_CATEGORIES } from "../constants/categories";
+import { SRI_CATEGORIES, INCOME_SOURCES, PERSONAL_CATEGORIES, familyAttributionLabel } from "../constants/categories";
 import { displayName } from "../utils/displayName";
 import TransactionEditModal from "../components/shared/TransactionEditModal";
 
@@ -985,6 +985,14 @@ export default function Transactions({ embedded = false } = {}) {
                             {transaction.subcategory ? ` · ${transaction.subcategory}` : ""}
                           </span>
                         )}
+                        {familyAttributionLabel(transaction.entity_tag_key) ? (
+                          <span
+                            className="text-xs bg-slate-50 text-slate-700 px-2 py-0.5 rounded-full border border-slate-200"
+                            data-testid={`tx-attribution-${transaction.id}`}
+                          >
+                            {familyAttributionLabel(transaction.entity_tag_key)}
+                          </span>
+                        ) : null}
                         <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200">
                           {transaction.source === "gmail" || transaction.source === "factura_sri" ? "Gmail" : transaction.source === "statement" ? "Estado cuenta" : "Manual"}
                         </span>

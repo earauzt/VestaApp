@@ -814,7 +814,7 @@ async def gmail_dedup_cleanup(user: dict = Depends(get_current_user)):
 
 
 @router.get("/gmail/transactions")
-async def gmail_transactions(tipo: Optional[str] = None, estado: Optional[str] = None, limit: int = 50, user: dict = Depends(get_current_user)):
+async def gmail_transactions(tipo: Optional[str] = None, estado: Optional[str] = None, limit: int = 10000, user: dict = Depends(get_current_user)):
     query = {"user_id": user["id"]}
     if tipo:
         query["tipo"] = tipo

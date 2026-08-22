@@ -364,10 +364,10 @@ async def get_pending_reconciliation(user: dict = Depends(check_role([UserRole.A
     # y la bandeja mostraba menos pending_review que /stats (610 vs 213 vs 249).
     pending_review = await db.transactions.find(
         {"status": TransactionStatus.PENDING_REVIEW}, {"_id": 0}
-    ).sort("created_at", -1).to_list(2000)
+    ).sort("created_at", -1).to_list(10000)
     duplicate_suspects = await db.transactions.find(
         {"status": TransactionStatus.DUPLICATE_SUSPECT}, {"_id": 0}
-    ).sort("created_at", -1).to_list(500)
+    ).sort("created_at", -1).to_list(2000)
     return {"pending_review": pending_review, "duplicate_suspects": duplicate_suspects, "stats": {"total_pending": len(pending_review), "total_duplicates": len(duplicate_suspects), "pending_amount": sum(t.get("amount", 0) for t in pending_review), "duplicate_amount": sum(t.get("amount", 0) for t in duplicate_suspects)}}
 
 

@@ -13,6 +13,7 @@ import {
 import { CheckCircle, WarningCircle, Pencil, X } from "@phosphor-icons/react";
 import TransactionEditModal from "../shared/TransactionEditModal";
 import { displayName } from "../../utils/displayName";
+import { familyAttributionLabel } from "../../constants/categories";
 
 const API = process.env.REACT_APP_BACKEND_URL + "/api";
 
@@ -299,6 +300,15 @@ export default function TabPorRevisar({
                     <span className="text-xs bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200" data-testid={`review-source-${item.id}`}>
                       {originLabel}
                     </span>
+                    {familyAttributionLabel(item.entity_tag_key) ? (
+                      <Badge variant="outline" className="text-[10px] bg-slate-50 text-slate-700 border-slate-200" data-testid={`review-attribution-${item.id}`}>
+                        {familyAttributionLabel(item.entity_tag_key)}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-200" data-testid={`review-attribution-${item.id}`}>
+                        Asignar
+                      </Badge>
+                    )}
                     {zero && (
                       <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200" data-testid={`review-zero-${item.id}`}>
                         Sin valor

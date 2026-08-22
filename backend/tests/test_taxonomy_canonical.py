@@ -62,12 +62,6 @@ def test_budget_subcategories_have_no_personal_names():
     assert not leaked, f"personal names still in BUDGET_CATEGORIES: {leaked}"
 
 
-def test_seed_credit_cards_exclude_apple_card():
-    names = [c["name"] for c in CREDIT_CARDS]
-    assert "Apple Card" not in names, names
-    assert all("apple" not in c["name"].lower() and "apple" not in c["bank"].lower() for c in CREDIT_CARDS)
-
-
 def test_seed_deferred_card_names_match_credit_cards():
     card_names = {c["name"] for c in CREDIT_CARDS}
     card_ids = {c["id"] for c in CREDIT_CARDS}

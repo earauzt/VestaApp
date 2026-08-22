@@ -144,12 +144,37 @@ export const INCOME_SOURCES = ["Personal", "APX", "USA"];
 // GET /api/entity-tags usan la respuesta real; este array es el fallback
 // cuando no hay red o la migracion aun no corrio.
 export const ENTITY_TAGS = [
-  { key: "titular", name: "Titular" },
-  { key: "adicional_kp", name: "Adicional (KP)" },
-  { key: "personal", name: "Personal" },
-  { key: "pareja", name: "Pareja" },
-  { key: "hogar", name: "Hogar / compartido" },
-  { key: "domestico", name: "Personal doméstico" },
-  { key: "internacional", name: "Internacional / familia" },
-  { key: "negocio", name: "Negocio" },
+  { key: "titular", name: "Emilio", sort_order: 1 },
+  { key: "adicional_kp", name: "KP", sort_order: 2 },
+  { key: "personal", name: "Personal", sort_order: 3 },
+  { key: "pareja", name: "Pareja", sort_order: 4 },
+  { key: "hogar", name: "Hogar / compartido", sort_order: 5 },
+  { key: "domestico", name: "Personal doméstico", sort_order: 6 },
+  { key: "internacional", name: "Internacional / familia", sort_order: 7 },
+  { key: "negocio", name: "Negocio", sort_order: 8 },
 ];
+
+/** Default for new household expenses (Gasto Rápido). Does not backfill history. */
+export const DEFAULT_ENTITY_TAG = "titular";
+
+const FAMILY_LABELS = { titular: "Emilio", adicional_kp: "KP" };
+
+export function familyAttributionLabel(key) {
+  if (!key) return "";
+  return FAMILY_LABELS[key] || "";
+}
+
+/** Ensure Emilio/KP exist and keep those display names even if the API seed is stale. */
+export function mergeFamilyAttributionTags(tags = []) {
+  const byKey = new Map((tags || []).filter((t) => t?.key).map((t) => [t.key, { ...t }]));
+  for (const required of ENTITY_TAGS.filter((t) => FAMILY_LABELS[t.key])) {
+    const existing = byKey.get(required.key) || {};
+    byKey.set(required.key, {
+      ...existing,
+      key: required.key,
+      name: required.name,
+      sort_order: required.sort_order ?? existing.sort_order,
+    });
+  }
+  return [...byKey.values()].sort((a, b) => (a.sort_order ?? 99) - (b.sort_order ?? 99));
+}

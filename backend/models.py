@@ -269,8 +269,8 @@ BUDGET_CATEGORIES = {
 # migrations/013_vesta_entity_tags.sql (tabla vesta_entity_tags, editable sin
 # tocar codigo una vez aplicada la migracion).
 ENTITY_TAGS = {
-    "titular": {"name": "Titular", "sort_order": 1},
-    "adicional_kp": {"name": "Adicional (KP)", "sort_order": 2},
+    "titular": {"name": "Emilio", "sort_order": 1},
+    "adicional_kp": {"name": "KP", "sort_order": 2},
     "personal": {"name": "Personal", "sort_order": 3},
     "pareja": {"name": "Pareja", "sort_order": 4},
     "hogar": {"name": "Hogar / compartido", "sort_order": 5},
