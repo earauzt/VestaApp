@@ -22,7 +22,6 @@ import {
   Scales,
   Bell,
   List,
-  SignOut,
   User,
   CaretLeft,
   CaretRight,
@@ -45,7 +44,7 @@ const navItems = [
 const MOBILE_PRIMARY_PATHS = ["/dashboard", "/movimientos", "/mi-dinero", "/deudas"];
 
 export default function Layout({ children }) {
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -63,7 +62,8 @@ export default function Layout({ children }) {
 
   useEffect(() => { setMobileOpen(false); }, [location.pathname]);
 
-  const filteredNavItems = navItems.filter(item => item.roles.includes(user?.role));
+  const householdRole = user?.role || "admin";
+  const filteredNavItems = navItems.filter(item => item.roles.includes(householdRole));
   const mobilePrimaryItems = filteredNavItems.filter(item => MOBILE_PRIMARY_PATHS.includes(item.path));
   const hasMoreItems = filteredNavItems.length > mobilePrimaryItems.length;
 
@@ -174,15 +174,6 @@ export default function Layout({ children }) {
                 <User size={15} />
                 Mi Perfil
               </Link>
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={logout}
-              className="gap-2 text-[#DC2626] focus:text-[#DC2626]"
-              data-testid="logout-btn"
-            >
-              <SignOut size={15} />
-              Cerrar sesión
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

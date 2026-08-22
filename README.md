@@ -7,9 +7,14 @@ URL canónica: https://vesta-emilio.vercel.app
 
 ## Autenticación de la app
 
-El backend **no usa login**. `get_current_user` siempre devuelve el perfil
-fijo de Emilio. El candado previsto es que la URL sea privada (o que Vesta
-tenga su propio auth), no el SSO del dashboard de Vercel.
+El backend **no usa login**. `GET /auth/me` y `get_current_user` siempre
+devuelven el perfil fijo de Emilio. No hay `POST /auth/login` ni
+contraseña de la app. El frontend trata esa respuesta como la sesión y
+no muestra formulario de ingreso.
+
+El candado es la URL de Vercel / [Deployment Protection](https://vercel.com/docs/deployment-protection/methods-to-protect-deployments/vercel-authentication)
+(SSO al abrir https://vesta-emilio.vercel.app). Tras el SSO, Emilio entra
+a https://vesta-emilio.vercel.app/dashboard.
 
 ## Deployment Protection de Vercel (SSO)
 
@@ -31,8 +36,8 @@ Para que la URL de producción sea alcanzable:
    `vercel project protection disable <proyecto> --sso`
 4. Por API: `PATCH` del proyecto con `{"ssoProtection": null}`.
 
-No commitees tokens de bypass. Si quieres la URL privada, usa el auth de
-Vesta (hoy: URL no publicada), no el login del dashboard de Vercel.
+No commitees tokens de bypass. El candado de producción es ese SSO de
+Vercel, no una clave de Vesta.
 
 ## Desarrollo
 
