@@ -82,6 +82,20 @@ Lo correcto es **Root Directory = `frontend`** y
 cd frontend && npm ci && npm run build
 ```
 
+## Deploy backend (Railway service `vesta-backend`)
+
+Conectar `earauzt/VestaApp` con **Root Directory = `backend`**.
+
+Railpack detecta Python (`requirements.txt`, `server.py`, `backend/railpack.json`).
+El start command (también en `backend/Procfile` y `railway.toml`) es:
+
+```
+uvicorn server:app --host 0.0.0.0 --port $PORT
+```
+
+Si el dashboard no toma `backend/railway.toml`, apunta Config File a `/backend/railway.toml`.
+No hace falta `start.sh`. No inventar valores de variables de entorno.
+
 ## Desarrollo
 
 ```bash
