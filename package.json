@@ -7,6 +7,7 @@
   },
   "scripts": {
     "build": "npm --prefix frontend run build",
-    "ci:frontend": "npm ci --prefix frontend --legacy-peer-deps"
+    "ci:frontend": "npm ci --prefix frontend --legacy-peer-deps",
+    "postinstall": "bash scripts/vercel-install.sh"
   }
 }
