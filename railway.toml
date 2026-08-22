@@ -1,0 +1,7 @@
+# Railway looks for this file at the repo root (it does not follow Root Directory).
+# Service Root Directory must still be `backend` so Railpack sees Python.
+[build]
+builder = "RAILPACK"
+
+[deploy]
+startCommand = "uvicorn server:app --host 0.0.0.0 --port $PORT"
