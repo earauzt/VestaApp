@@ -133,6 +133,9 @@ frontend/node_modules/.cache/default-development/29.pack
 frontend/node_modules/.cache/default-development/30.pack
 .env
 .env.*
+# CRA production API origin (public). Must be tracked so Vercel can bake it.
+!.env.production
+!frontend/.env.production
 credentials.json
 *.key
 .credentials
