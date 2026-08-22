@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Shim for a leftover Vercel dashboard command of `react-scripts build`.
+# The real production build is `craco build` in frontend/ (aliases `@/`).
+set -euo pipefail
+
+HERE="$(cd "$(dirname "$0")" && pwd)"
+if [[ -f "$HERE/../../frontend/package.json" ]]; then
+  ROOT="$(cd "$HERE/../.." && pwd)"
+elif [[ -f "$HERE/../frontend/package.json" ]]; then
+  ROOT="$(cd "$HERE/.." && pwd)"
+else
+  echo "react-scripts shim: cannot find frontend/package.json from $HERE" >&2
+  exit 127
+fi
+
+cd "$ROOT/frontend"
+export CI="${CI:-false}"
+
+if [[ "${1:-}" == "build" ]]; then
+  shift
+  exec npm run build -- "$@"
+fi
+
+REAL="$ROOT/frontend/node_modules/.bin/react-scripts"
+if [[ -x "$REAL" ]]; then
+  exec "$REAL" "$@"
+fi
+
+echo "react-scripts shim: missing frontend binary and unsupported args: $*" >&2
+exit 127

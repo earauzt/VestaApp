@@ -39,11 +39,55 @@ Para que la URL de producción sea alcanzable:
 No commitees tokens de bypass. El candado de producción es ese SSO de
 Vercel, no una clave de Vesta.
 
+## Deploy frontend (Vercel project `vesta`)
+
+Producción: https://vesta-beige-nine.vercel.app
+(también https://vesta-emilio.vercel.app si ese dominio sigue apuntando al mismo proyecto).
+
+El app CRA+craco vive en `frontend/`. `react-scripts` está en
+`frontend/package.json`; el script de build es `craco build` (alias `@/`).
+Node debe ser **20.x** (CRA 5 no es el default 24.x de Vercel).
+
+Hay `vercel.json` en la raíz del repo (por si Root Directory queda vacío) y
+en `frontend/` (cuando Root Directory es `frontend`). Ambos instalan
+`frontend/` y corren `npm run build`, y dejan `react-scripts` en el PATH
+por si el dashboard todavía tiene el preset CRA `react-scripts build`.
+
+### Ajustes del dashboard (obligatorios si el override de `vercel.json` no aplica)
+
+En el proyecto **vesta** → Settings → Build and Deployment:
+
+- **Root Directory:** `frontend`
+- **Framework Preset:** Other (no Create React App)
+- **Build Command:** `CI=false npm run build`
+- **Install Command:** `npm ci --legacy-peer-deps`
+- **Output Directory:** `build`
+- **Node.js Version:** `20.x`
+
+Si Root Directory se deja vacío (raíz del monorepo), entonces:
+
+- **Root Directory:** _(vacío)_
+- **Build Command:** `CI=false npm --prefix frontend run build`
+- **Install Command:** `bash scripts/vercel-install.sh`
+- **Output Directory:** `frontend/build`
+- **Node.js Version:** `20.x`
+
+La opción recomendada es **Root Directory = `frontend`** y
+**Build Command = `CI=false npm run build`**.
+
+Build local de producción (misma carpeta que Vercel debe usar):
+
+```bash
+cd frontend && npm ci && npm run build
+```
+
+(`frontend/.npmrc` ya pone `legacy-peer-deps=true`.)
+
 ## Desarrollo
 
 ```bash
 # frontend
-cd frontend && npm install --legacy-peer-deps && npm run build
+cd frontend && npm ci && npm run build
 
 # backend (tests locales que no pegan a un API remoto)
 cd backend && pip install -r requirements.txt

@@ -1,6 +1,8 @@
 {
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "installCommand": "npm ci --legacy-peer-deps && install -m 0755 scripts/react-scripts-via-craco.sh node_modules/.bin/react-scripts",
   "buildCommand": "CI=false npm run build",
-  "installCommand": "npm install --legacy-peer-deps",
   "outputDirectory": "build",
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
