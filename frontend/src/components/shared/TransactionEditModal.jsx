@@ -5,7 +5,7 @@ import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "../ui/select";
 import { Switch } from "../ui/switch";
-import { PERSONAL_CATEGORIES, SRI_CATEGORIES, ENTITY_TAGS } from "../../constants/categories";
+import { PERSONAL_CATEGORIES, SRI_CATEGORIES, ENTITY_TAGS, familyAttributionLabel } from "../../constants/categories";
 
 /**
  * Modal unificado para editar/recategorizar transacciones.
@@ -147,10 +147,12 @@ export default function TransactionEditModal({ open, transaction, bulkCount = 0,
           <div className="space-y-1.5">
             <Label>¿De quién es este gasto?</Label>
             <Select value={form.entity_tag_key} onValueChange={(v) => setForm({ ...form, entity_tag_key: v })}>
-              <SelectTrigger data-testid="tem-entity-tag-select"><SelectValue placeholder="Sin asignar" /></SelectTrigger>
+              <SelectTrigger data-testid="tem-entity-tag-select"><SelectValue placeholder="Asignar: Emilio o KP" /></SelectTrigger>
               <SelectContent className="z-[250]">
                 {ENTITY_TAGS.map((tag) => (
-                  <SelectItem key={tag.key} value={tag.key}>{tag.name}</SelectItem>
+                  <SelectItem key={tag.key} value={tag.key}>
+                    {familyAttributionLabel(tag.key) || tag.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>

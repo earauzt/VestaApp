@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { useAuth } from "../context/AuthContext";
 import { toast } from "sonner";
 import axios from "axios";
-import { PERSONAL_CATEGORIES, ENTITY_TAGS } from "../constants/categories";
+import { PERSONAL_CATEGORIES, ENTITY_TAGS, DEFAULT_ENTITY_TAG, mergeFamilyAttributionTags, familyAttributionLabel } from "../constants/categories";
 
 const API = process.env.REACT_APP_BACKEND_URL;
 
@@ -43,15 +43,17 @@ export default function FAB() {
     amount: "",
     category: "",
     description: "",
-    entityTag: "",
+    entityTag: DEFAULT_ENTITY_TAG,
   });
-  const [entityTags, setEntityTags] = useState(ENTITY_TAGS);
+  const [entityTags, setEntityTags] = useState(mergeFamilyAttributionTags(ENTITY_TAGS));
 
   useEffect(() => {
     let cancelled = false;
     axios.get(`${API}/api/entity-tags`, { headers: getAuthHeaders() })
       .then((res) => {
-        if (!cancelled && res.data?.entity_tags?.length) setEntityTags(res.data.entity_tags);
+        if (!cancelled && res.data?.entity_tags?.length) {
+          setEntityTags(mergeFamilyAttributionTags(res.data.entity_tags));
+        }
       })
       .catch(() => {}); // se queda con DEFAULT_ENTITY_TAGS si falla
     return () => { cancelled = true; };
@@ -140,14 +142,14 @@ export default function FAB() {
         payment_method: "efectivo",
         status: "pending_review",
         source_type: "manual_quick",
-        ...(quickForm.entityTag ? { entity_tag_key: quickForm.entityTag } : {}),
+        entity_tag_key: quickForm.entityTag || DEFAULT_ENTITY_TAG,
       };
 
       await axios.post(`${API}/api/transactions`, payload, { headers: getAuthHeaders() });
 
       toast.success("Gasto registrado");
       setShowQuickForm(false);
-      setQuickForm({ amount: "", category: "", description: "", entityTag: "" });
+      setQuickForm({ amount: "", category: "", description: "", entityTag: DEFAULT_ENTITY_TAG });
     } catch (error) {
       toast.error("Error al guardar gasto");
     }
@@ -179,7 +181,10 @@ export default function FAB() {
       />
 
       {/* FAB Button */}
-      <div className="fixed bottom-20 right-6 z-[60]">
+      <div
+        className="fixed z-[60] bottom-20 right-4 lg:bottom-6 lg:right-6 pointer-events-auto"
+        data-testid="fab-root"
+      >
         <AnimatePresence>
           {isOpen && (
             <motion.div
@@ -310,17 +315,19 @@ export default function FAB() {
             </div>
 
             <div>
-              <Label>¿De quién es este gasto? (opcional)</Label>
+              <Label>¿De quién es este gasto?</Label>
               <Select
-                value={quickForm.entityTag}
+                value={quickForm.entityTag || DEFAULT_ENTITY_TAG}
                 onValueChange={(v) => setQuickForm({ ...quickForm, entityTag: v })}
               >
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Sin asignar" />
+                <SelectTrigger className="mt-1" data-testid="fab-entity-tag-select">
+                  <SelectValue placeholder="Emilio" />
                 </SelectTrigger>
                 <SelectContent>
                   {entityTags.map((tag) => (
-                    <SelectItem key={tag.key} value={tag.key}>{tag.name}</SelectItem>
+                    <SelectItem key={tag.key} value={tag.key}>
+                      {familyAttributionLabel(tag.key) || tag.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>

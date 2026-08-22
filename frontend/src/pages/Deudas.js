@@ -43,6 +43,7 @@ import {
   Snowflake,
   Fire
 } from "@phosphor-icons/react";
+import { deferredInstallmentProgress } from "../utils/deferredProgress";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -50,7 +51,8 @@ const BANKS = [
   { value: "diners", label: "Diners Club", country: "Ecuador" },
   { value: "pichincha", label: "Banco Pichincha", country: "Ecuador" },
   { value: "pacifico", label: "Banco del Pacífico / Pacificard", country: "Ecuador" },
-  { value: "guayaquil", label: "Banco de Guayaquil", country: "Ecuador" }
+  { value: "guayaquil", label: "Banco de Guayaquil", country: "Ecuador" },
+  { value: "apple", label: "Apple Card", country: "USA" },
 ];
 
 export default function Deudas() {
@@ -675,9 +677,10 @@ export default function Deudas() {
                 ) : (
                   <div className="space-y-3">
                     {deferredPayments.payments.map((payment, index) => {
-                      const progress = payment.total_installments > 0 
-                        ? ((payment.total_installments - payment.remaining_installments) / payment.total_installments) * 100
-                        : 0;
+                      const { paid, remaining, total, percentPaid } = deferredInstallmentProgress(
+                        payment.total_installments,
+                        payment.remaining_installments
+                      );
                       return (
                         <motion.div
                           key={payment.id}
@@ -712,10 +715,10 @@ export default function Deudas() {
                             </div>
                             <div className="flex items-center gap-2">
                               <Badge
-                                variant={payment.remaining_installments <= 1 ? "default" : "secondary"}
-                                className={payment.remaining_installments <= 1 ? "bg-emerald-600" : ""}
+                                variant={remaining <= 1 ? "default" : "secondary"}
+                                className={remaining <= 1 ? "bg-emerald-600" : ""}
                               >
-                                {payment.remaining_installments} de {payment.total_installments} cuotas
+                                Pagadas {paid} de {total}
                               </Badge>
                               <div className="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                                 <Button variant="ghost" size="icon" onClick={() => handleRegisterInstallment(payment.id)} title="Registrar cuota pagada" className="h-10 w-10 sm:h-8 sm:w-8 text-emerald-600">
@@ -732,10 +735,10 @@ export default function Deudas() {
                           </div>
                           <div className="mt-3">
                             <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                              <span>Progreso</span>
-                              <span>{Math.round(progress)}%</span>
+                              <span>Progreso (pagadas)</span>
+                              <span>{Math.round(percentPaid)}% · quedan {remaining}</span>
                             </div>
-                            <Progress value={progress} className="h-2" />
+                            <Progress value={percentPaid} className="h-2" />
                           </div>
                         </motion.div>
                       );

@@ -34,6 +34,7 @@ import {
   CaretDown,
   User
 } from "@phosphor-icons/react";
+import { PERSONAL_CATEGORIES } from "../constants/categories";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
@@ -46,21 +47,22 @@ const PAYMENT_METHODS = [
   { value: "venmo", label: "Venmo", icon: Receipt }
 ];
 
+// Cashflow-only keys (not part of PERSONAL_CATEGORIES) + canonical taxonomy.
+// Identity of titular vs adicional (p. ej. KP) vive en entity_tag / nombre de
+// tarjeta, no en subcategorías hardcodeadas.
 const CATEGORIES = [
   { value: "tarjeta_credito", label: "Pago Tarjeta de Crédito", subcategories: ["Diners", "Pichincha", "Pacificard"] },
-  { value: "servicios_basicos", label: "Servicios Básicos", subcategories: ["Luz", "Agua", "Internet", "Gas", "Teléfono"] },
-  { value: "suscripciones", label: "Suscripciones", subcategories: ["Netflix", "Spotify", "Amazon", "Disney+", "iCloud"] },
-  { value: "empleados", label: "Empleados", subcategories: ["Ramona", "Angélica", "IESS"] },
-  { value: "colegio_actividades", label: "Colegio y Actividades", subcategories: ["Pensión", "Matrícula", "Fútbol", "Telas"] },
-  { value: "seguros", label: "Seguros", subcategories: ["Salud", "Carros", "Vida"] },
-  { value: "comida", label: "Comida", subcategories: ["Supermaxi", "Mercado"] },
-  { value: "restaurantes", label: "Restaurantes", subcategories: ["Comida afuera", "Delivery"] },
-  { value: "carros", label: "Carros", subcategories: ["Gasolina 1", "Gasolina 2", "Mantenimiento"] },
-  { value: "usa", label: "USA", subcategories: ["Mamá (Venmo)", "TMobile", "Universidad"] },
-  { value: "viajes", label: "Viajes", subcategories: ["Hoteles", "Pasajes", "Tours"] },
-  { value: "gastos_libres", label: "Gastos Libres", subcategories: ["KP (Esposa)", "EA (Emilio)", "Varios"] },
-  { value: "diferido", label: "Pago Diferido", subcategories: ["Compras a plazos"] }
+  { value: "diferido", label: "Pago Diferido", subcategories: ["Compras a plazos"] },
+  ...Object.entries(PERSONAL_CATEGORIES).map(([value, cat]) => ({
+    value,
+    label: cat.name,
+    subcategories: cat.subcategories,
+  })),
 ];
+
+const LEGACY_CATEGORY_LABELS = {
+  viajes: PERSONAL_CATEGORIES.viajes_entretenimiento.name,
+};
 
 export default function Flujo({ embedded = false } = {}) {
   const { getAuthHeaders, user } = useAuth();
@@ -330,7 +332,7 @@ export default function Flujo({ embedded = false } = {}) {
   // Get category label
   const getCategoryLabel = (cat) => {
     const found = CATEGORIES.find(c => c.value === cat);
-    return found?.label || cat;
+    return found?.label || LEGACY_CATEGORY_LABELS[cat] || cat;
   };
 
   return (
@@ -814,7 +816,7 @@ export default function Flujo({ embedded = false } = {}) {
                   <div className="space-y-2">
                     <Label className="text-xs">Nombre de la tarjeta</Label>
                     <Input
-                      placeholder="Ej: Diners Emilio, Pichincha KP..."
+                      placeholder="Ej: Diners Club, Pacificard Black..."
                       value={formData.card_name}
                       onChange={(e) => setFormData({ ...formData, card_name: e.target.value })}
                       className="h-8 text-sm"

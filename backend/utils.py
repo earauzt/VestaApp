@@ -271,18 +271,11 @@ def _format_vendor_result(vendor: dict, match_type: str) -> dict:
     }
 
 
-# ================= SRI HELPERS =================
+from helpers import generate_sri_alerts, income_matches_year  # noqa: F401
 
-def generate_sri_alerts(category_progress, total_deductible, limite_global):
-    alerts = []
-    if total_deductible >= limite_global * 0.9:
-        alerts.append({"type": "warning", "message": f"Has usado el 90% de tu limite global de deducciones (${limite_global:,.2f})"})
-    for cat in category_progress:
-        if cat["percentage"] >= 100:
-            alerts.append({"type": "error", "message": f"LIMITE EXCEDIDO en {cat['name']}: ${cat['spent']:,.2f} de ${cat['limit']:,.2f}"})
-        elif cat["percentage"] >= 80:
-            alerts.append({"type": "warning", "message": f"{cat['name']}: {cat['percentage']}% del limite usado. Quedan ${cat['remaining']:,.2f}"})
-    return alerts
+
+# ================= SRI HELPERS =================
+# generate_sri_alerts / income_matches_year live in helpers.py (no FastAPI import).
 
 
 # ================= AI HELPERS =================

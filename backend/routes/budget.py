@@ -15,6 +15,7 @@ from models import (
     get_budget_goals
 )
 from utils import get_current_user
+from helpers import income_matches_year
 import ai_client
 
 logger = logging.getLogger(__name__)
@@ -139,11 +140,13 @@ async def get_predictions(user: dict = Depends(get_current_user)):
 @router.get("/income")
 async def get_incomes(year: Optional[int] = None, distribution: Optional[str] = None, user: dict = Depends(get_current_user)):
     query = {"user_id": user["id"]}
-    if year:
-        query["date"] = {"$regex": f"^{year}"}
     if distribution:
         query["distribution"] = distribution
-    incomes = await db.incomes.find(query, {"_id": 0}).sort("date", -1).to_list(1000)
+    # No $regex on date: live docs mix ISO strings and datetimes; $regex on a
+    # Date field 500s the whole handler and the UI toasts "Error al cargar datos".
+    incomes = await db.incomes.find(query, {"_id": 0}).to_list(2000)
+    incomes = [i for i in incomes if income_matches_year(i, year)]
+    incomes.sort(key=lambda i: str(i.get("date") or ""), reverse=True)
     return incomes
 
 
@@ -181,8 +184,8 @@ async def delete_income(income_id: str, user: dict = Depends(get_current_user)):
 @router.get("/income/summary")
 async def get_income_summary(year: Optional[int] = None, user: dict = Depends(get_current_user)):
     current_year = year or datetime.now().year
-    query = {"user_id": user["id"], "date": {"$regex": f"^{current_year}"}}
-    incomes = await db.incomes.find(query, {"_id": 0}).to_list(1000)
+    incomes = await db.incomes.find({"user_id": user["id"]}, {"_id": 0}).to_list(2000)
+    incomes = [i for i in incomes if income_matches_year(i, current_year)]
     by_distribution = {}
     by_concept = {}
     total = 0
@@ -211,19 +214,25 @@ async def get_entity_tags(user: dict = Depends(get_current_user)):
     la categoria del gasto. Vive en la tabla vesta_entity_tags (editable sin
     tocar codigo) una vez aplicada migrations/013_vesta_entity_tags.sql; hasta
     entonces cae de vuelta al default en ENTITY_TAGS para no romper nada."""
+    defaults = [
+        {"key": key, "name": cfg["name"], "sort_order": cfg["sort_order"]}
+        for key, cfg in sorted(ENTITY_TAGS.items(), key=lambda kv: kv[1]["sort_order"])
+    ]
     try:
         rows = await db.entity_tags.find({"is_active": True}, {"_id": 0}).to_list(100)
         if rows:
-            rows.sort(key=lambda r: r.get("sort_order", 0))
-            return {"entity_tags": rows}
+            by_key = {r.get("key"): r for r in rows if r.get("key")}
+            # Titular vs adicional KP son atribución canónica; si la tabla seed
+            # vieja no los tiene, se restauran sin inventar movimientos.
+            for key in ("titular", "adicional_kp"):
+                if key not in by_key and key in ENTITY_TAGS:
+                    by_key[key] = {"key": key, **ENTITY_TAGS[key]}
+            merged = list(by_key.values())
+            merged.sort(key=lambda r: r.get("sort_order", 0))
+            return {"entity_tags": merged}
     except Exception:
         logger.info("vesta_entity_tags no existe todavia (migracion 013 pendiente) — usando default de models.py")
-    return {
-        "entity_tags": [
-            {"key": key, "name": cfg["name"], "sort_order": cfg["sort_order"]}
-            for key, cfg in sorted(ENTITY_TAGS.items(), key=lambda kv: kv[1]["sort_order"])
-        ]
-    }
+    return {"entity_tags": defaults}
 
 
 @router.get("/budget/personal")

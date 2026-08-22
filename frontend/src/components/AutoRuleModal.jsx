@@ -8,21 +8,13 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { toast } from "sonner";
 import { Sparkle } from "@phosphor-icons/react";
-import { SRI_CATEGORIES } from "../constants/categories";
+import { SRI_CATEGORIES, PERSONAL_CATEGORIES } from "../constants/categories";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const FALLBACK_CATEGORIES = {
-  alimentacion: "Alimentación",
-  transporte: "Transporte",
-  salud: "Salud",
-  educacion: "Educación",
-  entretenimiento: "Entretenimiento",
-  servicios_basicos: "Servicios Básicos",
-  vestimenta: "Vestimenta",
-  vivienda: "Vivienda",
-  otros: "Otros",
-};
+const FALLBACK_CATEGORIES = Object.fromEntries(
+  Object.entries(PERSONAL_CATEGORIES).map(([key, cat]) => [key, cat.name])
+);
 
 /**
  * Modal de creación rápida de regla de categorización.

@@ -94,11 +94,18 @@ async def _get_ingresos_gravados_anual(user: dict, year: int) -> float:
     return round(total, 2)
 
 
+def _safe_amount(value) -> float:
+    try:
+        return float(value or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
 def _deductible_amount(tx: dict) -> float:
     """Si aplica_iva=False, el deducible es subtotal_sin_iva; caso contrario, el total."""
     if tx.get("aplica_iva") is False and tx.get("subtotal_sin_iva"):
-        return float(tx.get("subtotal_sin_iva") or 0)
-    return float(tx.get("amount", 0) or 0)
+        return _safe_amount(tx.get("subtotal_sin_iva"))
+    return _safe_amount(tx.get("amount"))
 
 
 @router.get("/sri/categorias")

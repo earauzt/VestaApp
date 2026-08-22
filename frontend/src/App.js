@@ -41,11 +41,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
     );
   }
 
-  if (!user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  if (allowedRoles && !allowedRoles.includes(user.role)) {
+  // Single-user: GET /auth/me is the session. Vercel SSO is the lock.
+  // Never send Emilio to /login — that form and POST /auth/login do not exist.
+  if (allowedRoles && user && !allowedRoles.includes(user.role)) {
     toast.error("No tienes acceso a esa sección");
     return <Navigate to="/dashboard" replace />;
   }
@@ -54,11 +52,9 @@ const ProtectedRoute = ({ children, allowedRoles }) => {
 };
 
 function AppRoutes() {
-  const { user } = useAuth();
-
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/login" element={<Login />} />
       <Route path="/accept-invite/:token" element={<Login />} />
 
       <Route

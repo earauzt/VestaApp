@@ -6,7 +6,7 @@ export default function BandejaStats({ stats = {}, duplicatePairs = [], crossCan
     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
       <Card className="bento-card">
         <CardContent className="p-4 text-center">
-          <p className="text-2xl font-bold text-amber-600">{stats.pending_review || 0}</p>
+          <p className="text-2xl font-bold text-amber-600">{stats.pending_review_total ?? stats.pending_review ?? 0}</p>
           <p className="text-xl font-bold text-primary">{formatCurrency(stats.total_pending_amount)}</p>
           <p className="text-xs text-muted-foreground">por revisar</p>
         </CardContent>

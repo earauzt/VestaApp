@@ -29,6 +29,14 @@ from routes.sri_match import try_sri_match
 import ai_client
 from parsers import dispatch as parser_dispatch, extract_html_body, extract_text_body
 from utils import dedup_or_merge
+from helpers import (
+    last_pool_gmail_list_kwargs,
+    last_pool_tx_from_parsed,
+    leave_uncategorized,
+    normalize_tx_date,
+    VESTA_PROCESSED_LABEL_ID,
+)
+from utils import compute_fingerprint
 
 
 def _resolve_redirect_uri(request: Request) -> str:
@@ -437,6 +445,18 @@ async def _try_auto_approve_recurring(user: dict, doc: dict) -> bool:
 
 @router.post("/gmail/sync")
 async def gmail_sync(force_full: bool = False, user: dict = Depends(get_current_user)):
+    result = await run_gmail_sync(user, force_full=force_full)
+    try:
+        pool = await ingest_labeled_to_last_pool(user, newer_than_days=14)
+        result["last_pool_ingested"] = pool.get("inserted", 0)
+        result["last_pool_skipped"] = pool.get("skipped", 0)
+    except Exception as e:
+        logger.warning(f"last-pool ingest after sync failed: {e}")
+        result["last_pool_ingested"] = 0
+    return result
+
+
+async def run_gmail_sync(user: dict, force_full: bool = False):
     creds = await _get_gmail_credentials(user["id"])
     service = build('gmail', 'v1', credentials=creds)
     # Leer ultimo_sync del token para sync incremental. Si no existe, cap a 90 días.
@@ -454,7 +474,7 @@ async def gmail_sync(force_full: bool = False, user: dict = Depends(get_current_
     if ultimo_sync_dt:
         # Sync incremental: solo emails desde el último sync
         after_ts = int(ultimo_sync_dt.timestamp())
-        max_total = 100
+        max_total = 500
     else:
         # Primer sync / backfill historico: hasta 90 dias, con paginacion real
         # (antes esto se cortaba en 100 mensajes silenciosamente — con >100 notificaciones
@@ -814,7 +834,7 @@ async def gmail_dedup_cleanup(user: dict = Depends(get_current_user)):
 
 
 @router.get("/gmail/transactions")
-async def gmail_transactions(tipo: Optional[str] = None, estado: Optional[str] = None, limit: int = 50, user: dict = Depends(get_current_user)):
+async def gmail_transactions(tipo: Optional[str] = None, estado: Optional[str] = None, limit: int = 10000, user: dict = Depends(get_current_user)):
     query = {"user_id": user["id"]}
     if tipo:
         query["tipo"] = tipo
@@ -1285,17 +1305,103 @@ async def get_parser_quality(user: dict = Depends(get_current_user)):
     return {"alerts": alerts}
 
 
-# ================= CRON job: sync Gmail cada 6h =================
+async def ingest_labeled_to_last_pool(user: dict, newer_than_days: int = 14) -> dict:
+    """Label_6 (Vesta/Procesado) → Transaction docs in the last-pool.
+
+    Labeling Gmail is not ingest. This writes pending_review txs so they
+    appear as latest. Does not approve or invent amounts. Skips existing
+    fingerprints / gmail_id. Definitive $149.47 stays uncategorized.
+    """
+    creds = await _get_gmail_credentials(user["id"])
+    service = build("gmail", "v1", credentials=creds)
+    list_kwargs = last_pool_gmail_list_kwargs(newer_than_days=newer_than_days, now=datetime.now(timezone.utc))
+    messages = []
+    page_token = None
+    while True:
+        page = service.users().messages().list(**{**list_kwargs, "pageToken": page_token} if page_token else list_kwargs).execute()
+        messages.extend(page.get("messages") or [])
+        page_token = page.get("nextPageToken")
+        if not page_token or len(messages) >= 500:
+            break
+
+    inserted = 0
+    skipped = 0
+    for msg_info in messages:
+        gmail_id = msg_info.get("id")
+        if not gmail_id:
+            continue
+        already = await db.transactions.find_one(
+            {"user_id": user["id"], "gmail_id": gmail_id}, {"_id": 0, "id": 1}
+        )
+        if already:
+            skipped += 1
+            continue
+        msg = service.users().messages().get(userId="me", id=gmail_id, format="full").execute()
+        headers = {h["name"].lower(): h["value"] for h in msg.get("payload", {}).get("headers", [])}
+        sender = headers.get("from", "")
+        subject = headers.get("subject", "")
+        html_body = extract_html_body(msg)
+        text_body = extract_text_body(msg) or msg.get("snippet", "")
+        parsed = parser_dispatch(sender, subject, html_body, text_body)
+        if not parsed or parsed.get("tipo") != "consumo" or parsed.get("monto") is None:
+            skipped += 1
+            continue
+        fallback_date = None
+        internal = msg.get("internalDate")
+        if internal:
+            try:
+                fallback_date = datetime.fromtimestamp(int(internal) / 1000, tz=timezone.utc).strftime("%Y-%m-%d")
+            except (TypeError, ValueError, OSError):
+                fallback_date = None
+        if not fallback_date:
+            fallback_date = normalize_tx_date(headers.get("date"))
+        raw = " ".join([subject or "", text_body or "", html_body or ""])
+        tx = last_pool_tx_from_parsed(user["id"], gmail_id, parsed, raw, fallback_date=fallback_date)
+        if not tx.get("date"):
+            skipped += 1
+            continue
+        fp = compute_fingerprint(user["id"], tx.get("tarjeta_ultimos4") or "", float(tx["amount"] or 0), tx["date"])
+        existing_fp = await db.transactions.find_one(
+            {"user_id": user["id"], "fingerprint": fp}, {"_id": 0, "id": 1}
+        )
+        if existing_fp:
+            skipped += 1
+            continue
+        tx["id"] = str(uuid.uuid4())
+        tx["fingerprint"] = fp
+        tx["created_at"] = datetime.now(timezone.utc).isoformat()
+        if leave_uncategorized(tx.get("establishment"), tx.get("amount")):
+            tx["category"] = None
+            tx["personal_category"] = None
+            tx["budget_category"] = None
+            tx["auto_categorized"] = False
+        await db.transactions.insert_one(tx)
+        inserted += 1
+    logger.info(
+        "last-pool ingest user=%s label=%s scanned=%s inserted=%s skipped=%s",
+        user["id"], VESTA_PROCESSED_LABEL_ID, len(messages), inserted, skipped,
+    )
+    return {"scanned": len(messages), "inserted": inserted, "skipped": skipped}
+
+
+# ================= CRON: sync Gmail + daily last-pool ingest =================
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 _gmail_scheduler: Optional[AsyncIOScheduler] = None
 
 
+async def _cron_user_context(uid: str) -> dict:
+    """Vesta has no users table — profile id 'emilio' is the household principal."""
+    profile = await db.profile.find_one({"id": uid}, {"_id": 0})
+    if profile:
+        profile.setdefault("role", "admin")
+        return profile
+    return {"id": uid, "role": "admin"}
+
+
 async def _cron_gmail_sync_all():
-    """Corre sync_gmail para cada usuario con gmail_tokens activos.
-    - Si el token expiró o falla refresh: loguea y continúa
-    - Nunca interrumpe el job por errores individuales
-    """
+    """Ingests labeled consumos into Transaction docs. Does not stamp ultimo_sync
+    unless sync+last-pool actually ran (labeling ≠ ingest)."""
     try:
         tokens = await db.gmail_tokens.find({}, {"_id": 0, "user_id": 1}).to_list(1000)
         logger.info(f"CRON gmail: {len(tokens)} usuarios a sincronizar")
@@ -1304,40 +1410,17 @@ async def _cron_gmail_sync_all():
             if not uid:
                 continue
             try:
-                creds = await _get_gmail_credentials(uid)
-                service = build('gmail', 'v1', credentials=creds)
-                token_doc = await db.gmail_tokens.find_one({"user_id": uid}, {"_id": 0, "ultimo_sync": 1}) or {}
-                ultimo = token_doc.get("ultimo_sync")
-                if isinstance(ultimo, str):
-                    try:
-                        ultimo = datetime.fromisoformat(ultimo.replace("Z", "+00:00"))
-                    except Exception:
-                        ultimo = None
-                now_cron = datetime.now(timezone.utc)
-                after_ts = int(ultimo.timestamp()) if ultimo else int((now_cron - timedelta(days=90)).timestamp())
-                q = (
-                    "from:(servicios@dinersclub.com.ec OR notificaciones@infopacificard.com.ec "
-                    "OR servicios@tarjetasbancopichincha.com OR Avisos24@bolivariano.com "
-                    "OR intermail@bancopacifico.ec OR banco@pichincha.com "
-                    "OR documentoselectronicos@pichincha.com OR estadodecuenta@pacificard.ec "
-                    "OR estadoscuenta@bancodelpacifico.com.ec OR email.apple.com OR netflix.com "
-                    "OR spotify.com OR google.com OR amazon.com OR adobe.com) "
-                    f"after:{after_ts}"
+                user = await _cron_user_context(uid)
+                try:
+                    await run_gmail_sync(user, force_full=False)
+                except Exception as sync_err:
+                    # Label_6 → transactions is independent of incremental after:ultimo_sync
+                    logger.warning(f"CRON gmail sync user={uid}: {type(sync_err).__name__} - {sync_err}")
+                await ingest_labeled_to_last_pool(user, newer_than_days=14)
+                await db.gmail_tokens.update_one(
+                    {"user_id": uid},
+                    {"$set": {"ultimo_sync": datetime.now(timezone.utc).isoformat()}},
                 )
-                res = service.users().messages().list(userId='me', q=q, maxResults=100).execute()
-                msgs = res.get('messages', []) or []
-                logger.info(f"CRON gmail user={uid}: {len(msgs)} emails nuevos detectados")
-                # Reutiliza el pipeline de gmail_sync pero sin HTTP: delega al endpoint
-                # Para mantener el código mínimo, sólo actualizamos ultimo_sync; el user
-                # verá los pendientes al abrir la Bandeja y presionar Sincronizar manual
-                # si se requiere procesar ahora, se invoca gmail_sync via fake user dict.
-                user_doc = await db.users.find_one({"id": uid}, {"_id": 0})
-                if user_doc:
-                    try:
-                        await gmail_sync(user_doc)
-                    except Exception as e2:
-                        logger.warning(f"CRON gmail user={uid}: sync failed: {e2}")
-                await db.gmail_tokens.update_one({"user_id": uid}, {"$set": {"ultimo_sync": now_cron.isoformat()}})
             except HTTPException as he:
                 if he.status_code in (401, 403, 404):
                     logger.warning(f"CRON: usuario {uid} token expirado, skipped")
@@ -1350,13 +1433,14 @@ async def _cron_gmail_sync_all():
 
 
 def start_gmail_cron():
-    """Inicia el scheduler una sola vez (idempotente)."""
+    """Daily last-pool ingest + a 12h backup. Idempotent."""
     global _gmail_scheduler
     if _gmail_scheduler and _gmail_scheduler.running:
         return _gmail_scheduler
     _gmail_scheduler = AsyncIOScheduler(timezone="UTC")
-    _gmail_scheduler.add_job(_cron_gmail_sync_all, "interval", hours=6, id="gmail_sync_all", replace_existing=True)
+    _gmail_scheduler.add_job(_cron_gmail_sync_all, "cron", hour=11, minute=0, id="gmail_last_pool_daily", replace_existing=True)
+    _gmail_scheduler.add_job(_cron_gmail_sync_all, "interval", hours=12, id="gmail_sync_all", replace_existing=True)
     _gmail_scheduler.start()
-    logger.info("CRON gmail scheduler iniciado (cada 6h)")
+    logger.info("CRON gmail scheduler iniciado (diario 11:00 UTC + cada 12h)")
     return _gmail_scheduler
 

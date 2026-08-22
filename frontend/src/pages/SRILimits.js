@@ -29,7 +29,8 @@ export default function SRILimits() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [cargasFamiliares, setCargasFamiliares] = useState("0");
+  const [cargasFamiliares, setCargasFamiliares] = useState("3");
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -51,7 +52,9 @@ export default function SRILimits() {
         { headers: getAuthHeaders() }
       );
       setData(response.data);
+      setLoadError(false);
     } catch (error) {
+      setLoadError(true);
       toast.error("Error al cargar límites SRI");
     } finally {
       setLoading(false);
@@ -115,6 +118,15 @@ export default function SRILimits() {
       </div>
 
       <div className={`space-y-6 transition-opacity ${refreshing ? "opacity-50" : ""}`}>
+      {loadError && !data && (
+        <Alert variant="destructive">
+          <XCircle className="h-4 w-4" />
+          <AlertTitle>No se pudieron cargar los límites SRI</AlertTitle>
+          <AlertDescription>
+            El cálculo falló en el servidor. Revisa la consola o reintenta; no se muestran ceros como si fueran datos reales.
+          </AlertDescription>
+        </Alert>
+      )}
       {/* Contribuyente Info */}
       {data?.contribuyente && (
         <Card className="bento-card bg-white border-slate-200 border-l-4 border-l-primary">
@@ -158,8 +170,8 @@ export default function SRILimits() {
         </div>
       )}
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {/* Summary Cards — no se pintan $0 fingidos si la carga falló */}
+      {data && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -170,11 +182,11 @@ export default function SRILimits() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm text-muted-foreground mb-1">Límite Global</p>
-                  <p className="text-lg sm:text-2xl font-bold text-primary truncate">
+                  <p className="text-lg sm:text-2xl font-bold text-primary break-words">
                     {formatCurrency(data?.limite_global)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {cargasFamiliares} cargas × CBF ${data?.canasta_basica?.toFixed(2)}
+                    {cargasFamiliares} cargas × CBF ${data?.canasta_basica != null ? Number(data.canasta_basica).toFixed(2) : "—"}
                   </p>
                 </div>
                 <div className="p-2 sm:p-3 rounded-xl bg-primary/10 text-primary shrink-0">
@@ -195,7 +207,7 @@ export default function SRILimits() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm text-muted-foreground mb-1">Gastos Deducibles</p>
-                  <p className="text-lg sm:text-2xl font-bold text-emerald-600 truncate">
+                  <p className="text-lg sm:text-2xl font-bold text-emerald-600 break-words">
                     {formatCurrency(data?.total_deductible_spent)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -220,7 +232,7 @@ export default function SRILimits() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm text-muted-foreground mb-1">Gastos NO Deducibles</p>
-                  <p className="text-lg sm:text-2xl font-bold text-red-500 truncate">
+                  <p className="text-lg sm:text-2xl font-bold text-red-500 break-words">
                     {formatCurrency(data?.total_non_deductible_spent)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -245,7 +257,7 @@ export default function SRILimits() {
               <div className="flex items-start justify-between gap-2">
                 <div className="flex-1 min-w-0">
                   <p className="text-xs sm:text-sm text-muted-foreground mb-1">Rebaja IR Estimada</p>
-                  <p className="text-lg sm:text-2xl font-bold text-primary truncate">
+                  <p className="text-lg sm:text-2xl font-bold text-primary break-words">
                     {formatCurrency(data?.rebaja_ir_estimada)}
                   </p>
                   <p className="text-xs text-muted-foreground mt-1">
@@ -259,10 +271,10 @@ export default function SRILimits() {
             </CardContent>
           </Card>
         </motion.div>
-      </div>
+      </div>}
 
       {/* Global Progress */}
-      <motion.div
+      {data && <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.4 }}
@@ -295,10 +307,10 @@ export default function SRILimits() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </motion.div>}
 
       {/* Category Progress */}
-      <motion.div
+      {data && <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.5 }}
@@ -367,7 +379,7 @@ export default function SRILimits() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </motion.div>}
 
       {/* Info Card */}
       <Card className="bento-card bg-white border border-slate-200">
@@ -405,7 +417,7 @@ export default function SRILimits() {
           <div className="mt-4 p-3 rounded-md bg-slate-50 border border-slate-200">
             <p className="text-sm text-slate-700">
               <strong>Rebaja de Impuesto a la Renta:</strong> 18% del menor valor entre tus gastos deducibles y el límite por cargas familiares. 
-              Presenta el Anexo de Gastos Personales en febrero si tus ingresos superan ${data?.fraccion_basica_exenta?.toLocaleString()} anuales.
+              Presenta el Anexo de Gastos Personales en febrero si tus ingresos superan {data?.fraccion_basica_exenta != null ? `$${Number(data.fraccion_basica_exenta).toLocaleString("es-EC")} anuales` : "el umbral legal"}.
             </p>
           </div>
         </CardContent>

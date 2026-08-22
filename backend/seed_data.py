@@ -30,9 +30,9 @@ DEFERRED_PAYMENTS = [
     {"id": "def-pacificard-001", "user_id": USER_ID, "description": "PACIFICARD EFECTIVO BANCA", "total_amount": 11070.90, "monthly_payment": 738.06, "remaining_installments": 13, "total_installments": 15, "card_id": "card-pacificard-black", "card_name": "Pacificard Black"},
     {"id": "def-pacificard-002", "user_id": USER_ID, "description": "PACIFICARD EFECTIVO BANCA", "total_amount": 12639.90, "monthly_payment": 601.90, "remaining_installments": 13, "total_installments": 21, "card_id": "card-pacificard-black", "card_name": "Pacificard Black"},
     {"id": "def-pacificard-003", "user_id": USER_ID, "description": "TECNICENTRO JULIO GUERRA", "total_amount": 1557.42, "monthly_payment": 259.57, "remaining_installments": 1, "total_installments": 6, "card_id": "card-pacificard-black", "card_name": "Pacificard Black"},
-    {"id": "def-pichincha-001", "user_id": USER_ID, "description": "MUNICIPIO DE SAMBOROND", "total_amount": 3953.46, "monthly_payment": 1317.82, "remaining_installments": 2, "total_installments": 3, "card_id": "card-pichincha-platinum", "card_name": "Pichincha Platinum"},
-    {"id": "def-pichincha-002", "user_id": USER_ID, "description": "SRI PAGOS EN LINEA", "total_amount": 737.88, "monthly_payment": 245.96, "remaining_installments": 1, "total_installments": 3, "card_id": "card-pichincha-platinum", "card_name": "Pichincha Platinum"},
-    {"id": "def-pichincha-003", "user_id": USER_ID, "description": "SRI PAGOS EN LINEA", "total_amount": 1665.84, "monthly_payment": 277.64, "remaining_installments": 1, "total_installments": 6, "card_id": "card-pichincha-platinum", "card_name": "Pichincha Platinum"},
+    {"id": "def-pichincha-001", "user_id": USER_ID, "description": "MUNICIPIO DE SAMBOROND", "total_amount": 3953.46, "monthly_payment": 1317.82, "remaining_installments": 2, "total_installments": 3, "card_id": "card-pichincha-platinum", "card_name": "Mastercard Quantum"},
+    {"id": "def-pichincha-002", "user_id": USER_ID, "description": "SRI PAGOS EN LINEA", "total_amount": 737.88, "monthly_payment": 245.96, "remaining_installments": 1, "total_installments": 3, "card_id": "card-pichincha-platinum", "card_name": "Mastercard Quantum"},
+    {"id": "def-pichincha-003", "user_id": USER_ID, "description": "SRI PAGOS EN LINEA", "total_amount": 1665.84, "monthly_payment": 277.64, "remaining_installments": 1, "total_installments": 6, "card_id": "card-pichincha-platinum", "card_name": "Mastercard Quantum"},
 ]
 
 

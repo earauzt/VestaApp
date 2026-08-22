@@ -28,21 +28,18 @@ import {
   XCircle,
   SpinnerGap,
   ArrowsClockwise,
-  SignOut,
   Storefront,
   FileText,
   Pencil,
   Trash,
   IdentificationCard,
-  UserPlus,
-  Copy
 } from "@phosphor-icons/react";
 import { PERSONAL_CATEGORIES } from "../constants/categories";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
 export default function Perfil() {
-  const { user, getAuthHeaders, logout } = useAuth();
+  const { user, getAuthHeaders } = useAuth();
   const [gmailStatus, setGmailStatus] = useState(null);
   const [gmailLoading, setGmailLoading] = useState(true);
   const [gmailConnecting, setGmailConnecting] = useState(false);
@@ -61,11 +58,6 @@ export default function Perfil() {
   // Fiscal data state
   const [fiscal, setFiscal] = useState({ ruc: "", nombre_legal: "", tipo_contribuyente: "persona_natural", zona_sri: "" });
   const [savingFiscal, setSavingFiscal] = useState(false);
-
-  // Invitation state (admin only)
-  const [inviteEmail, setInviteEmail] = useState("");
-  const [inviteLink, setInviteLink] = useState("");
-  const [inviting, setInviting] = useState(false);
 
   const getAuthHeadersRef = useRef(getAuthHeaders);
   useEffect(() => { getAuthHeadersRef.current = getAuthHeaders; });
@@ -124,33 +116,6 @@ export default function Perfil() {
     } finally {
       setSavingFiscal(false);
     }
-  };
-
-  const handleCreateInvite = async () => {
-    if (!inviteEmail) {
-      toast.error("Ingresa un email");
-      return;
-    }
-    setInviting(true);
-    try {
-      const res = await axios.post(
-        `${API}/auth/invite`,
-        { email: inviteEmail, rol: "accountant" },
-        { headers: getAuthHeadersRef.current() }
-      );
-      const link = `${window.location.origin}/accept-invite/${res.data.token}`;
-      setInviteLink(link);
-      toast.success("Invitación creada. Comparte el link con tu contadora.");
-    } catch (e) {
-      toast.error(e.response?.data?.detail || "No se pudo crear la invitación");
-    } finally {
-      setInviting(false);
-    }
-  };
-
-  const copyInviteLink = () => {
-    navigator.clipboard.writeText(inviteLink);
-    toast.success("Link copiado");
   };
 
   const handleConnectGmail = async () => {
@@ -489,70 +454,6 @@ export default function Perfil() {
               )}
             </TabsContent>
           </Tabs>
-        </CardContent>
-      </Card>
-
-      {/* Accesos (admin only) */}
-      {user?.role === "admin" && (
-        <Card className="bg-white border border-slate-200 shadow-sm" data-testid="access-invite-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-slate-900">
-              <UserPlus size={20} className="text-primary" />
-              Accesos
-            </CardTitle>
-            <CardDescription>Invita a tu contadora para que revise tus datos fiscales</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex flex-col sm:flex-row gap-2">
-              <Input
-                type="email"
-                placeholder="contadora@email.com"
-                value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
-                className="flex-1"
-                data-testid="invite-email-input"
-              />
-              <Button
-                onClick={handleCreateInvite}
-                disabled={inviting}
-                className="bg-primary hover:bg-primary/90 text-white gap-2"
-                data-testid="invite-create-btn"
-              >
-                <UserPlus size={15} />
-                {inviting ? "Generando..." : "Invitar contadora"}
-              </Button>
-            </div>
-            {inviteLink && (
-              <div className="p-3 rounded-md bg-slate-50 border border-slate-200 flex items-center gap-2" data-testid="invite-link-display">
-                <code className="flex-1 text-xs text-slate-700 truncate">{inviteLink}</code>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={copyInviteLink}
-                  className="border-slate-200 text-slate-700 hover:bg-white gap-1 shrink-0"
-                  data-testid="invite-copy-btn"
-                >
-                  <Copy size={13} />
-                  Copiar
-                </Button>
-              </div>
-            )}
-            <p className="text-xs text-slate-500">El enlace expira en 48 horas.</p>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Logout */}
-      <Card className="bg-white border border-slate-200 border-l-4 border-l-red-600 shadow-sm">
-        <CardContent className="p-4 flex items-center justify-between">
-          <div>
-            <p className="font-medium text-red-600">Cerrar Sesión</p>
-            <p className="text-xs text-slate-500">Tu sesión se cerrará en este dispositivo</p>
-          </div>
-          <Button onClick={logout} className="gap-2 bg-red-600 hover:bg-red-700 text-white rounded-md px-4 py-2 text-sm font-medium">
-            <SignOut size={16} />
-            Salir
-          </Button>
         </CardContent>
       </Card>
 

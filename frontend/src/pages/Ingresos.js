@@ -95,6 +95,7 @@ export default function Ingresos({ embedded = false } = {}) {
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentDate, setPaymentDate] = useState(new Date());
   const [deleteTarget, setDeleteTarget] = useState(null); // { id, type }
+  const [loadError, setLoadError] = useState(false);
 
   // Form state for income
   const [formData, setFormData] = useState({
@@ -137,11 +138,13 @@ export default function Ingresos({ embedded = false } = {}) {
         axios.get(`${API}/expected-income`, { headers }).catch(() => ({ data: { items: [] } })),
         axios.get(`${API}/accounts-receivable`, { headers }).catch(() => ({ data: { items: [] } }))
       ]);
-      setIncomes(incomesRes.data);
+      setIncomes(Array.isArray(incomesRes.data) ? incomesRes.data : []);
       setSummary(summaryRes.data);
       setExpectedIncomes(expectedRes.data?.items || []);
       setAccountsReceivable(receivableRes.data?.items || []);
+      setLoadError(false);
     } catch (error) {
+      setLoadError(true);
       toast.error("Error al cargar datos");
     } finally {
       setLoading(false);
@@ -489,6 +492,10 @@ export default function Ingresos({ embedded = false } = {}) {
                 <div className="h-4 w-32 bg-slate-100 rounded animate-pulse" />
               </div>
             </>
+          ) : loadError ? (
+            <p className="text-red-600" data-testid="ingresos-total-hero">
+              No se pudieron cargar los ingresos.
+            </p>
           ) : (
             <>
               <p className="text-4xl sm:text-5xl font-bold tracking-tight text-slate-800" data-testid="ingresos-total-hero">
@@ -540,6 +547,10 @@ export default function Ingresos({ embedded = false } = {}) {
             <CardContent>
               {loading ? (
                 <div className="text-center py-8 text-muted-foreground">Cargando...</div>
+              ) : loadError ? (
+                <div className="text-center py-8 text-red-600">
+                  No se pudieron cargar los ingresos. Intenta de nuevo.
+                </div>
               ) : incomes.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">
                   No hay ingresos registrados para {selectedYear}

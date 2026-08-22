@@ -173,7 +173,7 @@ export default function CargarValidar() {
   const fetchGmailTransactions = useCallback(async () => {
     setGmailLoading(true);
     try {
-      const res = await axios.get(`${API}/gmail/transactions`, { headers: getAuthHeadersRef.current() });
+      const res = await axios.get(`${API}/gmail/transactions?estado=pendiente&limit=10000`, { headers: getAuthHeadersRef.current() });
       setGmailTransactions(res.data.transactions || []);
       setGmailSummary(res.data.summary || {});
     } catch (e) {
@@ -307,7 +307,10 @@ export default function CargarValidar() {
         source_label: "Gmail",
         origin_id: t.gmail_id,
         date: t.fecha_transaccion || "",
-        comercio: (t.comercio || "").trim() || (t.descripcion_corta || "(sin comercio)").slice(0, 40),
+        comercio: (t.comercio || "").trim(),
+        descripcion_corta: t.descripcion_corta || "",
+        description: t.descripcion_corta || t.subject || "",
+        entity_tag_key: t.entity_tag_key || "",
         amount: t.monto || 0,
         tipo: t.tipo,
         suggested_category: t.personal_category || "otros",
@@ -320,7 +323,11 @@ export default function CargarValidar() {
         source_label: t.source === "manual" ? "Manual" : "PDF",
         origin_id: t.id,
         date: t.date || "",
-        comercio: (t.establishment || t.description || "(sin comercio)").slice(0, 60),
+        comercio: (t.establishment || "").trim(),
+        establishment: t.establishment || "",
+        description: t.description || "",
+        descripcion_corta: t.descripcion_corta || "",
+        entity_tag_key: t.entity_tag_key || "",
         amount: t.amount || 0,
         tipo: t.transaction_type,
         suggested_category: t.category || t.budget_category || "otros",
@@ -1017,7 +1024,10 @@ export default function CargarValidar() {
 
       {/* Stats Cards */}
       <BandejaStats
-        stats={stats}
+        stats={{
+          ...stats,
+          pending_review_total: Math.max(stats?.pending_review_total ?? 0, unifiedReview.length),
+        }}
         duplicatePairs={duplicatePairs}
         crossCanalCount={crossCanalCount}
         formatCurrency={formatCurrency}
@@ -1042,9 +1052,9 @@ export default function CargarValidar() {
                 {/* stats.pending_review_total viene del backend (mismo numero que
                     Dashboard y Alertas); si stats aun no cargo, se usa la suma local
                     como fallback para no mostrar 0 mientras tanto. */}
-                {(stats?.pending_review_total ?? (gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length)) > 0 && (
+                {Math.max(stats?.pending_review_total ?? 0, unifiedReview.length) > 0 && (
                   <Badge variant="secondary" className="ml-1">
-                    {stats?.pending_review_total ?? (gmailTransactions.filter(t => t.estado === "pendiente").length + pendingTransactions.length)}
+                    {Math.max(stats?.pending_review_total ?? 0, unifiedReview.length)}
                   </Badge>
                 )}
               </TabsTrigger>
