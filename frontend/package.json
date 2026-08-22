@@ -60,7 +60,8 @@
   "scripts": {
     "start": "craco start",
     "build": "craco build",
-    "test": "craco test"
+    "test": "craco test",
+    "vercel-build": "CI=false craco build"
   },
   "engines": {
     "node": "20.x"

@@ -39,11 +39,54 @@ Para que la URL de producción sea alcanzable:
 No commitees tokens de bypass. El candado de producción es ese SSO de
 Vercel, no una clave de Vesta.
 
+## Deploy frontend (Vercel project `vesta`)
+
+Producción: https://vesta-beige-nine.vercel.app
+
+El dashboard de `vesta` está mal para este repo: corre `react-scripts build`
+en la **raíz** (no hay `package.json` ahí) bajo Node 24. Production tiene
+que construir **`frontend/`** con `npm run build` o `yarn run build`
+(ambos ejecutan `craco build`), en **Node 20.x**.
+
+`packageManager` dice yarn@1.22.22, pero no hay `yarn.lock`; el lock es
+`frontend/package-lock.json`. El install de Vercel debe ser **npm**.
+
+### Dashboard — setear exactamente (proyecto `vesta`)
+
+Settings → Build and Deployment:
+
+- **Root Directory:** `frontend`
+- **Build Command:** `CI=false npm run build`
+- **Install Command:** `npm ci --legacy-peer-deps`
+- **Output Directory:** `build`
+- **Node.js Version:** `20.x`
+- **Framework Preset:** Other (no Create React App / no `react-scripts build`)
+
+`CI=false yarn run build` es el mismo script (`craco build`). No usar
+`react-scripts build`.
+
+Si Root Directory se deja vacío, el `vercel.json` de la raíz instala
+`frontend/` y corre `CI=false npm --prefix frontend run build`
+(output `frontend/build`, Node 20). En ese caso el dashboard debe ser:
+
+- **Root Directory:** _(vacío)_
+- **Build Command:** `CI=false npm --prefix frontend run build`
+- **Install Command:** `bash scripts/vercel-install.sh`
+- **Output Directory:** `frontend/build`
+- **Node.js Version:** `20.x`
+
+Lo correcto es **Root Directory = `frontend`** y
+**Build Command = `CI=false npm run build`**.
+
+```bash
+cd frontend && npm ci && npm run build
+```
+
 ## Desarrollo
 
 ```bash
 # frontend
-cd frontend && npm install --legacy-peer-deps && npm run build
+cd frontend && npm ci && npm run build
 
 # backend (tests locales que no pegan a un API remoto)
 cd backend && pip install -r requirements.txt

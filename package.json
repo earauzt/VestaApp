@@ -1,0 +1,13 @@
+{
+  "name": "vesta-app",
+  "private": true,
+  "description": "Monorepo root so Vercel can see Node 20 and install the CRA app in frontend/",
+  "engines": {
+    "node": "20.x"
+  },
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "ci:frontend": "npm ci --prefix frontend --legacy-peer-deps",
+    "postinstall": "bash scripts/vercel-install.sh"
+  }
+}
