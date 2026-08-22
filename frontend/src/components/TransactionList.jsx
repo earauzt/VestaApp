@@ -11,21 +11,11 @@ import {
   CircleNotch,
   Warning
 } from "@phosphor-icons/react";
+import { PERSONAL_CATEGORIES } from "../constants/categories";
 
 const CATEGORIES = {
-  servicios_basicos: "Servicios Básicos",
-  suscripciones: "Suscripciones",
-  empleados: "Empleados",
-  colegio_actividades: "Colegio y Actividades",
-  seguros: "Seguros",
-  comida: "Comida",
-  restaurantes: "Restaurantes",
-  carros: "Carros",
-  gastos_libres: "Gastos Libres",
-  viajes_entretenimiento: "Viajes y Entretenimiento",
+  ...Object.fromEntries(Object.entries(PERSONAL_CATEGORIES).map(([k, c]) => [k, c.name])),
   diferido: "Diferido",
-  usa: "USA",
-  otros: "Otros"
 };
 
 function getStatusBadge(status, confidence) {

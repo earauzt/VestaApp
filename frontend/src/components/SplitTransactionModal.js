@@ -8,20 +8,11 @@ import { Label } from "./ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 import { toast } from "sonner";
 import { Plus, Trash, Scissors, CheckCircle, Warning } from "@phosphor-icons/react";
+import { PERSONAL_CATEGORIES } from "../constants/categories";
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-const CATEGORIES = {
-  alimentacion: { name: "Alimentación", subcategories: ["Comida", "Restaurantes", "Supermercado", "Mercado"], deductible: true },
-  salud: { name: "Salud", subcategories: ["Seguros", "Medicina", "Consultas", "Hospitalización", "Laboratorio"], deductible: true },
-  educacion: { name: "Educación", subcategories: ["Colegio y actividades", "Cursos", "Materiales", "Universidad", "Maestría"], deductible: true },
-  vivienda: { name: "Vivienda", subcategories: ["Servicios básicos", "Arriendo", "Intereses hipoteca", "Mantenimiento"], deductible: true },
-  vestimenta: { name: "Vestimenta", subcategories: ["Ropa", "Calzado", "Accesorios"], deductible: true },
-  turismo: { name: "Turismo Nacional", subcategories: ["Hoteles Ecuador", "Tours locales", "Transporte turístico"], deductible: true },
-  transporte: { name: "Transporte", subcategories: ["Carros", "Combustible", "Mantenimiento vehicular", "Taxi", "Bus"], deductible: false },
-  viajes_internacionales: { name: "Viajes Internacionales", subcategories: ["USA", "Europa", "Otros países"], deductible: false },
-  otros: { name: "Otros", subcategories: ["Empleados", "Entretenimiento", "Varios"], deductible: false }
-};
+const CATEGORIES = PERSONAL_CATEGORIES;
 
 export function SplitTransactionModal({ open, onOpenChange, transaction, onSplitComplete }) {
   const { getAuthHeaders } = useAuth();
@@ -223,12 +214,7 @@ export function SplitTransactionModal({ open, onOpenChange, transaction, onSplit
                     <SelectContent>
                       {Object.entries(CATEGORIES).map(([key, cat]) => (
                         <SelectItem key={key} value={key}>
-                          <span className="flex items-center gap-2">
-                            {cat.name}
-                            {cat.deductible && (
-                              <span className="text-xs text-emerald-600">(SRI)</span>
-                            )}
-                          </span>
+                          {cat.name}
                         </SelectItem>
                       ))}
                     </SelectContent>

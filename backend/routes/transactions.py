@@ -33,11 +33,13 @@ async def create_transaction(transaction: TransactionCreate, user: dict = Depend
     if transaction.country:
         is_international = any(c.lower() in transaction.country.lower() for c in INTERNATIONAL_COUNTRIES)
 
-    category = transaction.category
+    # category is PERSONAL_CATEGORIES. Do not overwrite it with an SRI key
+    # (viajes_internacionales) — SRI tagging is orthogonal via sri_category.
+    category = transaction.category or "otros"
     if is_international and transaction.transaction_type == "expense":
-        category = "viajes_internacionales"
-
-    is_deductible = SRI_CATEGORIES.get(category, {}).get("deductible", False) and not is_international
+        is_deductible = False
+    else:
+        is_deductible = SRI_CATEGORIES.get(category, {}).get("deductible", False)
 
     doc = {
         "id": transaction_id,

@@ -35,7 +35,7 @@ import {
   Sparkle,
   Check
 } from "@phosphor-icons/react";
-import { SRI_CATEGORIES, INCOME_SOURCES } from "../constants/categories";
+import { SRI_CATEGORIES, INCOME_SOURCES, PERSONAL_CATEGORIES } from "../constants/categories";
 import { displayName } from "../utils/displayName";
 import TransactionEditModal from "../components/shared/TransactionEditModal";
 
@@ -57,13 +57,12 @@ const CATEGORY_PILL = "bg-slate-100 text-primary dark:bg-slate-800 dark:text-pri
 const CATEGORY_COLORS = new Proxy({}, { get: () => CATEGORY_PILL });
 
 // Fallback categories (will be replaced by backend data)
-const FALLBACK_CATEGORIES = {
-  servicios_basicos: { name: "Servicios Básicos", subcategories: ["Luz", "Agua", "Internet", "Gas", "Teléfono"] },
-  comida: { name: "Comida", subcategories: ["Supermercado", "Mercado"] },
-  restaurantes: { name: "Restaurantes", subcategories: ["Restaurantes", "Delivery", "Cafetería"] },
-  carros: { name: "Carros", subcategories: ["Gasolina", "Mantenimiento", "Seguro vehicular"] },
-  otros: { name: "Otros", subcategories: ["Varios", "Entretenimiento"] }
-};
+const FALLBACK_CATEGORIES = Object.fromEntries(
+  Object.entries(PERSONAL_CATEGORIES).map(([key, cat]) => [
+    key,
+    { name: cat.name, subcategories: cat.subcategories },
+  ])
+);
 
 // SRI_CATEGORIES and INCOME_SOURCES centralizados en /constants/categories.js
 

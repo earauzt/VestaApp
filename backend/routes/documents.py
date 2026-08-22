@@ -90,10 +90,15 @@ async def process_multiple_receipts(files: List[UploadFile] = File(...), user: d
                     is_deductible = vendor_lookup.get("is_deductible", False)
                     auto_categorized_by = "known_vendor"
                 else:
-                    category = "viajes_internacionales" if is_international else t.get("category", "otros")
+                    category = t.get("category") or "otros"
                     sri_category = t.get("sri_category")
+                    if is_international:
+                        sri_category = sri_category or "viajes_internacionales"
                     subcategory = t.get("subcategory", "Varios")
-                    is_deductible = SRI_CATEGORIES.get(category, {}).get("deductible", False)
+                    is_deductible = (
+                        False if is_international
+                        else SRI_CATEGORIES.get(sri_category or "", {}).get("deductible", False)
+                    )
                     auto_categorized_by = "ai" if t.get("category") else None
                 duplicates = await find_potential_duplicates(user["id"], amount, date, establishment, description)
                 transaction_id = str(uuid.uuid4())
