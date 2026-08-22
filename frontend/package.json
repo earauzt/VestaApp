@@ -59,9 +59,9 @@
   },
   "scripts": {
     "start": "craco start",
-    "build": "craco build",
+    "build": "REACT_APP_BACKEND_URL=https://vestaapp-production.up.railway.app craco build",
     "test": "craco test",
-    "vercel-build": "CI=false craco build"
+    "vercel-build": "CI=false REACT_APP_BACKEND_URL=https://vestaapp-production.up.railway.app craco build"
   },
   "engines": {
     "node": "20.x"
